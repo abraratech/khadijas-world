@@ -20,6 +20,11 @@ import {
   type NpcId,
   type StoredNpcState,
 } from "./livingCharacters";
+import {
+  createDefaultEverydayState,
+  normalizeEverydayState,
+  type EverydayState,
+} from "./everydayState";
 
 const STORAGE_KEY = "khadijas-world:world-2";
 const WORLD_1_STORAGE_KEY = "khadijas-world:world-1";
@@ -43,7 +48,7 @@ export interface PlayerSettings {
 }
 
 export interface PrototypeSave {
-  version: 8;
+  version: 9;
   props: Record<string, StoredPosition>;
   cupboardOpen: boolean;
   lampOn: boolean;
@@ -57,6 +62,7 @@ export interface PrototypeSave {
   content: ContentState;
   livingSettings: LivingSettings;
   npcs: Record<NpcId, StoredNpcState>;
+  everyday: EverydayState;
 
   // Mirrored legacy fields make older code paths and future downgrade tools safe.
   khadijaPosition: StoredPosition;
@@ -84,12 +90,13 @@ interface LegacySave {
   content?: unknown;
   livingSettings?: unknown;
   npcs?: unknown;
+  everyday?: unknown;
 }
 
 function fallbackSave(): PrototypeSave {
   const characters = createDefaultCharacterStates();
   return {
-    version: 8,
+    version: 9,
     props: {},
     cupboardOpen: false,
     lampOn: true,
@@ -103,6 +110,7 @@ function fallbackSave(): PrototypeSave {
     content: createDefaultContentState(),
     livingSettings: normalizeLivingSettings(null),
     npcs: createDefaultNpcStates(),
+    everyday: createDefaultEverydayState(),
     khadijaPosition: { ...characters.khadija.position },
     outfit: characters.khadija.outfit,
     heldItem: null,
@@ -210,7 +218,10 @@ export function loadSave(): PrototypeSave {
   const legacyRoom = normalizeRoom(parsed.activeRoom, inferRoomFromX(legacyPosition.x));
   const characters = createDefaultCharacterStates();
 
-  if ((parsed.version === 6 || parsed.version === 7 || parsed.version === 8) && parsed.characters) {
+  if (
+    (parsed.version === 6 || parsed.version === 7 || parsed.version === 8 || parsed.version === 9)
+    && parsed.characters
+  ) {
     for (const id of CHARACTER_IDS) {
       characters[id] = normalizeCharacter(id, parsed.characters[id], characters[id]);
     }
@@ -240,7 +251,7 @@ export function loadSave(): PrototypeSave {
   const activeRoom = normalizeRoom(parsed.activeRoom, characters[selectedCharacter].room);
 
   return {
-    version: 8,
+    version: 9,
     props: parsed.props ?? {},
     cupboardOpen: parsed.cupboardOpen ?? false,
     lampOn: parsed.lampOn ?? true,
@@ -256,6 +267,7 @@ export function loadSave(): PrototypeSave {
     content: normalizeContentState(parsed.content),
     livingSettings: normalizeLivingSettings(parsed.livingSettings),
     npcs: normalizeNpcStates(parsed.npcs),
+    everyday: normalizeEverydayState(parsed.everyday),
     khadijaPosition: { ...characters.khadija.position },
     outfit: characters.khadija.outfit,
     heldItem: characters.khadija.heldItem,
@@ -375,6 +387,12 @@ export function saveNpcState(state: StoredNpcState): void {
 export function saveContentState(content: ContentState): void {
   const save = loadSave();
   save.content = normalizeContentState(content);
+  writeSave(save);
+}
+
+export function saveEverydayState(everyday: EverydayState): void {
+  const save = loadSave();
+  save.everyday = normalizeEverydayState(everyday);
   writeSave(save);
 }
 

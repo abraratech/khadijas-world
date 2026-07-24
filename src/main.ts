@@ -36,6 +36,7 @@ const roomValue = document.querySelector<HTMLOutputElement>("#room-value");
 const useItemButton = document.querySelector<HTMLButtonElement>("#use-item-button");
 const useItemLabel = useItemButton?.querySelector<HTMLSpanElement>("span:last-child");
 const dropItemButton = document.querySelector<HTMLButtonElement>("#drop-item-button");
+const togetherButton = document.querySelector<HTMLButtonElement>("#together-button");
 const resetButton = document.querySelector<HTMLButtonElement>("#reset-button");
 const helpButton = document.querySelector<HTMLButtonElement>("#help-button");
 const settingsButton = document.querySelector<HTMLButtonElement>("#settings-button");
@@ -69,7 +70,7 @@ const closePopoverButtons = Array.from(document.querySelectorAll<HTMLButtonEleme
 
 if (
   !app || !canvas || !actionValue || !heldItemValue || !heldItemOwnerLabel || !roomValue
-  || !useItemButton || !useItemLabel || !dropItemButton || !resetButton
+  || !useItemButton || !useItemLabel || !dropItemButton || !togetherButton || !resetButton
   || !helpButton || !settingsButton || !helpCard || !settingsPanel
   || !soundToggle || !musicToggle || !idleAnimationToggle || !smallMovementToggle
   || !debugPanel || !status || !fpsValue || !frameValue || !meshValue
@@ -133,6 +134,14 @@ class GameAudio {
       sleep: { from: 380, to: 245, duration: .28, volume: .028, type: "sine" },
       bell: { from: 980, to: 720, duration: .22, volume: .035, type: "sine" },
       toggle: { from: 410, to: 470, duration: .11, volume: .026, type: "square" },
+      appliance: { from: 240, to: 620, duration: .26, volume: .032, type: "square" },
+      water: { from: 700, to: 430, duration: .24, volume: .026, type: "sine" },
+      clean: { from: 540, to: 880, duration: .2, volume: .03, type: "triangle" },
+      storage: { from: 330, to: 440, duration: .14, volume: .028, type: "triangle" },
+      combine: { from: 420, to: 650, duration: .2, volume: .032, type: "sine" },
+      recipe: { from: 620, to: 940, duration: .28, volume: .04, type: "triangle" },
+      shared: { from: 520, to: 780, duration: .22, volume: .036, type: "sine" },
+      invalid: { from: 260, to: 210, duration: .16, volume: .022, type: "triangle" },
     };
     const effect = effects[cue];
     oscillator.type = effect.type;
@@ -280,6 +289,13 @@ const itemActionLabels: Record<string, string> = {
   cup: "Take a sip",
   cupcake: "Enjoy the cupcake",
   sandwich: "Take a bite",
+  "prepared-fruit-bowl": "Taste the fruit",
+  toast: "Crunch the toast",
+  juice: "Sip the juice",
+  tea: "Sip the warm tea",
+  backpack: "Check the backpack",
+  basket: "Check the basket",
+  "serving-tray": "Check the tray",
 };
 
 const roomLabels: Record<RoomId, string> = {
@@ -464,6 +480,7 @@ resetButton.addEventListener("click", () => {
 
 useItemButton.addEventListener("click", () => room.useHeldItem());
 dropItemButton.addEventListener("click", () => room.dropHeldItem());
+togetherButton.addEventListener("click", () => room.playTogether());
 
 for (const button of outfitButtons) {
   button.addEventListener("click", () => {

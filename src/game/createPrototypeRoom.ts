@@ -58,6 +58,7 @@ import {
   restoreProp,
   saveCharacterState,
   saveContentState,
+  saveEverydayState,
   saveNpcState,
   saveProp,
   saveRoomState,
@@ -65,6 +66,19 @@ import {
   type OutfitId,
   type RoomId,
 } from "./storage";
+import {
+  ContainerController,
+  EverydayStorageController,
+  RecipeSystem,
+  friendlyName,
+  isStorageId,
+} from "./everydayControllers";
+import {
+  STATION_IDS,
+  type ContainerId,
+  type StationId,
+} from "./everydayState";
+import type { CombinationSound } from "./combinationRegistry";
 
 export type InteractionSound =
   | "tap"
@@ -73,7 +87,15 @@ export type InteractionSound =
   | "travel"
   | "sleep"
   | "bell"
-  | "toggle";
+  | "toggle"
+  | "appliance"
+  | "water"
+  | "clean"
+  | "storage"
+  | "combine"
+  | "recipe"
+  | "shared"
+  | "invalid";
 
 export interface PlayState {
   heldItem: string | null;
@@ -101,6 +123,7 @@ export interface PrototypeRoom {
   selectCharacter(characterId: CharacterId): void;
   switchRoom(room: RoomId): void;
   setLivingSettings(settings: LivingSettings): void;
+  playTogether(): void;
   getLivingDebugState(): {
     activePlayable: number;
     activeNpcs: number;
@@ -117,6 +140,7 @@ interface SnapTarget {
   name: string;
   position: Vector3;
   marker: Mesh;
+  occupiedBy: string | null;
 }
 
 type UseGesture = "hug" | "read" | "eat" | "drink";
@@ -927,11 +951,18 @@ function makeDraggable(
 
   let dragStartPosition = mesh.position.clone();
   let dragActivated = false;
+  const restoredTarget = targets.find((target) => (
+    Math.hypot(target.position.x - mesh.position.x, target.position.z - mesh.position.z) < .12
+  ));
+  if (restoredTarget && !restoredTarget.occupiedBy) restoredTarget.occupiedBy = mesh.name;
 
   drag.onDragStartObservable.add(() => {
     dragStartPosition = mesh.position.clone();
     dragActivated = false;
     mesh.metadata = { ...mesh.metadata, dragging: true, dragMoved: false };
+    for (const target of targets) {
+      if (target.occupiedBy === mesh.name) target.occupiedBy = null;
+    }
   });
 
   drag.onDragObservable.add(() => {
@@ -960,7 +991,7 @@ function makeDraggable(
       const dz = target.position.z - mesh.position.z;
       const distance = Math.hypot(dx, dz);
       target.marker.scaling.setAll(1);
-      if (distance < nearestDistance) {
+      if ((!target.occupiedBy || target.occupiedBy === mesh.name) && distance < nearestDistance) {
         nearest = target;
         nearestDistance = distance;
       }
@@ -989,7 +1020,7 @@ function makeDraggable(
       const dx = target.position.x - mesh.position.x;
       const dz = target.position.z - mesh.position.z;
       const distance = Math.hypot(dx, dz);
-      if (distance < nearestDistance) {
+      if ((!target.occupiedBy || target.occupiedBy === mesh.name) && distance < nearestDistance) {
         nearest = target;
         nearestDistance = distance;
       }
@@ -997,10 +1028,17 @@ function makeDraggable(
 
     if (nearest && nearestDistance < 1.15) {
       mesh.position.copyFrom(nearest.position);
+      nearest.occupiedBy = mesh.name;
       onAction(`Lovely! The ${mesh.name.replace("draggable-", "")} is on the ${nearest.name}.`);
     } else {
       mesh.position.y = floorY;
-      onAction(`The ${mesh.name.replace("draggable-", "")} is ready to play with.`);
+      const blockedNearby = targets.some((target) => (
+        target.occupiedBy
+        && Math.hypot(target.position.x - mesh.position.x, target.position.z - mesh.position.z) < 1.15
+      ));
+      onAction(blockedNearby
+        ? "That spot is already busy. Try another glowing place!"
+        : `The ${mesh.name.replace("draggable-", "")} is ready to play with.`);
     }
     saveProp(mesh);
   });
@@ -1009,6 +1047,10 @@ function makeDraggable(
 export function createPrototypeRoom(engine: Engine, options: RoomOptions): PrototypeRoom {
   const save = loadSave();
   const contentState = save.content;
+  const everydayState = save.everyday;
+  const storageController = new EverydayStorageController(everydayState);
+  const containerController = new ContainerController(everydayState);
+  const recipeSystem = new RecipeSystem(everydayState);
   const livingSettings: LivingSettings = { ...save.livingSettings };
   const bedroomOffsetX = 22;
   const streetOffsetX = 44;
@@ -1884,6 +1926,7 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     name,
     position,
     marker: createSnapMarker(scene, `snap-${name}-${index}`, position, markerMaterial),
+    occupiedBy: null,
   }));
 
   const plantTargets = makeTargets([
@@ -2128,6 +2171,168 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
   }
 
   const holdables = new Map<string, HoldableItem>();
+  const everydayTargets = new Map<string, Mesh>();
+  const everydayTargetMaterial = material(scene, "everyday-target-mat", colors.yellow);
+  everydayTargetMaterial.alpha = 0.035;
+
+  const everydayTarget = (
+    id: string,
+    room: RoomId,
+    position: Vector3,
+    size = new Vector3(.85, .8, .65),
+  ): Mesh => {
+    const target = box(scene, `everyday-${id}`, size, position, everydayTargetMaterial);
+    target.metadata = { everydayTarget: id, room };
+    everydayTargets.set(id, target);
+    return target;
+  };
+
+  // Small, visible kitchen tools make the recipes discoverable without a recipe screen.
+  const toasterBody = box(scene, "home-toaster", new Vector3(.7, .48, .5), new Vector3(5.05, 1.39, 3.08), pink);
+  box(scene, "home-toaster-slot", new Vector3(.42, .04, .18), new Vector3(0, .26, 0), dark, toasterBody).isPickable = false;
+  const blenderBody = cylinder(scene, "home-blender", .52, .65, new Vector3(4.35, 1.47, 3.08), glass, 14);
+  box(scene, "home-blender-base", new Vector3(.56, .22, .48), new Vector3(4.35, 1.18, 3.08), teal).isPickable = false;
+  const kettleBody = MeshBuilder.CreateSphere("home-kettle", { diameter: .58, segments: 10 }, scene);
+  kettleBody.position.set(3.5, 1.43, 3.08);
+  kettleBody.material = sky;
+  const ovenBody = box(scene, "home-oven", new Vector3(.95, 1.0, .5), new Vector3(5.15, .55, 2.58), dark);
+  const ovenWindow = box(scene, "home-oven-window", new Vector3(.62, .42, .04), new Vector3(0, .05, -.27), glass, ovenBody);
+  ovenWindow.isPickable = false;
+  box(scene, "home-bin", new Vector3(.58, .72, .52), new Vector3(5.05, .36, .72), teal);
+  cylinder(scene, "home-prep-plate", .72, .08, new Vector3(4.28, 1.43, .55), white, 18);
+  cylinder(scene, "home-mixing-bowl", .72, .25, new Vector3(2.52, 1.47, .55), cafeBlue, 18);
+  const applianceVisuals: Record<string, TransformNode> = {
+    toaster: toasterBody,
+    blender: blenderBody,
+    kettle: kettleBody,
+    oven: ovenBody,
+  };
+
+  everydayTarget("toaster", "home", new Vector3(5.05, 1.48, 3.02));
+  everydayTarget("blender", "home", new Vector3(4.35, 1.52, 3.02));
+  everydayTarget("kettle", "home", new Vector3(3.5, 1.48, 3.02));
+  everydayTarget("oven", "home", new Vector3(5.15, .72, 2.48), new Vector3(1.0, 1.25, .7));
+  everydayTarget("prep-plate", "home", new Vector3(4.28, 1.57, .55), new Vector3(.78, .35, .72));
+  everydayTarget("mixing-bowl", "home", new Vector3(2.52, 1.62, .55), new Vector3(.78, .45, .72));
+  everydayTarget("fridge-shelves", "home", new Vector3(2.3, 1.45, 2.32), new Vector3(1.55, 2.9, .45));
+  everydayTarget("kitchen-drawer", "home", new Vector3(4.45, .62, 2.55), new Vector3(.85, .55, .35));
+  everydayTarget("kitchen-cupboard", "home", new Vector3(4.85, 1.9, 3.34), new Vector3(1.8, 1.7, .5));
+  everydayTarget("cafe-display", "cafe", cafePosition(4.55, 1.35, .45), new Vector3(1.8, 1.45, .7));
+  everydayTarget("return-tray", "cafe", cafePosition(2.45, 1.42, 1.75), new Vector3(1.0, .35, .7));
+
+  // Bedroom hygiene nook: characters stay fully clothed and use bubbles and towels.
+  const bathroomFloor = box(scene, "bedroom-bath-mat", new Vector3(2.75, .06, 1.55), bedroomPosition(2.55, .03, -1.82), sky);
+  bathroomFloor.isPickable = false;
+  cylinder(scene, "bedroom-bath-sink", .92, .22, bedroomPosition(3.55, 1.02, -1.55), white, 18);
+  box(scene, "bedroom-bath", new Vector3(1.65, .68, .9), bedroomPosition(2.2, .36, -1.95), white);
+  const bathroomMirror = box(scene, "bedroom-bath-mirror", new Vector3(.9, 1.15, .06), bedroomPosition(3.55, 1.92, -1.25), glass);
+  bathroomMirror.isPickable = false;
+  box(scene, "bedroom-toy-box", new Vector3(1.35, .62, .82), bedroomPosition(.9, .31, -.55), pink);
+  for (let index = 0; index < 5; index += 1) {
+    const bubble = MeshBuilder.CreateSphere(`bath-bubble-${index}`, { diameter: .22 + (index % 2) * .08, segments: 7 }, scene);
+    bubble.position.copyFrom(bedroomPosition(1.7 + index * .25, .72 + (index % 2) * .12, -1.95));
+    bubble.material = white;
+    bubble.isPickable = false;
+  }
+  everydayTarget("wash-hands", "bedroom", bedroomPosition(3.55, 1.15, -1.55), new Vector3(1.0, 1.1, .8));
+  everydayTarget("brush-teeth", "bedroom", bedroomPosition(3.82, 1.72, -1.28), new Vector3(.5, .8, .38));
+  everydayTarget("bath-time", "bedroom", bedroomPosition(2.2, .65, -1.95), new Vector3(1.8, 1.1, 1.1));
+  everydayTarget("use-towel", "bedroom", bedroomPosition(1.2, 1.35, -1.62), new Vector3(.55, 1.5, .5));
+  everydayTarget("mirror-smile", "bedroom", bedroomPosition(3.55, 2.0, -1.28), new Vector3(1.0, 1.3, .35));
+  everydayTarget("wardrobe-shelves", "bedroom", bedroomPosition(4.85, 1.45, -3.12), new Vector3(1.9, 2.9, .45));
+  everydayTarget("toy-box", "bedroom", bedroomPosition(.9, .55, -.55), new Vector3(1.5, .9, 1.0));
+
+  everydayTarget("clean-table", "home", new Vector3(-2.6, .86, -1.8), new Vector3(2.4, .5, 1.35));
+  everydayTarget("clean-counter", "home", new Vector3(4.15, 1.25, 3.0), new Vector3(4.25, .38, 1.2));
+  everydayTarget("wash-dish", "home", new Vector3(4.0, 1.28, 3.05), new Vector3(.9, .65, .8));
+  everydayTarget("bin-rubbish", "home", new Vector3(5.05, .45, .72), new Vector3(.75, .9, .7));
+  everydayTarget("tidy-books", "bedroom", bedroomPosition(1.0, 1.05, 2.72), new Vector3(2.4, 1.5, .8));
+  everydayTarget("tidy-clothes", "bedroom", bedroomPosition(4.85, 1.45, -3.2), new Vector3(2.0, 2.9, .5));
+
+  const ingredientDefinitions: Array<[string, string, Vector3, StandardMaterial, number]> = [
+    ["bread", "bread", new Vector3(2.05, 1.65, 2.28), white, .16],
+    ["cheese", "cheese", new Vector3(2.35, 1.65, 2.28), yellow, .14],
+    ["berries", "berries", new Vector3(2.65, 1.65, 2.28), pink, .15],
+    ["cake-mix", "cake mix", new Vector3(2.05, 1.95, 2.28), cafeBlue, .18],
+    ["banana", "banana", new Vector3(2.35, 1.95, 2.28), yellow, .16],
+    ["tea-leaves", "tea leaves", new Vector3(4.7, 2.08, 3.3), green, .15],
+    ["sponge", "sponge", new Vector3(4.45, .68, 2.38), yellow, .14],
+    ["towel", "towel", bedroomPosition(1.2, 1.35, -1.62), pink, .12],
+    ["rubbish", "wrapper", new Vector3(-2.2, .12, -1.45), white, .12],
+    ["clothes", "folded clothes", bedroomPosition(3.75, .16, -1.45), teal, .14],
+    ["toy-block", "toy block", bedroomPosition(.2, .22, -.45), yellow, .18],
+  ];
+  for (const [id, label, position, itemMaterial, radius] of ingredientDefinitions) {
+    const mesh = id === "bread" || id === "towel"
+      ? box(scene, `draggable-${id}`, new Vector3(.45, .14, .35), position, itemMaterial)
+      : MeshBuilder.CreateSphere(`draggable-${id}`, { diameter: radius * 2, segments: 8 }, scene);
+    if (!(id === "bread" || id === "towel")) {
+      mesh.position.copyFrom(position);
+      mesh.material = itemMaterial;
+    }
+    holdables.set(id, {
+      id,
+      label,
+      mesh,
+      floorY: radius,
+      holdScale: new Vector3(.8, .8, .8),
+      useMessage: `looks at the ${label}`,
+      gesture: "hug",
+      consumable: false,
+    });
+  }
+
+  const preparedDefinitions: Array<[string, string, Vector3, StandardMaterial, UseGesture]> = [
+    ["prepared-fruit-bowl", "fruit bowl", new Vector3(2.52, 1.58, .55), pink, "eat"],
+    ["toast", "toast", new Vector3(5.05, 1.68, 3.02), white, "eat"],
+    ["juice", "fruit juice", new Vector3(4.35, 1.68, 3.02), pink, "drink"],
+    ["tea", "warm tea", new Vector3(3.5, 1.68, 3.02), wood, "drink"],
+  ];
+  for (const [id, label, position, itemMaterial, gesture] of preparedDefinitions) {
+    const mesh = gesture === "drink"
+      ? cylinder(scene, `draggable-${id}`, .34, .46, position, itemMaterial, 12)
+      : box(scene, `draggable-${id}`, new Vector3(.5, .18, .38), position, itemMaterial);
+    mesh.setEnabled((everydayState.preparedCounts[id] ?? 0) > 0);
+    holdables.set(id, {
+      id,
+      label,
+      mesh,
+      floorY: .2,
+      holdScale: new Vector3(.75, .75, .75),
+      useMessage: gesture === "drink" ? `sips the ${label}` : `tastes the ${label}`,
+      gesture,
+      consumable: true,
+      respawnPosition: position.clone(),
+      respawnMessage: `The ${label} is ready again`,
+    });
+  }
+
+  const portableDefinitions: Array<[ContainerId, string, Vector3, StandardMaterial]> = [
+    ["backpack", "backpack", bedroomPosition(1.8, .42, 2.65), cafeBlue],
+    ["basket", "basket", streetPosition(-4.35, .42, -1.85), wood],
+    ["serving-tray", "serving tray", cafePosition(2.4, 1.35, 1.75), teal],
+  ];
+  for (const [id, label, position, itemMaterial] of portableDefinitions) {
+    const mesh = box(scene, `draggable-${id}`, new Vector3(.68, .48, .38), position, itemMaterial);
+    for (let slot = 0; slot < 3; slot += 1) {
+      const dot = MeshBuilder.CreateSphere(`${id}-visible-slot-${slot}`, { diameter: .13, segments: 6 }, scene);
+      dot.position.set((slot - 1) * .18, .31, 0);
+      dot.material = [pink, yellow, sky][slot];
+      dot.parent = mesh;
+      dot.isPickable = false;
+      dot.setEnabled(slot < everydayState.containerContents[id].length);
+    }
+    holdables.set(id, {
+      id,
+      label,
+      mesh,
+      floorY: .24,
+      holdScale: new Vector3(.78, .78, .78),
+      useMessage: `checks the ${label}`,
+      gesture: "hug",
+      consumable: false,
+    });
+  }
 
   const seats: readonly SeatSlot[] = [
     {
@@ -2472,10 +2677,28 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     respawnMessage: "A fresh sandwich appeared in the café display",
   });
 
-  type ItemOwnerId = CharacterId | NpcId;
+  type ItemOwnerId = CharacterId | NpcId | `world:${string}`;
   const isPlayableOwner = (owner: ItemOwnerId): owner is CharacterId => (
     CHARACTER_IDS.includes(owner as CharacterId)
   );
+  const isNpcOwner = (owner: ItemOwnerId): owner is NpcId => (
+    NPC_IDS.includes(owner as NpcId)
+  );
+
+  const removeFromEverydaySlots = (itemId: string): void => {
+    for (const contents of Object.values(everydayState.storageContents)) {
+      const index = contents.indexOf(itemId);
+      if (index >= 0) contents.splice(index, 1);
+    }
+    for (const contents of Object.values(everydayState.containerContents)) {
+      const index = contents.indexOf(itemId);
+      if (index >= 0) contents.splice(index, 1);
+    }
+    for (const contents of Object.values(everydayState.stationInputs)) {
+      const index = contents.indexOf(itemId);
+      if (index >= 0) contents.splice(index, 1);
+    }
+  };
 
   const itemOwner = (itemId: string): ItemOwnerId | null => {
     for (const characterId of CHARACTER_IDS) {
@@ -2483,6 +2706,15 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     }
     for (const npcId of NPC_IDS) {
       if (npcStates[npcId].heldItem === itemId) return npcId;
+    }
+    for (const [id, contents] of Object.entries(everydayState.storageContents)) {
+      if (contents.includes(itemId)) return `world:${id}`;
+    }
+    for (const [id, contents] of Object.entries(everydayState.containerContents)) {
+      if (contents.includes(itemId)) return `world:${id}`;
+    }
+    for (const [id, contents] of Object.entries(everydayState.stationInputs)) {
+      if (contents.includes(itemId)) return `world:${id}`;
     }
     return null;
   };
@@ -2580,8 +2812,11 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
       if (isPlayableOwner(previousOwner)) {
         characters[previousOwner].heldItem = null;
         persistCharacter(previousOwner);
-      } else {
+      } else if (isNpcOwner(previousOwner)) {
         clearNpcItem(previousOwner);
+      } else {
+        removeFromEverydaySlots(id);
+        saveEverydayState(everydayState);
       }
     }
     detachHeldItem(characterId, true);
@@ -2604,6 +2839,21 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     }
     const item = holdables.get(heldItemId);
     if (!item) return;
+    if (containerController.isContainer(heldItemId)) {
+      const storedItemId = everydayState.containerContents[heldItemId][0];
+      if (!storedItemId) {
+        options.onAction(`The ${item.label} is ready to fill.`, "tap");
+        return;
+      }
+      detachHeldItem(characterId, true);
+      const taken = containerController.take(heldItemId);
+      if (taken) holdItem(taken, characterId, false);
+      saveEverydayState(everydayState);
+      syncEverydayVisuals();
+      options.onAction(`Took the ${friendlyName(storedItemId)} out of the ${item.label}.`, "pickup");
+      emitPlayState();
+      return;
+    }
     const interaction: Record<UseGesture, CharacterInteraction> = {
       hug: "hugging",
       read: "reading",
@@ -2649,6 +2899,358 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     }, 550);
   };
 
+  const combinationSound = (sound: CombinationSound): InteractionSound => sound;
+
+  const syncEverydayVisuals = (): void => {
+    const storageSlots: Record<string, readonly Vector3[]> = {
+      "kitchen-cupboard": [
+        new Vector3(4.5, 2.08, 3.3),
+        new Vector3(4.82, 2.08, 3.3),
+        new Vector3(5.14, 2.08, 3.3),
+        new Vector3(4.66, 1.72, 3.3),
+      ],
+      "kitchen-drawer": [
+        new Vector3(4.2, .72, 2.38),
+        new Vector3(4.48, .72, 2.38),
+        new Vector3(4.76, .72, 2.38),
+      ],
+      "fridge-shelves": [
+        new Vector3(1.95, 2.15, 2.28),
+        new Vector3(2.3, 2.15, 2.28),
+        new Vector3(2.65, 2.15, 2.28),
+        new Vector3(1.95, 1.65, 2.28),
+        new Vector3(2.3, 1.65, 2.28),
+        new Vector3(2.65, 1.65, 2.28),
+      ],
+      "wardrobe-shelves": [
+        bedroomPosition(4.45, 1.95, -3.3),
+        bedroomPosition(4.9, 1.95, -3.3),
+        bedroomPosition(5.35, 1.95, -3.3),
+        bedroomPosition(4.65, 1.1, -3.3),
+      ],
+      "toy-box": [
+        bedroomPosition(.5, .62, -.55),
+        bedroomPosition(.82, .62, -.55),
+        bedroomPosition(1.14, .62, -.55),
+        bedroomPosition(1.46, .62, -.55),
+      ],
+      "cafe-display": [
+        cafePosition(4.1, 1.35, .42),
+        cafePosition(4.45, 1.35, .42),
+        cafePosition(4.8, 1.35, .42),
+        cafePosition(4.25, .98, .42),
+        cafePosition(4.65, .98, .42),
+      ],
+      "return-tray": [
+        cafePosition(2.15, 1.48, 1.72),
+        cafePosition(2.4, 1.48, 1.72),
+        cafePosition(2.65, 1.48, 1.72),
+        cafePosition(2.9, 1.48, 1.72),
+      ],
+    };
+    for (const [storageId, contents] of Object.entries(everydayState.storageContents)) {
+      contents.forEach((itemId, index) => {
+        const item = holdables.get(itemId);
+        if (item) {
+          item.mesh.parent = null;
+          item.mesh.scaling.setAll(1);
+          item.mesh.rotation.setAll(0);
+          const slot = storageSlots[storageId]?.[index];
+          if (slot) item.mesh.position.copyFrom(slot);
+          item.mesh.setEnabled(everydayState.storageOpen[storageId as keyof typeof everydayState.storageOpen]);
+          item.mesh.isPickable = true;
+        }
+      });
+    }
+    for (const contents of Object.values(everydayState.containerContents)) {
+      for (const itemId of contents) holdables.get(itemId)?.mesh.setEnabled(false);
+    }
+    for (const contents of Object.values(everydayState.stationInputs)) {
+      for (const itemId of contents) holdables.get(itemId)?.mesh.setEnabled(false);
+    }
+    for (const id of ["backpack", "basket", "serving-tray"] as const) {
+      const container = holdables.get(id);
+      if (!container) continue;
+      const visibleSlots = container.mesh.getChildMeshes().filter((mesh) => mesh.name.includes("visible-slot"));
+      visibleSlots.forEach((mesh, index) => {
+        mesh.setEnabled(index < everydayState.containerContents[id].length);
+      });
+    }
+  };
+
+  const finishRecipe = (station: StationId): void => {
+    const recipe = recipeSystem.completed(station);
+    if (!recipe) return;
+    options.onAction("Mixing something lovely…", combinationSound(recipe.sound));
+    const appliance = recipe.appliance ? applianceVisuals[recipe.appliance] : null;
+    if (appliance) {
+      Animation.CreateAndStartAnimation(
+        `${recipe.appliance}-happy-start`,
+        appliance,
+        "scaling.y",
+        30,
+        Math.max(8, Math.round(recipe.durationMs / 34)),
+        1,
+        1.09,
+        Animation.ANIMATIONLOOPMODE_CYCLE,
+      );
+      if (recipe.appliance === "kettle") everydayState.appliances.kettleWarm = true;
+      if (recipe.appliance === "oven") everydayState.appliances.ovenWarm = true;
+      saveEverydayState(everydayState);
+    }
+    window.setTimeout(() => {
+      if (appliance) {
+        scene.stopAnimation(appliance);
+        appliance.scaling.y = 1;
+      }
+      everydayState.appliances.kettleWarm = false;
+      everydayState.appliances.ovenWarm = false;
+      for (const input of recipe.requiredInputs) {
+        holdables.get(input)?.mesh.setEnabled(false);
+      }
+      recipeSystem.finish(recipe);
+      const ingredientHomes: Record<string, keyof typeof everydayState.storageContents> = {
+        apple: "fridge-shelves",
+        banana: "fridge-shelves",
+        bread: "fridge-shelves",
+        cheese: "fridge-shelves",
+        berries: "fridge-shelves",
+        "cake-mix": "fridge-shelves",
+        "tea-leaves": "kitchen-cupboard",
+        cup: "return-tray",
+      };
+      for (const input of recipe.requiredInputs) {
+        const home = ingredientHomes[input];
+        if (home && !itemOwner(input)) everydayState.storageContents[home].push(input);
+      }
+      const result = holdables.get(recipe.result);
+      if (result && !itemOwner(recipe.result)) {
+        result.mesh.parent = null;
+        result.mesh.scaling.setAll(1);
+        result.mesh.rotation.setAll(0);
+        const outputPositions: Record<string, Vector3> = {
+          "prepared-fruit-bowl": new Vector3(2.52, 1.62, .55),
+          sandwich: new Vector3(4.28, 1.55, .55),
+          toast: new Vector3(5.05, 1.68, 3.02),
+          juice: new Vector3(4.35, 1.68, 3.02),
+          cupcake: new Vector3(5.15, 1.35, 2.52),
+          tea: new Vector3(3.5, 1.68, 3.02),
+        };
+        result.mesh.position.copyFrom(outputPositions[recipe.result] ?? new Vector3(3.4, 1.55, .55));
+        result.mesh.setEnabled(true);
+        result.mesh.isPickable = true;
+        saveProp(result.mesh);
+      }
+      saveEverydayState(everydayState);
+      syncEverydayVisuals();
+      selectedRig().playUseGesture("hug");
+      selectedRig().setExpression("excited");
+      options.onAction(recipe.message, "recipe");
+    }, recipe.durationMs);
+  };
+
+  const useRecipeStation = (station: StationId): void => {
+    const heldId = selectedState().heldItem;
+    if (!heldId) {
+      const completed = recipeSystem.completed(station);
+      if (completed) finishRecipe(station);
+      else options.onAction("Bring an ingredient here and tap again.", "tap");
+      return;
+    }
+    const item = holdables.get(heldId);
+    if (!item) return;
+    const result = recipeSystem.addInput(station, heldId);
+    if (!result.accepted) {
+      selectedRig().setExpression("surprised");
+      options.onAction(result.message, "invalid");
+      return;
+    }
+    detachHeldItem(selectedCharacterId, false);
+    item.mesh.setEnabled(false);
+    saveEverydayState(everydayState);
+    options.onAction(result.message, "combine");
+    const completed = recipeSystem.completed(station);
+    if (completed) finishRecipe(station);
+    emitPlayState();
+  };
+
+  const useStorage = (storageId: string): void => {
+    if (!isStorageId(storageId)) return;
+    const heldId = selectedState().heldItem;
+    if (heldId) {
+      const item = holdables.get(heldId);
+      if (!item) return;
+      const result = storageController.put(storageId, heldId);
+      if (!result.accepted) {
+        selectedRig().setExpression("surprised");
+        options.onAction(result.message, "invalid");
+        return;
+      }
+      detachHeldItem(selectedCharacterId, false);
+      item.mesh.setEnabled(everydayState.storageOpen[storageId]);
+      if (storageId === "toy-box") everydayState.cleaning.toysTidy = true;
+      if (storageId === "wardrobe-shelves") everydayState.cleaning.clothesTidy = true;
+      saveEverydayState(everydayState);
+      syncEverydayVisuals();
+      options.onAction(result.message, "storage");
+      emitPlayState();
+      return;
+    }
+    if (!everydayState.storageOpen[storageId]) {
+      storageController.toggle(storageId);
+      if (storageId === "fridge-shelves") everydayState.appliances.fridgeOpen = true;
+      saveEverydayState(everydayState);
+      syncEverydayVisuals();
+      options.onAction("Opened! Look at all those useful things.", "storage");
+      return;
+    }
+    const itemId = storageController.take(storageId);
+    if (itemId && holdables.has(itemId)) {
+      holdItem(itemId, selectedCharacterId, false);
+      saveEverydayState(everydayState);
+      syncEverydayVisuals();
+      selectedRig().setExpression("excited");
+      options.onAction(`Found the ${friendlyName(itemId)}!`, "pickup");
+      return;
+    }
+    storageController.toggle(storageId);
+    if (storageId === "fridge-shelves") everydayState.appliances.fridgeOpen = false;
+    saveEverydayState(everydayState);
+    syncEverydayVisuals();
+    options.onAction("Closed and tidy.", "storage");
+  };
+
+  const usePortableContainer = (containerId: ContainerId): void => {
+    const heldId = selectedState().heldItem;
+    if (heldId && heldId !== containerId) {
+      const item = holdables.get(heldId);
+      if (!item) return;
+      const result = containerController.put(containerId, heldId);
+      if (!result.accepted) {
+        selectedRig().setExpression("surprised");
+        options.onAction(result.message, "invalid");
+        return;
+      }
+      detachHeldItem(selectedCharacterId, false);
+      item.mesh.setEnabled(false);
+      saveEverydayState(everydayState);
+      syncEverydayVisuals();
+      options.onAction(result.message, "storage");
+      emitPlayState();
+      return;
+    }
+    const itemId = containerController.take(containerId);
+    if (itemId && holdables.has(itemId)) {
+      holdItem(itemId, selectedCharacterId, false);
+      saveEverydayState(everydayState);
+      syncEverydayVisuals();
+      options.onAction(`Took out the ${friendlyName(itemId)}.`, "pickup");
+    }
+  };
+
+  const performEverydayTarget = (targetId: string): void => {
+    if (STATION_IDS.includes(targetId as StationId)) {
+      useRecipeStation(targetId as StationId);
+      return;
+    }
+    if (isStorageId(targetId)) {
+      useStorage(targetId);
+      return;
+    }
+    const hygiene = everydayState.hygiene[selectedCharacterId];
+    if (targetId === "wash-hands") {
+      hygiene.handsWashed = true;
+      selectedRig().playUseGesture("hug");
+      options.onAction("Bubbly hands, rinse and sparkle!", "water");
+    } else if (targetId === "brush-teeth") {
+      hygiene.teethBrushed = true;
+      selectedRig().playUseGesture("eat");
+      options.onAction("Brush, brush—what a shiny smile!", "clean");
+    } else if (targetId === "bath-time") {
+      hygiene.bathBubblesReady = true;
+      hygiene.towelDry = false;
+      selectedRig().playUseGesture("hug");
+      options.onAction("Bubble bath time—cozy clothes stay on!", "water");
+    } else if (targetId === "use-towel") {
+      hygiene.towelDry = true;
+      selectedRig().playUseGesture("hug");
+      options.onAction("Warm, fluffy and all dry!", "clean");
+    } else if (targetId === "mirror-smile") {
+      hygiene.mirrorSmiles += 1;
+      selectedRig().setExpression("excited");
+      options.onAction("What a wonderful smile!", "success");
+    } else if (targetId === "clean-table" || targetId === "clean-counter") {
+      const hasSponge = selectedState().heldItem === "sponge";
+      if (!hasSponge) {
+        options.onAction("Find the yellow sponge in the kitchen drawer.", "invalid");
+        return;
+      }
+      if (targetId === "clean-table") everydayState.cleaning.homeTableClean = true;
+      else everydayState.cleaning.kitchenCounterClean = true;
+      selectedRig().playUseGesture("hug");
+      options.onAction("Swish, wipe, sparkle—lovely and clean!", "clean");
+    } else if (targetId === "wash-dish") {
+      const heldId = selectedState().heldItem;
+      if (heldId !== "cup" && heldId !== "prep-plate" && heldId !== "mixing-bowl") {
+        options.onAction("Bring a cup, plate or bowl to the sink.", "invalid");
+        return;
+      }
+      everydayState.dishClean[heldId] = true;
+      selectedRig().playUseGesture("hug");
+      options.onAction("Bubbles away—the dish is clean!", "water");
+    } else if (targetId === "bin-rubbish") {
+      if (selectedState().heldItem !== "rubbish") {
+        options.onAction("Bring the little wrapper to the bin.", "invalid");
+        return;
+      }
+      const rubbish = detachHeldItem(selectedCharacterId, false);
+      rubbish?.mesh.setEnabled(false);
+      everydayState.cleaning.rubbishBinned = true;
+      selectedRig().setExpression("happy");
+      options.onAction("Plop! The rubbish is safely in the bin.", "clean");
+    } else if (targetId === "tidy-books") {
+      if (selectedState().heldItem !== "book") {
+        options.onAction("Bring the book back to its shelf.", "invalid");
+        return;
+      }
+      const bookItem = detachHeldItem(selectedCharacterId, false);
+      if (bookItem) {
+        bookItem.mesh.position.copyFrom(bedroomPosition(.55, 1.35, 2.72));
+        bookItem.mesh.setEnabled(true);
+      }
+      everydayState.cleaning.booksTidy = true;
+      options.onAction("Books are back on their cozy shelf!", "clean");
+    } else if (targetId === "tidy-clothes") {
+      if (selectedState().heldItem !== "clothes") {
+        options.onAction("Bring the folded clothes to the wardrobe.", "invalid");
+        return;
+      }
+      const clothes = detachHeldItem(selectedCharacterId, false);
+      clothes?.mesh.setEnabled(false);
+      everydayState.storageContents["wardrobe-shelves"].push("clothes");
+      everydayState.cleaning.clothesTidy = true;
+      options.onAction("Clothes folded and tucked away!", "clean");
+    } else {
+      return;
+    }
+    saveEverydayState(everydayState);
+  };
+
+  for (const target of everydayTargets.values()) {
+    target.actionManager = new ActionManager(scene);
+    target.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => {
+      if (target.metadata?.room !== activeRoom) return;
+      performEverydayTarget(target.metadata.everydayTarget as string);
+    }));
+  }
+
+  for (const id of ["backpack", "basket", "serving-tray"] as const) {
+    const item = holdables.get(id);
+    if (item) item.mesh.metadata = { ...item.mesh.metadata, containerTarget: id };
+  }
+
+  syncEverydayVisuals();
+
   const restoredItemOwners = new Set<string>();
   for (const characterId of CHARACTER_IDS) {
     const heldItemId = characters[characterId].heldItem;
@@ -2658,6 +3260,7 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
       continue;
     }
     restoredItemOwners.add(heldItemId);
+    removeFromEverydaySlots(heldItemId);
     attachItemToCharacter(item, characterId);
   }
   for (const npcId of NPC_IDS) {
@@ -2668,8 +3271,10 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
       continue;
     }
     restoredItemOwners.add(heldItemId);
+    removeFromEverydaySlots(heldItemId);
     attachItemToNpc(item, npcId);
   }
+  saveEverydayState(everydayState);
 
   for (const item of holdables.values()) {
     item.mesh.metadata = { ...item.mesh.metadata, holdableId: item.id };
@@ -2689,6 +3294,16 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
 
     if (pointerInfo.type === PointerEventTypes.POINTERDOWN) {
       const pickedMesh = pointerInfo.pickInfo?.pickedMesh;
+      const containerTarget = pickedMesh?.metadata?.containerTarget as ContainerId | undefined;
+      if (
+        containerTarget
+        && selectedState().heldItem
+        && selectedState().heldItem !== containerTarget
+      ) {
+        usePortableContainer(containerTarget);
+        holdTap = null;
+        return;
+      }
       const holdableId = pickedMesh?.metadata?.holdableId as string | undefined;
       holdTap = holdableId && pickedMesh
         ? {
@@ -2752,7 +3367,9 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     if (owner && owner !== selectedCharacterId) {
       const ownerName = isPlayableOwner(owner)
         ? CHARACTER_DEFINITIONS[owner].shortName
-        : NPC_DEFINITIONS[owner].displayName;
+        : isNpcOwner(owner)
+          ? NPC_DEFINITIONS[owner].displayName
+          : "A storage spot";
       options.onAction(`${ownerName} has the cup right now.`);
       return;
     }
@@ -2916,13 +3533,13 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     characterRigs[toId].setExpression("excited");
     characterRigs[fromId].lookAt(characterRigs[toId].root.position);
     characterRigs[toId].lookAt(characterRigs[fromId].root.position);
-    characterRigs[toId].playUseGesture("hug");
+    characterRigs[toId].playUseGesture(item.gesture);
     attachItemToCharacter(item, toId);
     persistCharacter(fromId);
     persistCharacter(toId);
     options.onAction(
       `${CHARACTER_DEFINITIONS[fromId].shortName} gave the ${item.label} to ${CHARACTER_DEFINITIONS[toId].shortName}!`,
-      "success",
+      item.gesture === "eat" || item.gesture === "drink" ? "shared" : "success",
     );
     return true;
   };
@@ -3157,6 +3774,66 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
         rig.setExpression(characters[characterId].expression);
       }
     }, 1050);
+  };
+
+  const playTogether = (): void => {
+    const actorId = selectedCharacterId;
+    const actorState = selectedState();
+    let friendId: CharacterId | null = null;
+    let closest = 3.1;
+    for (const characterId of CHARACTER_IDS) {
+      if (characterId === actorId || characters[characterId].room !== activeRoom) continue;
+      const distance = Vector3.Distance(
+        characterRigs[actorId].root.position,
+        characterRigs[characterId].root.position,
+      );
+      if (distance < closest) {
+        friendId = characterId;
+        closest = distance;
+      }
+    }
+    if (!friendId) {
+      options.onAction("Move a family member nearby to play together.", "invalid");
+      return;
+    }
+
+    const friendRig = characterRigs[friendId];
+    const actorRig = characterRigs[actorId];
+    actorRig.cancelMovement();
+    friendRig.cancelMovement();
+    actorRig.lookAt(friendRig.root.position);
+    friendRig.lookAt(actorRig.root.position);
+    const held = actorState.heldItem ? holdables.get(actorState.heldItem) : null;
+
+    if (held?.gesture === "read") {
+      actorRig.playUseGesture("read");
+      friendRig.playUseGesture("read");
+      temporaryReaction(actorId, "happy");
+      temporaryReaction(friendId, "excited");
+      options.onAction("Story time together!", "shared");
+    } else if (held?.id === "teddy" || held?.gesture === "hug") {
+      actorRig.playUseGesture("hug");
+      friendRig.playUseGesture("hug");
+      temporaryReaction(actorId, "excited");
+      temporaryReaction(friendId, "happy");
+      options.onAction("A happy toy game together!", "shared");
+    } else if (held?.gesture === "eat" || held?.gesture === "drink") {
+      actorRig.playUseGesture(held.gesture);
+      friendRig.playUseGesture(held.gesture);
+      temporaryReaction(actorId, "happy");
+      temporaryReaction(friendId, "excited");
+      options.onAction(`A tasty ${held.gesture === "eat" ? "snack" : "drink"} to share!`, "shared");
+    } else {
+      actorRig.playUseGesture("hug");
+      friendRig.playUseGesture("hug");
+      temporaryReaction(actorId, "excited");
+      temporaryReaction(friendId, "excited");
+      options.onAction("High-five! What a great team!", "shared");
+    }
+    window.setTimeout(() => {
+      actorRig.lookAt(null);
+      friendRig.lookAt(null);
+    }, 1150);
   };
 
   const nearestCompanionPosition = (
@@ -3510,6 +4187,7 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     selectCharacter,
     switchRoom,
     setLivingSettings,
+    playTogether,
     getLivingDebugState,
   };
 }

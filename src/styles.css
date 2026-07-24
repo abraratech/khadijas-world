@@ -686,7 +686,8 @@ button:disabled {
 }
 
 .use-item-button,
-.drop-item-button {
+.drop-item-button,
+.together-button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -706,7 +707,8 @@ button:disabled {
 }
 
 .use-item-button:not(:disabled):hover,
-.drop-item-button:not(:disabled):hover { filter: brightness(1.08); }
+.drop-item-button:not(:disabled):hover,
+.together-button:hover { filter: brightness(1.08); }
 
 .use-item-button > span:first-child { color: #ffd75b; }
 
@@ -716,6 +718,15 @@ button:disabled {
   color: #724a59;
   background: #f9dce6;
   font-size: .66rem;
+}
+
+.together-button {
+  min-width: 88px;
+  padding: 0 10px;
+  color: #5d4279;
+  background: linear-gradient(145deg, #dff7f1, #bfe8df);
+  font-size: .66rem;
+  box-shadow: 0 4px 9px rgba(54, 112, 101, .14);
 }
 
 .outfit-controls {
@@ -1119,7 +1130,15 @@ button:disabled {
     font-size: 1rem;
   }
 
-  .drop-item-button span:last-child { display: none; }
+  .together-button {
+    min-width: 48px;
+    width: 48px;
+    padding: 0;
+    font-size: 1rem;
+  }
+
+  .drop-item-button span:last-child,
+  .together-button span:last-child { display: none; }
   .outfit-controls { min-width: 96px; }
   .outfit-heading { display: none; }
   .expression-heading { display: none; }
@@ -1232,6 +1251,12 @@ button:disabled {
   }
 
   .drop-item-button {
+    width: 40px;
+    min-width: 40px;
+    min-height: 41px;
+  }
+
+  .together-button {
     width: 40px;
     min-width: 40px;
     min-height: 41px;
