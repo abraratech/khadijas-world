@@ -24,7 +24,15 @@ export interface LivingController {
   decisionCount: number;
 }
 
-export const NPC_IDS = ["parent", "neighbor", "cafe-worker"] as const;
+export const NPC_IDS = [
+  "parent",
+  "neighbor",
+  "cafe-worker",
+  "park-keeper",
+  "park-parent",
+  "shopkeeper",
+  "grocery-shopper",
+] as const;
 export type NpcId = typeof NPC_IDS[number];
 
 export interface StoredNpcState {
@@ -43,7 +51,14 @@ export interface NpcDefinition {
   homeLocation: RoomId;
   position: { x: number; y: number; z: number };
   outfit: "pink" | "teal" | "yellow";
-  role: "guardian" | "neighbor" | "cafe-worker";
+  role:
+    | "guardian"
+    | "neighbor"
+    | "cafe-worker"
+    | "park-keeper"
+    | "caregiver"
+    | "shopkeeper"
+    | "shopper";
   idleBehaviorSet: readonly LivingAction[];
   interactionPrompt: string;
   dialogue: readonly string[];
@@ -111,6 +126,75 @@ export const NPC_DEFINITIONS: Record<NpcId, NpcDefinition> = {
     workStation: "cafe-counter",
     scale: .94,
   },
+  "park-keeper": {
+    id: "park-keeper",
+    displayName: "Mr. Sami",
+    homeLocation: "park",
+    position: { x: 84.65, y: 0, z: 1.45 },
+    outfit: "teal",
+    role: "park-keeper",
+    idleBehaviorSet: ["look-around", "work", "social", "short-wander"],
+    interactionPrompt: "Talk with Mr. Sami",
+    dialogue: [
+      "The flowers look happiest after a gentle watering.",
+      "Thank you for helping to keep the park lovely!",
+      "The birds enjoy fruit, bread, and friendly company.",
+    ],
+    workStation: "park-flowers",
+    scale: .96,
+  },
+  "park-parent": {
+    id: "park-parent",
+    displayName: "Auntie Layla",
+    homeLocation: "park",
+    position: { x: 91.2, y: 0, z: -.05 },
+    outfit: "pink",
+    role: "caregiver",
+    idleBehaviorSet: ["look-around", "relax", "use-item", "social"],
+    interactionPrompt: "Talk with Auntie Layla",
+    dialogue: [
+      "This is a lovely place to read together.",
+      "A picnic sounds wonderful today!",
+      "The playground has room for everyone.",
+    ],
+    workStation: "park-bench-right",
+    seatId: "park-bench-3",
+    scale: .96,
+  },
+  shopkeeper: {
+    id: "shopkeeper",
+    displayName: "Mr. Kareem",
+    homeLocation: "grocery",
+    position: { x: 111.7, y: 0, z: -1.9 },
+    outfit: "yellow",
+    role: "shopkeeper",
+    idleBehaviorSet: ["look-around", "work", "social", "react"],
+    interactionPrompt: "Talk with Mr. Kareem",
+    dialogue: [
+      "Welcome! A shopping basket is ready for you.",
+      "Bread and cheese make a super sandwich.",
+      "Bring your basket to the counter when you are ready.",
+    ],
+    workStation: "grocery-checkout",
+    scale: .98,
+  },
+  "grocery-shopper": {
+    id: "grocery-shopper",
+    displayName: "Mrs. Huda",
+    homeLocation: "grocery",
+    position: { x: 107.1, y: 0, z: .15 },
+    outfit: "pink",
+    role: "shopper",
+    idleBehaviorSet: ["look-around", "social", "short-wander", "use-item"],
+    interactionPrompt: "Talk with Mrs. Huda",
+    dialogue: [
+      "I am looking for something fruity today.",
+      "These shelves have so many colorful choices!",
+      "A basket makes shopping easy.",
+    ],
+    workStation: "grocery-produce",
+    scale: .9,
+  },
 };
 
 export function createDefaultNpcStates(): Record<NpcId, StoredNpcState> {
@@ -120,10 +204,12 @@ export function createDefaultNpcStates(): Record<NpcId, StoredNpcState> {
       id,
       room: definition.homeLocation,
       position: { ...definition.position },
-      rotationY: id === "cafe-worker" ? Math.PI : 0,
+      rotationY: id === "cafe-worker" || id === "shopkeeper" ? Math.PI : 0,
       heldItem: null,
       stationId: definition.workStation ?? null,
-      activity: id === "cafe-worker" ? "work" : "relax",
+      activity: id === "cafe-worker" || id === "shopkeeper" || id === "park-keeper"
+        ? "work"
+        : "relax",
     } satisfies StoredNpcState];
   })) as Record<NpcId, StoredNpcState>;
 }
@@ -144,7 +230,11 @@ function safeNpcPosition(
   const fallback = NPC_DEFINITIONS[id].position;
   if (!value || typeof value !== "object") return { ...fallback };
   const candidate = value as Partial<StoredNpcState["position"]>;
-  const maximumDistance = id === "parent" ? .75 : id === "cafe-worker" ? 1.25 : 1.35;
+  const maximumDistance = id === "parent"
+    ? .75
+    : id === "cafe-worker" || id === "shopkeeper"
+      ? 1.25
+      : 1.65;
   const x = typeof candidate.x === "number" && Number.isFinite(candidate.x)
     ? candidate.x
     : fallback.x;

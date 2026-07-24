@@ -14,6 +14,7 @@ import {
 } from "./contentState";
 import {
   createDefaultNpcStates,
+  NPC_IDS,
   normalizeLivingSettings,
   normalizeNpcStates,
   type LivingSettings,
@@ -25,6 +26,16 @@ import {
   normalizeEverydayState,
   type EverydayState,
 } from "./everydayState";
+import {
+  createDefaultDialogueState,
+  normalizeDialogueState,
+  type DialogueSaveState,
+} from "./npc/NpcMemory";
+import {
+  createDefaultWorld3State,
+  normalizeWorld3State,
+  type World3State,
+} from "./world3State";
 
 const STORAGE_KEY = "khadijas-world:world-2";
 const WORLD_1_STORAGE_KEY = "khadijas-world:world-1";
@@ -40,7 +51,7 @@ interface StoredPosition {
 }
 
 export type OutfitId = "pink" | "teal" | "yellow";
-export type RoomId = "home" | "bedroom" | "street" | "cafe";
+export type RoomId = "home" | "bedroom" | "street" | "cafe" | "park" | "grocery";
 
 export interface PlayerSettings {
   sound: boolean;
@@ -48,7 +59,7 @@ export interface PlayerSettings {
 }
 
 export interface PrototypeSave {
-  version: 9;
+  version: 10;
   props: Record<string, StoredPosition>;
   cupboardOpen: boolean;
   lampOn: boolean;
@@ -63,6 +74,8 @@ export interface PrototypeSave {
   livingSettings: LivingSettings;
   npcs: Record<NpcId, StoredNpcState>;
   everyday: EverydayState;
+  world3: World3State;
+  dialogue: DialogueSaveState;
 
   // Mirrored legacy fields make older code paths and future downgrade tools safe.
   khadijaPosition: StoredPosition;
@@ -91,12 +104,14 @@ interface LegacySave {
   livingSettings?: unknown;
   npcs?: unknown;
   everyday?: unknown;
+  world3?: unknown;
+  dialogue?: unknown;
 }
 
 function fallbackSave(): PrototypeSave {
   const characters = createDefaultCharacterStates();
   return {
-    version: 9,
+    version: 10,
     props: {},
     cupboardOpen: false,
     lampOn: true,
@@ -111,6 +126,8 @@ function fallbackSave(): PrototypeSave {
     livingSettings: normalizeLivingSettings(null),
     npcs: createDefaultNpcStates(),
     everyday: createDefaultEverydayState(),
+    world3: createDefaultWorld3State(),
+    dialogue: createDefaultDialogueState(),
     khadijaPosition: { ...characters.khadija.position },
     outfit: characters.khadija.outfit,
     heldItem: null,
@@ -137,6 +154,8 @@ function readLegacyPlayerSettings(): Partial<PlayerSettings> {
 }
 
 function inferRoomFromX(x: number): RoomId {
+  if (x > 100) return "grocery";
+  if (x > 78) return "park";
   if (x > 56) return "cafe";
   if (x > 34) return "street";
   if (x > 12) return "bedroom";
@@ -144,7 +163,12 @@ function inferRoomFromX(x: number): RoomId {
 }
 
 function normalizeRoom(value: unknown, fallback: RoomId): RoomId {
-  return value === "home" || value === "bedroom" || value === "street" || value === "cafe"
+  return value === "home"
+    || value === "bedroom"
+    || value === "street"
+    || value === "cafe"
+    || value === "park"
+    || value === "grocery"
     ? value
     : fallback;
 }
@@ -219,7 +243,13 @@ export function loadSave(): PrototypeSave {
   const characters = createDefaultCharacterStates();
 
   if (
-    (parsed.version === 6 || parsed.version === 7 || parsed.version === 8 || parsed.version === 9)
+    (
+      parsed.version === 6
+      || parsed.version === 7
+      || parsed.version === 8
+      || parsed.version === 9
+      || parsed.version === 10
+    )
     && parsed.characters
   ) {
     for (const id of CHARACTER_IDS) {
@@ -251,7 +281,7 @@ export function loadSave(): PrototypeSave {
   const activeRoom = normalizeRoom(parsed.activeRoom, characters[selectedCharacter].room);
 
   return {
-    version: 9,
+    version: 10,
     props: parsed.props ?? {},
     cupboardOpen: parsed.cupboardOpen ?? false,
     lampOn: parsed.lampOn ?? true,
@@ -268,6 +298,8 @@ export function loadSave(): PrototypeSave {
     livingSettings: normalizeLivingSettings(parsed.livingSettings),
     npcs: normalizeNpcStates(parsed.npcs),
     everyday: normalizeEverydayState(parsed.everyday),
+    world3: normalizeWorld3State(parsed.world3),
+    dialogue: normalizeDialogueState(parsed.dialogue, NPC_IDS),
     khadijaPosition: { ...characters.khadija.position },
     outfit: characters.khadija.outfit,
     heldItem: characters.khadija.heldItem,
@@ -393,6 +425,18 @@ export function saveContentState(content: ContentState): void {
 export function saveEverydayState(everyday: EverydayState): void {
   const save = loadSave();
   save.everyday = normalizeEverydayState(everyday);
+  writeSave(save);
+}
+
+export function saveWorld3State(world3: World3State): void {
+  const save = loadSave();
+  save.world3 = normalizeWorld3State(world3);
+  writeSave(save);
+}
+
+export function saveDialogueState(dialogue: DialogueSaveState): void {
+  const save = loadSave();
+  save.dialogue = normalizeDialogueState(dialogue, NPC_IDS);
   writeSave(save);
 }
 

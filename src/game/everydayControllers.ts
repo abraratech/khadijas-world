@@ -16,15 +16,18 @@ const CONTAINER_CAPACITY: Record<ContainerId, number> = {
   backpack: 3,
   basket: 3,
   "serving-tray": 3,
+  "shopping-basket": 6,
+  "shopping-bag": 8,
+  "picnic-basket": 4,
   "prep-plate": 2,
   "mixing-bowl": 2,
   "toy-box": 4,
 };
 
 const STORAGE_CAPACITY: Record<StorageId, number> = {
-  "kitchen-cupboard": 4,
+  "kitchen-cupboard": 8,
   "kitchen-drawer": 3,
-  "fridge-shelves": 6,
+  "fridge-shelves": 12,
   "wardrobe-shelves": 4,
   "toy-box": 4,
   "cafe-display": 5,
@@ -125,4 +128,3 @@ export function isStorageId(value: string): value is StorageId {
 export function friendlyName(value: string): string {
   return value.replace(/^prepared-/, "").replaceAll("-", " ");
 }
-

@@ -88,6 +88,28 @@
             <span class="location-icon cafe-icon" aria-hidden="true">&#9749;</span>
             <span class="location-name">Sunny Caf&eacute;</span>
           </button>
+          <span class="map-path" aria-hidden="true"></span>
+          <button
+            class="location-button"
+            data-room="park"
+            type="button"
+            aria-label="Go to the neighborhood park"
+            aria-pressed="false"
+          >
+            <span class="location-icon park-icon" aria-hidden="true">&#127966;&#65039;</span>
+            <span class="location-name">Park</span>
+          </button>
+          <span class="map-path" aria-hidden="true"></span>
+          <button
+            class="location-button"
+            data-room="grocery"
+            type="button"
+            aria-label="Go to the grocery shop"
+            aria-pressed="false"
+          >
+            <span class="location-icon grocery-icon" aria-hidden="true">&#129367;</span>
+            <span class="location-name">Grocery</span>
+          </button>
         </div>
       </nav>
 
@@ -170,6 +192,49 @@
             aria-label="Sounds"
           ><span></span></button>
         </div>
+
+        <div class="setting-row">
+          <span class="setting-icon chat-setting-icon" aria-hidden="true">&#128172;</span>
+          <span class="setting-copy"><strong>NPC chat</strong><small>Talk with neighborhood friends</small></span>
+          <button
+            id="npc-chat-toggle"
+            class="switch is-on"
+            type="button"
+            role="switch"
+            aria-checked="true"
+            aria-label="NPC chat"
+          ><span></span></button>
+        </div>
+
+        <div class="setting-row">
+          <span class="setting-icon typing-setting-icon" aria-hidden="true">&#9000;&#65039;</span>
+          <span class="setting-copy"><strong>Typed messages</strong><small>Write short messages in chats</small></span>
+          <button
+            id="typed-chat-toggle"
+            class="switch is-on"
+            type="button"
+            role="switch"
+            aria-checked="true"
+            aria-label="Typed messages"
+          ><span></span></button>
+        </div>
+
+        <div class="setting-row">
+          <span class="setting-icon memory-setting-icon" aria-hidden="true">&#128214;</span>
+          <span class="setting-copy"><strong>Remember conversations</strong><small>Let friends remember kind moments</small></span>
+          <button
+            id="memory-toggle"
+            class="switch is-on"
+            type="button"
+            role="switch"
+            aria-checked="true"
+            aria-label="Remember conversations"
+          ><span></span></button>
+        </div>
+
+        <button id="clear-all-memories-button" class="memory-clear-button" type="button">
+          <span aria-hidden="true">&#10024;</span> Clear conversation memories
+        </button>
 
         <div class="setting-row">
           <span class="setting-icon music-setting-icon" aria-hidden="true">&#127925;</span>
@@ -290,6 +355,43 @@
       <output id="room-value" class="visually-hidden">Family home</output>
       <div id="feedback-sparkles" class="feedback-sparkles" aria-hidden="true"></div>
 
+      <section
+        id="chat-panel"
+        class="chat-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="chat-npc-name"
+        hidden
+      >
+        <header class="chat-heading">
+          <span id="chat-npc-portrait" class="chat-portrait" aria-hidden="true">&#128578;</span>
+          <span class="chat-title">
+            <strong id="chat-npc-name">Neighborhood friend</strong>
+            <small id="chat-friendship">New friend</small>
+          </span>
+          <button id="chat-close-button" class="chat-close-button" type="button" aria-label="Close conversation">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </header>
+        <div id="chat-messages" class="chat-messages" aria-live="polite"></div>
+        <div id="chat-thinking" class="chat-thinking" aria-label="Thinking" hidden>
+          <span></span><span></span><span></span>
+        </div>
+        <div id="chat-topics" class="chat-topics" aria-label="Things to talk about"></div>
+        <form id="chat-form" class="chat-form">
+          <label class="visually-hidden" for="chat-input">Write a short message</label>
+          <input
+            id="chat-input"
+            type="text"
+            maxlength="160"
+            autocomplete="off"
+            placeholder="Say something friendly..."
+          />
+          <button id="chat-send-button" type="submit">Send</button>
+        </form>
+        <button id="chat-clear-button" class="chat-clear-button" type="button">Clear this friend's memories</button>
+      </section>
+
       <div id="location-transition" class="location-transition" aria-hidden="true">
         <span id="transition-icon" class="transition-icon">&#127968;</span>
         <span class="transition-copy">
@@ -305,6 +407,10 @@
         <span><b id="mesh-value">&mdash;</b> active meshes</span>
         <span><b id="resolution-value">&mdash;</b> internal resolution</span>
         <span><b id="living-value">&mdash;</b> living updates</span>
+        <span><b id="dialogue-intent-value">&mdash;</b> dialogue choice</span>
+        <span><b id="dialogue-entities-value">&mdash;</b> dialogue details</span>
+        <span><b id="dialogue-template-value">&mdash;</b> reply pattern</span>
+        <span><b id="dialogue-memory-value">&mdash;</b> remembered facts</span>
         <output id="status">Starting Babylon.js&hellip;</output>
       </aside>
     </main>

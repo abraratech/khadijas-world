@@ -4,6 +4,7 @@ import {
   createPrototypeRoom,
   type InteractionSound,
   type PlayState,
+  type PrototypeRoom,
 } from "./game/createPrototypeRoom";
 import {
   CHARACTER_DEFINITIONS,
@@ -11,6 +12,11 @@ import {
   type CharacterId,
 } from "./game/characterState";
 import { applyQuality, type QualityPreset } from "./game/quality";
+import { DialogueController, type DialogueContext } from "./game/dialogue/DialogueController";
+import type { DialogueTopic } from "./game/content/dialogue/topicSuggestions";
+import type { DialogueIntent } from "./game/dialogue/DialogueIntent";
+import type { NpcId } from "./game/livingCharacters";
+import { friendshipLevel } from "./game/npc/RelationshipController";
 import {
   loadPlayerSettings,
   loadLivingSettings,
@@ -18,6 +24,7 @@ import {
   resetSave,
   savePlayerSettings,
   saveLivingSettings,
+  saveDialogueState,
   saveQualityPreset,
   type OutfitId,
   type RoomId,
@@ -46,6 +53,22 @@ const soundToggle = document.querySelector<HTMLButtonElement>("#sound-toggle");
 const musicToggle = document.querySelector<HTMLButtonElement>("#music-toggle");
 const idleAnimationToggle = document.querySelector<HTMLButtonElement>("#idle-animation-toggle");
 const smallMovementToggle = document.querySelector<HTMLButtonElement>("#small-movement-toggle");
+const npcChatToggle = document.querySelector<HTMLButtonElement>("#npc-chat-toggle");
+const typedChatToggle = document.querySelector<HTMLButtonElement>("#typed-chat-toggle");
+const memoryToggle = document.querySelector<HTMLButtonElement>("#memory-toggle");
+const clearAllMemoriesButton = document.querySelector<HTMLButtonElement>("#clear-all-memories-button");
+const chatPanel = document.querySelector<HTMLElement>("#chat-panel");
+const chatNpcPortrait = document.querySelector<HTMLElement>("#chat-npc-portrait");
+const chatNpcName = document.querySelector<HTMLElement>("#chat-npc-name");
+const chatFriendship = document.querySelector<HTMLElement>("#chat-friendship");
+const chatCloseButton = document.querySelector<HTMLButtonElement>("#chat-close-button");
+const chatMessages = document.querySelector<HTMLElement>("#chat-messages");
+const chatThinking = document.querySelector<HTMLElement>("#chat-thinking");
+const chatTopics = document.querySelector<HTMLElement>("#chat-topics");
+const chatForm = document.querySelector<HTMLFormElement>("#chat-form");
+const chatInput = document.querySelector<HTMLInputElement>("#chat-input");
+const chatSendButton = document.querySelector<HTMLButtonElement>("#chat-send-button");
+const chatClearButton = document.querySelector<HTMLButtonElement>("#chat-clear-button");
 const debugPanel = document.querySelector<HTMLElement>("#debug-panel");
 const status = document.querySelector<HTMLOutputElement>("#status");
 const fpsValue = document.querySelector<HTMLElement>("#fps-value");
@@ -53,6 +76,10 @@ const frameValue = document.querySelector<HTMLElement>("#frame-value");
 const meshValue = document.querySelector<HTMLElement>("#mesh-value");
 const resolutionValue = document.querySelector<HTMLElement>("#resolution-value");
 const livingValue = document.querySelector<HTMLElement>("#living-value");
+const dialogueIntentValue = document.querySelector<HTMLElement>("#dialogue-intent-value");
+const dialogueEntitiesValue = document.querySelector<HTMLElement>("#dialogue-entities-value");
+const dialogueTemplateValue = document.querySelector<HTMLElement>("#dialogue-template-value");
+const dialogueMemoryValue = document.querySelector<HTMLElement>("#dialogue-memory-value");
 const locationTransition = document.querySelector<HTMLElement>("#location-transition");
 const transitionIcon = document.querySelector<HTMLElement>("#transition-icon");
 const transitionTitle = document.querySelector<HTMLElement>("#transition-title");
@@ -73,8 +100,13 @@ if (
   || !useItemButton || !useItemLabel || !dropItemButton || !togetherButton || !resetButton
   || !helpButton || !settingsButton || !helpCard || !settingsPanel
   || !soundToggle || !musicToggle || !idleAnimationToggle || !smallMovementToggle
+  || !npcChatToggle || !typedChatToggle || !memoryToggle || !clearAllMemoriesButton
+  || !chatPanel || !chatNpcPortrait || !chatNpcName || !chatFriendship
+  || !chatCloseButton || !chatMessages || !chatThinking || !chatTopics
+  || !chatForm || !chatInput || !chatSendButton || !chatClearButton
   || !debugPanel || !status || !fpsValue || !frameValue || !meshValue
-  || !resolutionValue || !livingValue || !outfitControls
+  || !resolutionValue || !livingValue || !dialogueIntentValue || !dialogueEntitiesValue
+  || !dialogueTemplateValue || !dialogueMemoryValue || !outfitControls
   || !locationTransition || !transitionIcon || !transitionTitle || !feedbackSparkles
   || outfitButtons.length === 0 || roomButtons.length === 0 || qualityButtons.length === 0
   || characterButtons.length === 0 || expressionButtons.length === 0
@@ -95,6 +127,8 @@ class GameAudio {
     bedroom: [220, 293.66, 369.99],
     street: [293.66, 369.99, 440],
     cafe: [261.63, 349.23, 440],
+    park: [246.94, 329.63, 392],
+    grocery: [277.18, 349.23, 415.3],
   };
 
   constructor(
@@ -243,6 +277,13 @@ updateSwitch(idleAnimationToggle, livingPreferences.idleAnimations);
 updateSwitch(smallMovementToggle, livingPreferences.smallMovements);
 debugPanel.hidden = !isDebugMode;
 
+const dialogueController = new DialogueController(loadSave().dialogue, saveDialogueState);
+let dialoguePreferences = dialogueController.memory.settings();
+updateSwitch(npcChatToggle, dialoguePreferences.npcChat);
+updateSwitch(typedChatToggle, dialoguePreferences.typedMessages);
+updateSwitch(memoryToggle, dialoguePreferences.rememberConversations);
+chatForm.hidden = !dialoguePreferences.typedMessages;
+
 const engine = new Engine(
   canvas,
   false,
@@ -279,6 +320,110 @@ const showAction = (message: string, sound: InteractionSound = "success"): void 
   feedbackTimer = window.setTimeout(() => feedbackSparkles.classList.remove("is-playing"), 650);
 };
 
+let room: PrototypeRoom;
+let activeChatNpc: NpcId | null = null;
+let activeChatCharacter: CharacterId | null = null;
+let chatReplyTimer = 0;
+
+const dialogueContext = (npcId: NpcId): DialogueContext | null => {
+  const worldContext = room?.getDialogueContext(npcId);
+  if (!worldContext) return null;
+  const memory = dialogueController.memory.get(npcId);
+  return {
+    ...worldContext,
+    relationshipLevel: memory.friendship,
+    recentTopics: [...memory.recentTopics],
+  };
+};
+
+const renderConversation = (npcId: NpcId): void => {
+  const memory = dialogueController.memory.get(npcId);
+  const bubbles = memory.recentConversation.map((turn) => {
+    const bubble = document.createElement("p");
+    bubble.className = `chat-bubble is-${turn.speaker}`;
+    bubble.textContent = turn.text;
+    return bubble;
+  });
+  chatMessages.replaceChildren(...bubbles);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  chatFriendship.textContent = friendshipLevel(memory.friendship);
+  if (isDebugMode) dialogueMemoryValue.textContent = `${memory.summaryFacts.length} facts`;
+};
+
+const renderTopics = (topics: readonly DialogueTopic[]): void => {
+  chatTopics.replaceChildren(...topics.map((topic) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = topic.label;
+    button.addEventListener("click", () => submitChat(topic.message, topic.intent));
+    return button;
+  }));
+};
+
+const closeChat = (): void => {
+  window.clearTimeout(chatReplyTimer);
+  activeChatNpc = null;
+  activeChatCharacter = null;
+  chatPanel.hidden = true;
+  chatThinking.hidden = true;
+  app.classList.remove("is-chat-open");
+};
+
+const submitChat = (message: string, forcedIntent?: DialogueIntent): void => {
+  const npcId = activeChatNpc;
+  if (!npcId || !message.trim()) return;
+  const context = dialogueContext(npcId);
+  if (!context || context.activeCharacterId !== activeChatCharacter) {
+    closeChat();
+    showAction("That friend is waiting in another place.", "invalid");
+    return;
+  }
+  chatInput.value = "";
+  chatInput.disabled = true;
+  chatSendButton.disabled = true;
+  chatThinking.hidden = false;
+  window.clearTimeout(chatReplyTimer);
+  chatReplyTimer = window.setTimeout(() => {
+    if (activeChatNpc !== npcId) return;
+    const reply = dialogueController.reply(message, context, forcedIntent);
+    renderConversation(npcId);
+    renderTopics(reply.suggestions);
+    chatFriendship.textContent = reply.friendshipLabel;
+    chatThinking.hidden = true;
+    chatInput.disabled = false;
+    chatSendButton.disabled = false;
+    if (dialoguePreferences.typedMessages) chatInput.focus();
+    gameAudio.playEffect("tap");
+    if (isDebugMode) {
+      dialogueIntentValue.textContent = reply.intent;
+      dialogueEntitiesValue.textContent = reply.entities.map((entity) => entity.id).join(", ") || "none";
+      dialogueTemplateValue.textContent = reply.templateId;
+    }
+  }, 240);
+};
+
+const openNpcChat = (npcId: NpcId): void => {
+  if (!dialoguePreferences.npcChat) return;
+  const context = dialogueContext(npcId);
+  if (!context) {
+    showAction("That friend is waiting in another place.", "invalid");
+    return;
+  }
+  const state = dialogueController.open(context);
+  activeChatNpc = npcId;
+  activeChatCharacter = context.activeCharacterId;
+  chatNpcPortrait.textContent = state.portrait;
+  chatNpcName.textContent = state.npcName;
+  chatFriendship.textContent = state.friendshipLabel;
+  chatPanel.hidden = false;
+  app.classList.add("is-chat-open");
+  chatForm.hidden = !dialoguePreferences.typedMessages;
+  renderTopics(state.suggestions);
+  renderConversation(npcId);
+  if (state.conversation.length === 0) submitChat("Hello!", "greeting");
+  else if (dialoguePreferences.typedMessages) chatInput.focus();
+};
+
 let lastRoom: RoomId | null = null;
 let roomTransitionTimer = 0;
 
@@ -296,6 +441,11 @@ const itemActionLabels: Record<string, string> = {
   backpack: "Check the backpack",
   basket: "Check the basket",
   "serving-tray": "Check the tray",
+  "shopping-basket": "Check the basket",
+  "shopping-bag": "Check the shopping bag",
+  "picnic-basket": "Check the picnic basket",
+  "watering-can": "Water something",
+  camera: "Take a pretend photo",
 };
 
 const roomLabels: Record<RoomId, string> = {
@@ -303,15 +453,27 @@ const roomLabels: Record<RoomId, string> = {
   bedroom: "Khadija's bedroom",
   street: "Neighborhood",
   cafe: "Sunny Caf\u00e9",
+  park: "Neighborhood park",
+  grocery: "Sunny Basket Grocery",
 };
 const roomIcons: Record<RoomId, string> = {
   home: "\u{1F3E0}",
   bedroom: "\u{1F6CF}\u{FE0F}",
   street: "\u{1F333}",
   cafe: "\u2615",
+  park: "\u{1F3DE}\u{FE0F}",
+  grocery: "\u{1F6D2}",
 };
 
 const updatePlayState = (state: PlayState): void => {
+  if (
+    activeChatNpc
+    && (
+      state.selectedCharacter !== activeChatCharacter
+      || room?.getDialogueContext(activeChatNpc) === null
+    )
+  ) closeChat();
+
   if (lastRoom && lastRoom !== state.activeRoom) {
     transitionIcon.textContent = roomIcons[state.activeRoom];
     transitionTitle.textContent = roomLabels[state.activeRoom];
@@ -368,9 +530,12 @@ const updatePlayState = (state: PlayState): void => {
   }
 };
 
-const room = createPrototypeRoom(engine, {
+room = createPrototypeRoom(engine, {
   onAction: showAction,
   onPlayStateChange: updatePlayState,
+  onNpcChat: openNpcChat,
+  isNpcChatEnabled: () => dialoguePreferences.npcChat,
+  onNpcMemoryEvent: (event) => dialogueController.recordWorldEvent(event),
 });
 room.setLivingSettings(livingPreferences);
 
@@ -442,6 +607,66 @@ musicToggle.addEventListener("click", () => {
   gameAudio.setMusicEnabled(uiPreferences.music);
   updateSwitch(musicToggle, uiPreferences.music);
   savePlayerSettings(uiPreferences);
+});
+
+npcChatToggle.addEventListener("click", () => {
+  dialoguePreferences = { ...dialoguePreferences, npcChat: !dialoguePreferences.npcChat };
+  dialogueController.memory.setSettings(dialoguePreferences);
+  updateSwitch(npcChatToggle, dialoguePreferences.npcChat);
+  if (!dialoguePreferences.npcChat) closeChat();
+  showAction(dialoguePreferences.npcChat
+    ? "Neighborhood chats are ready!"
+    : "Neighborhood chats are off.", "toggle");
+});
+
+typedChatToggle.addEventListener("click", () => {
+  dialoguePreferences = {
+    ...dialoguePreferences,
+    typedMessages: !dialoguePreferences.typedMessages,
+  };
+  dialogueController.memory.setSettings(dialoguePreferences);
+  updateSwitch(typedChatToggle, dialoguePreferences.typedMessages);
+  chatForm.hidden = !dialoguePreferences.typedMessages;
+  showAction(dialoguePreferences.typedMessages
+    ? "Typed messages are on!"
+    : "Topic buttons are ready instead.", "toggle");
+});
+
+memoryToggle.addEventListener("click", () => {
+  dialoguePreferences = {
+    ...dialoguePreferences,
+    rememberConversations: !dialoguePreferences.rememberConversations,
+  };
+  dialogueController.memory.setSettings(dialoguePreferences);
+  updateSwitch(memoryToggle, dialoguePreferences.rememberConversations);
+  showAction(dialoguePreferences.rememberConversations
+    ? "Friends can remember kind moments."
+    : "New chats will not be saved.", "toggle");
+});
+
+clearAllMemoriesButton.addEventListener("click", () => {
+  if (!window.confirm("Clear every friend's conversation memories? Your world and activities will stay safe.")) return;
+  dialogueController.clearAll();
+  closeChat();
+  showAction("Conversation memories cleared. Your world is unchanged.", "toggle");
+});
+
+chatCloseButton.addEventListener("click", closeChat);
+chatForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  submitChat(chatInput.value);
+});
+chatClearButton.addEventListener("click", () => {
+  const npcId = activeChatNpc;
+  if (!npcId) return;
+  if (!window.confirm("Clear this friend's conversation memories?")) return;
+  dialogueController.clearNpc(npcId);
+  const context = dialogueContext(npcId);
+  if (!context) return closeChat();
+  const state = dialogueController.open(context);
+  renderConversation(npcId);
+  renderTopics(state.suggestions);
+  showAction("This conversation can begin fresh.", "toggle");
 });
 
 idleAnimationToggle.addEventListener("click", () => {

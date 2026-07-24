@@ -63,6 +63,7 @@ import {
   saveProp,
   saveRoomState,
   saveSelectedCharacter,
+  saveWorld3State,
   type OutfitId,
   type RoomId,
 } from "./storage";
@@ -79,6 +80,11 @@ import {
   type StationId,
 } from "./everydayState";
 import type { CombinationSound } from "./combinationRegistry";
+import type { NpcWorldMemoryEvent } from "./npc/NpcMemoryStore";
+import {
+  createWorld3Locations,
+} from "./world3Locations";
+import { recordWorld3Event } from "./world3State";
 
 export type InteractionSound =
   | "tap"
@@ -124,6 +130,7 @@ export interface PrototypeRoom {
   switchRoom(room: RoomId): void;
   setLivingSettings(settings: LivingSettings): void;
   playTogether(): void;
+  getDialogueContext(npcId: NpcId): RoomDialogueContext | null;
   getLivingDebugState(): {
     activePlayable: number;
     activeNpcs: number;
@@ -134,6 +141,22 @@ export interface PrototypeRoom {
 interface RoomOptions {
   onAction(message: string, sound?: InteractionSound): void;
   onPlayStateChange(state: PlayState): void;
+  onNpcChat?(npcId: NpcId): void;
+  isNpcChatEnabled?(): boolean;
+  onNpcMemoryEvent?(event: NpcWorldMemoryEvent): void;
+}
+
+export interface RoomDialogueContext {
+  npcId: NpcId;
+  activeCharacterId: CharacterId;
+  activeCharacterName: string;
+  locationId: RoomId;
+  locationName: string;
+  nearbyCharacterIds: string[];
+  heldItemId?: string;
+  recentWorldEvents: string[];
+  relationshipLevel: number;
+  recentTopics: string[];
 }
 
 interface SnapTarget {
@@ -1048,6 +1071,7 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
   const save = loadSave();
   const contentState = save.content;
   const everydayState = save.everyday;
+  const world3State = save.world3;
   const storageController = new EverydayStorageController(everydayState);
   const containerController = new ContainerController(everydayState);
   const recipeSystem = new RecipeSystem(everydayState);
@@ -1055,6 +1079,8 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
   const bedroomOffsetX = 22;
   const streetOffsetX = 44;
   const cafeOffsetX = 66;
+  const parkOffsetX = 88;
+  const groceryOffsetX = 110;
   const roomDefinitions: Record<RoomId, {
     center: Vector3;
     spawn: Vector3;
@@ -1091,6 +1117,26 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
       bounds: {
         minX: cafeOffsetX - 5.15,
         maxX: cafeOffsetX + 5.25,
+        minZ: -3.35,
+        maxZ: 3.45,
+      },
+    },
+    park: {
+      center: new Vector3(parkOffsetX, 0.8, 0.3),
+      spawn: new Vector3(parkOffsetX - 4.8, 0, -2.55),
+      bounds: {
+        minX: parkOffsetX - 5.15,
+        maxX: parkOffsetX + 5.25,
+        minZ: -3.35,
+        maxZ: 3.45,
+      },
+    },
+    grocery: {
+      center: new Vector3(groceryOffsetX, 0.8, 0.3),
+      spawn: new Vector3(groceryOffsetX - 4.8, 0, -2.55),
+      bounds: {
+        minX: groceryOffsetX - 5.15,
+        maxX: groceryOffsetX + 5.25,
         minZ: -3.35,
         maxZ: 3.45,
       },
@@ -1161,6 +1207,22 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
   glass.alpha = 0.48;
 
   const detailMeshes: Mesh[] = [];
+  const world3Build = createWorld3Locations(scene, parkOffsetX, groceryOffsetX, {
+    cream: floorLight,
+    white,
+    wood,
+    dark,
+    pink,
+    yellow,
+    green,
+    teal,
+    mint,
+    blue: cafeBlue,
+    glass,
+    grass,
+    sidewalk,
+  });
+  detailMeshes.push(...world3Build.detailMeshes);
 
   const floor = box(scene, "floor", new Vector3(12, 0.18, 8), new Vector3(0, -0.1, 0), floorMat);
   floor.metadata = { walkable: true, room: "home" satisfies RoomId };
@@ -1325,14 +1387,14 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
   let enhancedLighting = false;
 
   const applyActiveRoomLighting = (): void => {
-    if (activeRoom === "street") {
+    if (activeRoom === "street" || activeRoom === "park") {
       hemi.intensity = enhancedLighting ? 0.96 : 1.02;
       sun.intensity = enhancedLighting ? 0.72 : 0.52;
       scene.clearColor = new Color4(0.66, 0.84, 0.94, 1);
       return;
     }
 
-    if (activeRoom === "cafe") {
+    if (activeRoom === "cafe" || activeRoom === "grocery") {
       hemi.intensity = enhancedLighting ? 0.88 : 0.96;
       sun.intensity = enhancedLighting ? 0.48 : 0.34;
       scene.clearColor = new Color4(0.86, 0.78, 0.70, 1);
@@ -1384,6 +1446,16 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
   );
   const cafePosition = (x: number, y: number, z: number): Vector3 => new Vector3(
     x + cafeOffsetX,
+    y,
+    z,
+  );
+  const parkPosition = (x: number, y: number, z: number): Vector3 => new Vector3(
+    x + parkOffsetX,
+    y,
+    z,
+  );
+  const groceryPosition = (x: number, y: number, z: number): Vector3 => new Vector3(
+    x + groceryOffsetX,
     y,
     z,
   );
@@ -1910,6 +1982,20 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     cafePosition(-5.72, 1.37, -2.45),
     doorMaterial,
   );
+  const streetToParkDoor = box(
+    scene,
+    "street-to-park-gate",
+    new Vector3(.72, 2.2, .24),
+    streetPosition(-5.55, 1.1, -.25),
+    green,
+  );
+  const streetToGroceryDoor = box(
+    scene,
+    "street-to-grocery-door",
+    new Vector3(.72, 2.2, .24),
+    streetPosition(5.55, 1.1, -.25),
+    yellow,
+  );
 
   const homeBedroomSign = box(scene, "home-bedroom-sign", new Vector3(0.72, 0.34, 0.08), new Vector3(5.72, 2.15, -2.6), pink);
   const homeStreetSign = box(scene, "home-street-sign", new Vector3(0.72, 0.34, 0.08), new Vector3(-5.72, 2.15, -2.6), yellow);
@@ -1917,7 +2003,14 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
   const streetHomeSign = box(scene, "street-home-sign", new Vector3(0.72, 0.34, 0.08), streetPosition(-3.35, 2.08, 3.08), yellow);
   const streetCafeSign = box(scene, "street-cafe-sign", new Vector3(0.72, 0.34, 0.08), streetPosition(3.45, 2.08, 3.08), pink);
   const cafeStreetSign = box(scene, "cafe-street-sign", new Vector3(0.72, 0.34, 0.08), cafePosition(-5.72, 2.15, -2.6), yellow);
-  for (const sign of [homeBedroomSign, homeStreetSign, bedroomHomeSign, streetHomeSign, streetCafeSign, cafeStreetSign]) {
+  for (const sign of [
+    homeBedroomSign,
+    homeStreetSign,
+    bedroomHomeSign,
+    streetHomeSign,
+    streetCafeSign,
+    cafeStreetSign,
+  ]) {
     sign.isPickable = false;
   }
 
@@ -2096,6 +2189,10 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     parent: { minX: 1.25, maxX: 2.25, minZ: .8, maxZ: 1.9 },
     neighbor: { minX: 39.1, maxX: 41.05, minZ: -1.55, maxZ: .35 },
     "cafe-worker": { minX: 68.6, maxX: 70.35, minZ: 2.25, maxZ: 3.25 },
+    "park-keeper": { minX: 83.4, maxX: 86.15, minZ: .55, maxZ: 2.2 },
+    "park-parent": { minX: 90.3, maxX: 92.0, minZ: -.7, maxZ: .65 },
+    shopkeeper: { minX: 110.8, maxX: 112.6, minZ: -2.65, maxZ: -1.25 },
+    "grocery-shopper": { minX: 106.15, maxX: 108.2, minZ: -.75, maxZ: 1.0 },
   };
 
   for (const npcId of NPC_IDS) {
@@ -2112,7 +2209,11 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     const bounds = npcBounds[npcId];
     rig.setBounds(bounds.minX, bounds.maxX, bounds.minZ, bounds.maxZ);
     rig.root.rotation.y = state.rotationY;
-    rig.setExpression(npcId === "cafe-worker" ? "happy" : "neutral");
+    rig.setExpression(
+      npcId === "cafe-worker" || npcId === "shopkeeper" || npcId === "park-keeper"
+        ? "happy"
+        : "neutral",
+    );
     for (const childMesh of rig.root.getChildMeshes()) {
       childMesh.metadata = {
         ...childMesh.metadata,
@@ -2132,10 +2233,10 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
       : npcHelloMaterials.pink;
     helloIcon.parent = rig.root;
     helloIcon.metadata = { npcId, interactionPrompt: definition.interactionPrompt };
-    if (npcId === "cafe-worker") {
+    if (npcId === "cafe-worker" || npcId === "shopkeeper") {
       const apron = box(
         scene,
-        "npc-cafe-worker-apron",
+        `npc-${npcId}-apron`,
         new Vector3(.48, .62, .04),
         new Vector3(0, .92, -.31),
         white,
@@ -2168,9 +2269,98 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     consumable: boolean;
     respawnPosition?: Vector3;
     respawnMessage?: string;
+    recipeIngredientId?: string;
   }
 
   const holdables = new Map<string, HoldableItem>();
+  const registerWorld3Holdable = (
+    id: string,
+    label: string,
+    mesh: Mesh,
+    gesture: UseGesture,
+    consumable = false,
+  ): void => {
+    holdables.set(id, {
+      id,
+      label,
+      mesh,
+      floorY: .24,
+      holdScale: new Vector3(.78, .78, .78),
+      useMessage: gesture === "drink"
+        ? `sips the ${label}`
+        : gesture === "eat"
+          ? `tastes the ${label}`
+          : `plays with the ${label}`,
+      gesture,
+      consumable,
+      respawnPosition: mesh.position.clone(),
+      respawnMessage: `Another ${label} is waiting on the grocery shelf`,
+      recipeIngredientId: ({
+        "shop-bread": "bread",
+        "shop-cheese": "cheese",
+        "shop-apple": "apple",
+        "shop-banana": "banana",
+        "shop-berries": "berries",
+        "shop-cake-mix": "cake-mix",
+        "shop-tea-leaves": "tea-leaves",
+      } as Record<string, string>)[id],
+    });
+  };
+  registerWorld3Holdable(
+    "shopping-basket",
+    "shopping basket",
+    world3Build.containerMeshes.shoppingBasket,
+    "hug",
+  );
+  registerWorld3Holdable(
+    "shopping-bag",
+    "shopping bag",
+    world3Build.containerMeshes.shoppingBag,
+    "hug",
+  );
+  registerWorld3Holdable(
+    "picnic-basket",
+    "picnic basket",
+    world3Build.containerMeshes.picnicBasket,
+    "hug",
+  );
+  registerWorld3Holdable(
+    "watering-can",
+    "watering can",
+    world3Build.containerMeshes.wateringCan,
+    "hug",
+  );
+  registerWorld3Holdable(
+    "camera",
+    "pretend camera",
+    world3Build.containerMeshes.camera,
+    "hug",
+  );
+  for (const [id, productMesh] of Object.entries(world3Build.productHotspots)) {
+    const gesture: UseGesture = id === "shop-juice" || id === "shop-milk"
+      ? "drink"
+      : id === "shop-cupcake"
+        ? "eat"
+        : "hug";
+    registerWorld3Holdable(
+      id,
+      friendlyName(id.replace(/^shop-/, "")),
+      productMesh,
+      gesture,
+      gesture === "eat" || gesture === "drink",
+    );
+  }
+  for (const id of ["shopping-basket", "shopping-bag", "picnic-basket"] as const) {
+    const item = holdables.get(id);
+    if (!item) continue;
+    for (let slot = 0; slot < 3; slot += 1) {
+      const dot = MeshBuilder.CreateSphere(`${id}-visible-slot-${slot}`, { diameter: .13, segments: 6 }, scene);
+      dot.position.set((slot - 1) * .18, .37, 0);
+      dot.material = [pink, yellow, sky][slot];
+      dot.parent = item.mesh;
+      dot.isPickable = false;
+    }
+  }
   const everydayTargets = new Map<string, Mesh>();
   const everydayTargetMaterial = material(scene, "everyday-target-mat", colors.yellow);
   everydayTargetMaterial.alpha = 0.035;
@@ -2407,6 +2597,51 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
       rotationY: 0,
       sleeping: false,
     },
+    {
+      id: "park-bench-1",
+      kind: "bench",
+      room: "park",
+      position: parkPosition(-3.95, 0, -.05),
+      approach: parkPosition(-3.95, 0, -.65),
+      rotationY: 0,
+      sleeping: false,
+    },
+    {
+      id: "park-bench-2",
+      kind: "bench",
+      room: "park",
+      position: parkPosition(-3.2, 0, -.05),
+      approach: parkPosition(-3.2, 0, -.65),
+      rotationY: 0,
+      sleeping: false,
+    },
+    {
+      id: "park-bench-3",
+      kind: "bench",
+      room: "park",
+      position: parkPosition(3.6, 0, -.05),
+      approach: parkPosition(3.6, 0, -.65),
+      rotationY: 0,
+      sleeping: false,
+    },
+    {
+      id: "park-picnic-1",
+      kind: "picnic",
+      room: "park",
+      position: parkPosition(-3.75, 0, -2.2),
+      approach: parkPosition(-3.75, 0, -1.45),
+      rotationY: 0,
+      sleeping: false,
+    },
+    {
+      id: "park-picnic-2",
+      kind: "picnic",
+      room: "park",
+      position: parkPosition(-2.95, 0, -2.2),
+      approach: parkPosition(-2.95, 0, -1.45),
+      rotationY: 0,
+      sleeping: false,
+    },
   ];
 
   const selectedState = (): CharacterState => characters[selectedCharacterId];
@@ -2490,6 +2725,8 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     bedroom: "Khadija's bedroom",
     street: "the neighborhood street",
     cafe: "Sunny Café",
+    park: "the neighborhood park",
+    grocery: "the grocery shop",
   };
   const arrivalOffsetZ: Record<CharacterId, number> = {
     khadija: 0,
@@ -2523,7 +2760,7 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     arrivalPosition.z += arrivalOffsetZ[selectedCharacterId];
     rig.placeAt(arrivalPosition);
     playableAnchors[selectedCharacterId].copyFrom(arrivalPosition);
-    rig.root.rotation.y = activeRoom === "home" || activeRoom === "street"
+    rig.root.rotation.y = activeRoom === "home" || activeRoom === "street" || activeRoom === "park"
       ? -Math.PI / 2
       : Math.PI / 2;
     camera.setTarget(definition.center);
@@ -2582,6 +2819,10 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
   connectDoor(streetToHomeDoor, "home");
   connectDoor(streetToCafeDoor, "cafe");
   connectDoor(cafeToStreetDoor, "street");
+  connectDoor(streetToParkDoor, "park");
+  connectDoor(streetToGroceryDoor, "grocery");
+  connectDoor(world3Build.doors.parkToStreet, "street");
+  connectDoor(world3Build.doors.groceryToStreet, "street");
 
   // Simple fruit bowl plus two usable food/drink props.
   cylinder(scene, "fruit-bowl", 0.9, 0.25, new Vector3(3.5, 1.3, 0.6), wood, 18);
@@ -2839,6 +3080,14 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     }
     const item = holdables.get(heldItemId);
     if (!item) return;
+    if (heldItemId === "camera") {
+      world3State.park.photosTaken = Math.min(999, world3State.park.photosTaken + 1);
+      recordWorld3Event(world3State, "took_park_photo");
+      saveWorld3State(world3State);
+      characterRigs[characterId].playUseGesture("hug");
+      options.onAction("Click! A happy pretend photo for the story album!", "success");
+      return;
+    }
     if (containerController.isContainer(heldItemId)) {
       const storedItemId = everydayState.containerContents[heldItemId][0];
       if (!storedItemId) {
@@ -2908,6 +3157,10 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
         new Vector3(4.82, 2.08, 3.3),
         new Vector3(5.14, 2.08, 3.3),
         new Vector3(4.66, 1.72, 3.3),
+        new Vector3(4.98, 1.72, 3.3),
+        new Vector3(4.5, 1.42, 3.3),
+        new Vector3(4.82, 1.42, 3.3),
+        new Vector3(5.14, 1.42, 3.3),
       ],
       "kitchen-drawer": [
         new Vector3(4.2, .72, 2.38),
@@ -2921,6 +3174,12 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
         new Vector3(1.95, 1.65, 2.28),
         new Vector3(2.3, 1.65, 2.28),
         new Vector3(2.65, 1.65, 2.28),
+        new Vector3(1.95, 1.35, 2.28),
+        new Vector3(2.3, 1.35, 2.28),
+        new Vector3(2.65, 1.35, 2.28),
+        new Vector3(1.95, 1.05, 2.28),
+        new Vector3(2.3, 1.05, 2.28),
+        new Vector3(2.65, 1.05, 2.28),
       ],
       "wardrobe-shelves": [
         bedroomPosition(4.45, 1.95, -3.3),
@@ -2968,7 +3227,14 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     for (const contents of Object.values(everydayState.stationInputs)) {
       for (const itemId of contents) holdables.get(itemId)?.mesh.setEnabled(false);
     }
-    for (const id of ["backpack", "basket", "serving-tray"] as const) {
+    for (const id of [
+      "backpack",
+      "basket",
+      "serving-tray",
+      "shopping-basket",
+      "shopping-bag",
+      "picnic-basket",
+    ] as const) {
       const container = holdables.get(id);
       if (!container) continue;
       const visibleSlots = container.mesh.getChildMeshes().filter((mesh) => mesh.name.includes("visible-slot"));
@@ -3059,7 +3325,7 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     }
     const item = holdables.get(heldId);
     if (!item) return;
-    const result = recipeSystem.addInput(station, heldId);
+    const result = recipeSystem.addInput(station, item.recipeIngredientId ?? heldId);
     if (!result.accepted) {
       selectedRig().setExpression("surprised");
       options.onAction(result.message, "invalid");
@@ -3236,6 +3502,200 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     saveEverydayState(everydayState);
   };
 
+  const rememberForRoomNpcs = (
+    kind: "activity" | "event",
+    id: string,
+  ): void => {
+    for (const npcId of NPC_IDS) {
+      if (npcStates[npcId].room !== activeRoom) continue;
+      options.onNpcMemoryEvent?.(
+        kind === "activity"
+          ? {
+              kind,
+              npcId,
+              characterId: selectedCharacterId,
+              activityId: id,
+            }
+          : {
+              kind,
+              npcId,
+              characterId: selectedCharacterId,
+              eventId: id,
+            },
+      );
+    }
+  };
+
+  const useGroceryCheckout = (): void => {
+    const heldId = selectedState().heldItem;
+    if (heldId !== "shopping-basket") {
+      options.onAction("Bring your shopping basket to the checkout counter.", "invalid");
+      return;
+    }
+    const basketContents = everydayState.containerContents["shopping-basket"];
+    if (basketContents.length === 0) {
+      options.onAction("Choose a few groceries before pretending to check out.", "invalid");
+      return;
+    }
+    const bagContents = everydayState.containerContents["shopping-bag"];
+    const freeSpace = containerController.capacity("shopping-bag") - bagContents.length;
+    const packed = basketContents.splice(0, freeSpace);
+    bagContents.push(...packed);
+    world3State.grocery.checkoutCount = Math.min(999, world3State.grocery.checkoutCount + 1);
+    world3State.grocery.bagsPacked = Math.min(999, world3State.grocery.bagsPacked + 1);
+    recordWorld3Event(world3State, "packed_shopping_bag");
+    saveWorld3State(world3State);
+    saveEverydayState(everydayState);
+    detachHeldItem(selectedCharacterId, true);
+    world3Build.containerMeshes.shoppingBag.setEnabled(true);
+    holdItem("shopping-bag", selectedCharacterId, false);
+    syncEverydayVisuals();
+    reactNpc("shopkeeper", "excited");
+    rememberForRoomNpcs("activity", "shopping");
+    options.onAction("Beep! Pretend checkout complete—the groceries are packed!", "bell");
+    emitPlayState();
+  };
+
+  const performWorld3Target = (targetId: string): void => {
+    const rig = selectedRig();
+    const heldId = selectedState().heldItem;
+    const held = heldId ? holdables.get(heldId) : null;
+    if (targetId === "park-bench-left" || targetId === "park-bench-right") {
+      useFurniture("bench");
+      rememberForRoomNpcs("activity", "sit-and-talk");
+      return;
+    }
+    if (targetId === "park-picnic") {
+      if (held && (held.gesture === "eat" || held.gesture === "drink")) {
+        world3State.park.picnicReady = true;
+        recordWorld3Event(world3State, "picnic_ready");
+        saveWorld3State(world3State);
+        rig.playUseGesture(held.gesture);
+        rememberForRoomNpcs("activity", "picnic");
+        options.onAction(`The ${held.label} is ready for a cheerful picnic!`, "shared");
+      } else {
+        useFurniture("picnic");
+        options.onAction("A cozy picnic spot is ready for friends!", "shared");
+      }
+      return;
+    }
+    if (targetId === "park-slide") {
+      world3State.park.playgroundUses = Math.min(999, world3State.park.playgroundUses + 1);
+      rig.cancelMovement();
+      rig.placeAt(parkPosition(3.4, 0, -1.1));
+      Animation.CreateAndStartAnimation(
+        "park-slide-ride",
+        rig.root,
+        "position.z",
+        30,
+        24,
+        rig.root.position.z,
+        parkPosition(3.4, 0, -3.0).z,
+        Animation.ANIMATIONLOOPMODE_CONSTANT,
+      );
+      rig.playUseGesture("hug");
+      recordWorld3Event(world3State, "used_slide");
+      saveWorld3State(world3State);
+      rememberForRoomNpcs("activity", "playground");
+      options.onAction("Wheee! A gentle slide to the bottom!", "shared");
+      return;
+    }
+    if (targetId === "park-swings") {
+      world3State.park.playgroundUses = Math.min(999, world3State.park.playgroundUses + 1);
+      rig.placeAt(parkPosition(2.0, 0, 2.15));
+      Animation.CreateAndStartAnimation(
+        "park-swing-play",
+        rig.root,
+        "rotation.x",
+        30,
+        26,
+        -.12,
+        .12,
+        Animation.ANIMATIONLOOPMODE_CYCLE,
+      );
+      window.setTimeout(() => {
+        scene.stopAnimation(rig.root);
+        rig.root.rotation.x = 0;
+      }, 1000);
+      recordWorld3Event(world3State, "used_swings");
+      saveWorld3State(world3State);
+      rememberForRoomNpcs("activity", "playground");
+      options.onAction("Back and forth on the friendly swing!", "shared");
+      return;
+    }
+    if (targetId === "park-sandbox") {
+      world3State.park.playgroundUses = Math.min(999, world3State.park.playgroundUses + 1);
+      rig.playUseGesture("hug");
+      recordWorld3Event(world3State, "played_sandbox");
+      saveWorld3State(world3State);
+      rememberForRoomNpcs("activity", "sandbox");
+      options.onAction("Scoop, pat, and build a pretend sandcastle!", "shared");
+      return;
+    }
+    if (targetId === "park-fountain") {
+      rig.playUseGesture("drink");
+      options.onAction("A cool drink from the park fountain!", "water");
+      return;
+    }
+    if (targetId === "park-sign") {
+      world3State.park.signReads = Math.min(999, world3State.park.signReads + 1);
+      saveWorld3State(world3State);
+      rig.playUseGesture("read");
+      options.onAction("Park sign: Be kind, share the space, and care for nature!", "tap");
+      return;
+    }
+    if (targetId === "park-flowers") {
+      if (heldId !== "watering-can") {
+        options.onAction("The blue watering can is nearby.", "invalid");
+        return;
+      }
+      world3State.park.flowersWatered = true;
+      recordWorld3Event(world3State, "watered_flowers");
+      saveWorld3State(world3State);
+      rig.playUseGesture("drink");
+      reactNpc("park-keeper", "excited");
+      rememberForRoomNpcs("event", "watering-flowers");
+      options.onAction("Sprinkle, sparkle—the flowers look refreshed!", "water");
+      return;
+    }
+    if (targetId === "park-birds") {
+      if (!held || (held.gesture !== "eat" && !held.id.includes("bread") && !held.id.includes("fruit"))) {
+        options.onAction("The pretend birds like fruit or bread.", "invalid");
+        return;
+      }
+      world3State.park.birdsFed = true;
+      recordWorld3Event(world3State, "fed_birds");
+      saveWorld3State(world3State);
+      rig.playUseGesture("eat");
+      rememberForRoomNpcs("activity", "feed-birds");
+      options.onAction("Tweet tweet! The pretend birds enjoy a tiny snack.", "shared");
+      return;
+    }
+    if (targetId === "park-bin") {
+      if (heldId !== "rubbish") {
+        options.onAction("Bring the little wrapper to the park bin.", "invalid");
+        return;
+      }
+      const rubbish = detachHeldItem(selectedCharacterId, false);
+      rubbish?.mesh.setEnabled(false);
+      world3State.park.rubbishBinned = true;
+      recordWorld3Event(world3State, "park_tidied");
+      saveWorld3State(world3State);
+      reactNpc("park-keeper", "excited");
+      rememberForRoomNpcs("event", "park-cleanup");
+      options.onAction("Plop! The park is tidy and happy.", "clean");
+      emitPlayState();
+      return;
+    }
+    if (targetId === "grocery-checkout") {
+      useGroceryCheckout();
+      return;
+    }
+    if (targetId === "grocery-stock") {
+      options.onAction("Fresh fictional Sunny Basket goods are ready for the shelves!", "storage");
+    }
+  };
+
   for (const target of everydayTargets.values()) {
     target.actionManager = new ActionManager(scene);
     target.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => {
@@ -3244,9 +3704,24 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     }));
   }
 
-  for (const id of ["backpack", "basket", "serving-tray"] as const) {
+  for (const id of [
+    "backpack",
+    "basket",
+    "serving-tray",
+    "shopping-basket",
+    "shopping-bag",
+    "picnic-basket",
+  ] as const) {
     const item = holdables.get(id);
     if (item) item.mesh.metadata = { ...item.mesh.metadata, containerTarget: id };
+  }
+
+  for (const target of Object.values(world3Build.hotspots)) {
+    target.actionManager = new ActionManager(scene);
+    target.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => {
+      if (target.metadata?.room !== activeRoom) return;
+      performWorld3Target(target.metadata.world3Action as string);
+    }));
   }
 
   syncEverydayVisuals();
@@ -3289,11 +3764,38 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     moved: boolean;
   } | null = null;
 
+  const addGroceryProduct = (productId: string): boolean => {
+    if (activeRoom !== "grocery" || selectedState().heldItem !== "shopping-basket") return false;
+    const result = containerController.put("shopping-basket", productId);
+    if (!result.accepted) {
+      options.onAction(result.message, "invalid");
+      return true;
+    }
+    const product = holdables.get(productId);
+    product?.mesh.setEnabled(false);
+    world3State.grocery.productsSelected[productId] = Math.min(
+      999,
+      (world3State.grocery.productsSelected[productId] ?? 0) + 1,
+    );
+    recordWorld3Event(world3State, `selected:${productId}`);
+    saveWorld3State(world3State);
+    saveEverydayState(everydayState);
+    syncEverydayVisuals();
+    reactNpc("shopkeeper", "happy");
+    options.onAction(`${friendlyName(productId.replace(/^shop-/, ""))} added to the basket!`, "storage");
+    return true;
+  };
+
   scene.onPointerObservable.add((pointerInfo: PointerInfo) => {
     const pointerEvent = pointerInfo.event as PointerEvent;
 
     if (pointerInfo.type === PointerEventTypes.POINTERDOWN) {
       const pickedMesh = pointerInfo.pickInfo?.pickedMesh;
+      const groceryProduct = pickedMesh?.metadata?.groceryProduct as string | undefined;
+      if (groceryProduct && addGroceryProduct(groceryProduct)) {
+        holdTap = null;
+        return;
+      }
       const containerTarget = pickedMesh?.metadata?.containerTarget as ContainerId | undefined;
       if (
         containerTarget
@@ -3559,9 +4061,13 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
   const returnNpcToStation = (npcId: NpcId): void => {
     const state = npcStates[npcId];
     const station = NPC_DEFINITIONS[npcId].position;
-    state.activity = npcId === "cafe-worker" ? "work" : "relax";
+    state.activity = npcId === "cafe-worker" || npcId === "shopkeeper" || npcId === "park-keeper"
+      ? "work"
+      : "relax";
     npcRigs[npcId].setTarget(new Vector3(station.x, 0, station.z), () => {
-      npcRigs[npcId].root.rotation.y = npcId === "cafe-worker" ? Math.PI : 0;
+      npcRigs[npcId].root.rotation.y = npcId === "cafe-worker" || npcId === "shopkeeper"
+        ? Math.PI
+        : 0;
       persistNpc(npcId);
     });
   };
@@ -3575,7 +4081,11 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     rig.setExpression(expression);
     rig.playUseGesture(gesture);
     window.setTimeout(() => {
-      rig.setExpression(npcId === "cafe-worker" ? "happy" : "neutral");
+      rig.setExpression(
+        npcId === "cafe-worker" || npcId === "shopkeeper" || npcId === "park-keeper"
+          ? "happy"
+          : "neutral",
+      );
       if (npcId === "cafe-worker") returnNpcToStation(npcId);
     }, 950);
   };
@@ -3607,6 +4117,12 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
         `${definition.displayName} says thank you for the ${item.label}!`,
         "success",
       );
+      options.onNpcMemoryEvent?.({
+        kind: "gift",
+        npcId,
+        characterId: selectedCharacterId,
+        itemId: item.id,
+      });
       emitPlayState();
       return;
     }
@@ -3622,6 +4138,12 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
         emitPlayState();
         return;
       }
+    }
+
+    if (options.onNpcChat && options.isNpcChatEnabled?.() !== false) {
+      reactNpc(npcId, "happy");
+      options.onNpcChat(npcId);
+      return;
     }
 
     if (npcId === "cafe-worker") {
@@ -3754,6 +4276,12 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
 
   const pressedKeys = new Set<string>();
   scene.onKeyboardObservable.add((keyboardInfo: KeyboardInfo) => {
+    const eventTarget = keyboardInfo.event.target;
+    if (
+      eventTarget instanceof HTMLInputElement
+      || eventTarget instanceof HTMLTextAreaElement
+      || eventTarget instanceof HTMLButtonElement
+    ) return;
     const key = keyboardInfo.event.key.toLowerCase();
     if (!["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) return;
     keyboardInfo.event.preventDefault();
@@ -3805,7 +4333,28 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     friendRig.lookAt(actorRig.root.position);
     const held = actorState.heldItem ? holdables.get(actorState.heldItem) : null;
 
-    if (held?.gesture === "read") {
+    if (activeRoom === "park" && held?.id === "watering-can") {
+      actorRig.playUseGesture("drink");
+      friendRig.playUseGesture("hug");
+      temporaryReaction(actorId, "excited");
+      temporaryReaction(friendId, "happy");
+      rememberForRoomNpcs("activity", "water-plants-together");
+      options.onAction("Teamwork makes the park flowers sparkle!", "water");
+    } else if (activeRoom === "park" && (held?.gesture === "eat" || held?.gesture === "drink")) {
+      actorRig.playUseGesture(held.gesture);
+      friendRig.playUseGesture(held.gesture);
+      temporaryReaction(actorId, "happy");
+      temporaryReaction(friendId, "excited");
+      rememberForRoomNpcs("activity", "family-picnic");
+      options.onAction("A cheerful family picnic together!", "shared");
+    } else if (activeRoom === "park" && !held) {
+      actorRig.playUseGesture("hug");
+      friendRig.playUseGesture("hug");
+      temporaryReaction(actorId, "excited");
+      temporaryReaction(friendId, "excited");
+      rememberForRoomNpcs("activity", "playground-together");
+      options.onAction("A wonderful playground game together!", "shared");
+    } else if (held?.gesture === "read") {
       actorRig.playUseGesture("read");
       friendRig.playUseGesture("read");
       temporaryReaction(actorId, "happy");
@@ -3885,6 +4434,16 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
       cafePosition(4.65, 1.35, .55),
       cafePosition(-4.7, 1.2, 2.65),
     ],
+    park: [
+      parkPosition(-3.8, .8, 1.85),
+      parkPosition(3.4, 1.4, -2.1),
+      parkPosition(-3.35, .8, -2.2),
+    ],
+    grocery: [
+      groceryPosition(-2.6, 1.4, 1.55),
+      groceryPosition(3.55, 1.1, .35),
+      groceryPosition(.8, 1.3, -2.55),
+    ],
   };
 
   const safeHeldItemForWander = (itemId: string | null): boolean => (
@@ -3920,6 +4479,16 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
         [68.0, 71.8, 1.15, 3.55],
         [61.7, 63.25, .25, 1.65],
         [64.15, 65.65, .25, 1.65],
+      ],
+      park: [
+        [83.2, 85.3, 1.25, 2.35],
+        [90.4, 92.35, -3.2, -1.0],
+        [91.5, 93.45, 1.75, 3.15],
+      ],
+      grocery: [
+        [106.0, 109.2, -3.25, -2.0],
+        [106.0, 109.3, -.1, 3.15],
+        [113.1, 115.3, -3.2, 3.35],
       ],
     };
     return !blocked[room].some(([minX, maxX, minZ, maxZ]) => (
@@ -4035,6 +4604,26 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
       cafePosition(3.55, 0, 2.75),
       cafePosition(2.85, 0, 2.7),
       cafePosition(3.95, 0, 3.05),
+    ],
+    "park-keeper": [
+      parkPosition(-3.35, 0, 1.45),
+      parkPosition(-4.0, 0, 1.1),
+      parkPosition(-2.8, 0, 1.7),
+    ],
+    "park-parent": [
+      parkPosition(3.2, 0, -.35),
+      parkPosition(3.8, 0, -.25),
+      parkPosition(3.45, 0, .3),
+    ],
+    shopkeeper: [
+      groceryPosition(1.7, 0, -1.9),
+      groceryPosition(1.0, 0, -1.8),
+      groceryPosition(2.15, 0, -2.15),
+    ],
+    "grocery-shopper": [
+      groceryPosition(-2.9, 0, .15),
+      groceryPosition(-3.35, 0, 1.0),
+      groceryPosition(-2.2, 0, 1.65),
     ],
   };
 
@@ -4177,6 +4766,27 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     ].reduce((total, controller) => total + controller.decisionCount, 0),
   });
 
+  const getDialogueContext = (npcId: NpcId): RoomDialogueContext | null => {
+    if (!NPC_IDS.includes(npcId) || npcStates[npcId].room !== activeRoom) return null;
+    const current = selectedState();
+    const nearbyCharacterIds = CHARACTER_IDS.filter((characterId) => (
+      characters[characterId].room === activeRoom
+      && Vector3.Distance(characterRigs[characterId].root.position, npcRigs[npcId].root.position) <= 4.4
+    ));
+    return {
+      npcId,
+      activeCharacterId: selectedCharacterId,
+      activeCharacterName: CHARACTER_DEFINITIONS[selectedCharacterId].shortName,
+      locationId: activeRoom,
+      locationName: roomNames[activeRoom],
+      nearbyCharacterIds,
+      heldItemId: current.heldItem ?? undefined,
+      recentWorldEvents: [...world3State.recentEvents],
+      relationshipLevel: 0,
+      recentTopics: [],
+    };
+  };
+
   return {
     scene,
     setQuality,
@@ -4188,6 +4798,7 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     switchRoom,
     setLivingSettings,
     playTogether,
+    getDialogueContext,
     getLivingDebugState,
   };
 }

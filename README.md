@@ -4,16 +4,14 @@ A family-friendly Babylon.js dollhouse and neighborhood play prototype.
 
 ## Current release
 
-**LIFE.1 Accelerated — NPCs and living characters**
+**WORLD.3 Accelerated — park, grocery and offline NPC dialogue**
 
-The project contains four playable locations and three controllable family
-characters. Each character keeps their own location, outfit, expression, held
-item and furniture state. Existing movement, seating, object play, item actions,
-persistent saves, low-spec graphics presets and WAMP deployment remain supported.
-LIFE.1 makes unselected family members blink, react, look around, use held
-items and occasionally take a small safe walk without leaving their location.
-Mama, Auntie Noor and café worker Ms. Sana add greetings, item exchanges and
-lightweight location activities while remaining separate from character selection.
+The project now contains six playable locations, three controllable family
+characters, seven neighborhood NPCs, everyday cooking and storage play, park
+activities, grocery shopping, and a fully local conversation system. NPC replies
+use bounded intents, entity aliases, authored templates, structured memories, and
+friendship progression. No network service, account, API key, or remote model is
+used for conversation.
 
 ## Run locally
 
@@ -35,7 +33,8 @@ Then open `http://localhost/khadijas-world/`.
 
 ## Controls
 
-- Click a location button or teal doorway to travel.
+- Click a location button or doorway to travel among the home, bedroom, street,
+  Sunny Café, neighborhood park, and Sunny Basket Grocery.
 - Pick Khadija, her little sister or her brother from the portrait tray.
 - Click the floor or use WASD / arrow keys to move the selected character.
 - Drag a character to a valid floor or nearby furniture position.
@@ -50,9 +49,14 @@ Then open `http://localhost/khadijas-world/`.
 - Click the street scooter for a short ride.
 - Click the café pastry display for food.
 - Click the café coffee machine for a drink.
-- Tap Mama, Auntie Noor or Ms. Sana to greet them, exchange an item or request
-  café service.
+- Tap a neighborhood friend to exchange an item or open a local conversation.
+- In the park, try the benches, picnic blanket, slide, swings, sandbox, flowers,
+  birds, fountain, sign, and tidy-up activity.
+- In the grocery shop, carry the shopping basket, choose fictional products, and
+  bring the basket to the checkout to pack a reusable bag.
 - Use Settings to turn character wiggles or little walks on and off separately.
+- Use Settings to enable suggested-only conversations, disable saved memories,
+  or clear conversation memories without resetting the world.
 
 ## Minimum test target
 

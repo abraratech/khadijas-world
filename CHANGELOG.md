@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.10.0 — WORLD.3 Accelerated
+
+### Added
+
+- Neighborhood park with seating, picnic, playground, gardening, birds, fountain,
+  sign, photography, and tidy-up interactions
+- Sunny Basket Grocery with fictional products, portable basket, checkout, and bag
+- Mr. Sami, Auntie Layla, Mr. Kareem, and Mrs. Huda as persistent local NPCs
+- Fully offline bounded NPC dialogue with intents, entities, profiles, authored
+  templates, suggested topics, safe redirects, and capped conversation history
+- Structured NPC memories for gifts, shared activities, important events, visits,
+  and nonnegative friendship progression
+- Player controls for NPC chat, typed messages, memory storage, and memory deletion
+- Version 10 save migration for both new locations and dialogue state
+
+### Performance and privacy
+
+- Inactive locations and their NPCs remain excluded from full animation updates
+- Dialogue parsing runs only when a player submits a topic or message
+- Conversation history and structured memory lists are bounded and normalized
+- NPC dialogue makes no network requests and uses no remote model or API key
+
+### Retained
+
+- All PLAY.3 movement, hand-off, storage, cooking, cleaning, autonomy, audio,
+  graphics, saving, low-spec support, hidden debug mode, and WAMP deployment
+
 ## 0.8.0 — LIFE.1 Accelerated
 
 ### Added

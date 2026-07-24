@@ -2,7 +2,7 @@ import { Vector3 } from "@babylonjs/core";
 import type { CharacterId, CharacterState } from "./characterState";
 import type { RoomId } from "./storage";
 
-export type SeatKind = "sofa" | "bed" | "bench" | "cafe-chair";
+export type SeatKind = "sofa" | "bed" | "bench" | "cafe-chair" | "picnic";
 
 export interface SeatSlot {
   id: string;

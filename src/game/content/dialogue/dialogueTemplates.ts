@@ -1,0 +1,33 @@
+import type { DialogueIntent } from "../../dialogue/DialogueIntent";
+
+export const DIALOGUE_TEMPLATES: Record<DialogueIntent, readonly string[]> = {
+  greeting: [
+    "Hello, {playerName}! It is lovely to see you.",
+    "Hello again, {playerName}! What shall we talk about?",
+  ],
+  goodbye: ["See you soon! Have a lovely time in {locationName}.", "Goodbye for now, {playerName}!"],
+  "ask-name": ["My name is {npcName}. I am happy to meet you!"],
+  "ask-role": ["I am {npcRole}."],
+  "ask-current-location": ["We are in {locationName}. A lovely place for {activityName}!"],
+  "ask-other-location": ["You can use the friendly map above to visit {itemName}."],
+  "ask-character": ["{itemName} is part of our friendly neighborhood story."],
+  "ask-item": ["I can see the {itemName}. It might be useful for our next activity!"],
+  "ask-food": ["A {itemName} sounds tasty. We can eat together or save it for a picnic!"],
+  "ask-recipe": ["Try bread and cheese for a sandwich, or fruit in the mixing bowl."],
+  "ask-activity": ["How about {activityName}? We can make a little story together."],
+  "ask-help": ["Start with one small thing: {activityName}. I can cheer you on!"],
+  "ask-memory": ["{memoryItem}"],
+  compliment: ["That is very kind, {playerName}! You made me smile."],
+  "express-happiness": ["I am glad you feel happy! Let's do something cheerful together."],
+  "express-sadness": ["I am sorry you feel sad. We can rest, read, or find a family member nearby."],
+  "express-excitement": ["How exciting! {activityName} would be wonderful right now."],
+  "express-tiredness": ["A cozy seat or a quiet story might feel nice."],
+  "ask-friendship": ["We are {friendshipPhrase}. Kind words and shared activities help friendship grow."],
+  "mention-gift": ["Gifts are a kind surprise. {memoryItem}"],
+  "mention-shared-activity": ["{memoryItem}"],
+  "ask-shop-ingredient": ["For a sandwich, look for bread and cheese. For fruit bowls, choose apples and bananas."],
+  "ask-park-plants": ["Flowers like gentle watering. The watering can is near the planters."],
+  "ask-cafe-food": ["The café has cupcakes, sandwiches, and warm drinks to enjoy."],
+  "safe-redirect": ["Let's talk about something safe and fun in Khadija's World. Would you like the park or a snack?"],
+  unknown: ["I'm not sure about that, but we can talk about the park, our friends, food, or something fun to do!"],
+};
