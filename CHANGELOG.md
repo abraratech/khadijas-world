@@ -1,5 +1,55 @@
 # Changelog
 
+## 0.7.0 — CONTENT.1 Accelerated
+
+### Added
+
+- Distinct hairstyles, silhouettes, facial details, outfit emblems and shoes for the playable family
+- Layered eyes, pupils, eyebrows, cheeks and expression-specific face poses
+- Interactive home television with persisted on/off state
+- Interactive bedroom music box and bouncing toy ball
+- Interactive neighborhood mailbox with a persisted flag state
+- Interactive café bell and rotating daily-special messages
+- Room-specific lightweight music chords and interaction sound cues
+- Animated location-transition cards, sparkle feedback and touch haptics
+- Touch-accessible mood controls at narrow screen sizes
+- Version 7 content-state save migration
+
+### Changed
+
+- Improved room transitions with a softer curtain, location icon and title
+- Expanded player feedback for travel, pickup, furniture, hand-off and sleep actions
+- Raised the release version to 0.7.0
+
+### Retained
+
+- All PLAY.2 multi-character movement, placement, expressions, hand-offs and saves
+- All four locations, furniture, objects, lighting and settings
+- Low-spec presets, relative production paths and WAMP deployment
+
+## 0.6.0 — PLAY.2 Accelerated
+
+### Added
+
+- Three independently controllable family characters
+- Friendly portrait-based character switching
+- Character dragging and room-safe placement
+- Independent outfits, expressions, held items and activity state
+- Nearby item hand-offs with playful reactions
+- Happy, excited, sleepy, surprised and neutral expressions
+- Lightweight unsynchronized blinking, sway and head movement
+- Multiple non-overlapping furniture slots across all four locations
+- Per-character sitting, sleeping and location persistence
+- Version 6 save migration with selected-character and player-setting persistence
+
+### Retained
+
+- All four locations and their transitions
+- Item pickup, use, carrying, dropping and prop dragging
+- Outfit switching, lighting and room-state saves
+- Low-spec graphics support and WAMP deployment
+- Player-facing normal mode and `?debug=1` diagnostics
+
 ## 0.5.0 — WORLD.2 Accelerated
 
 ### Added

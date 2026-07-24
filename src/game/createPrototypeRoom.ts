@@ -23,21 +23,59 @@ import {
 } from "@babylonjs/core";
 import type { QualitySettings } from "./quality";
 import {
+  CHARACTER_DEFINITIONS,
+  CHARACTER_IDS,
+  type CharacterExpression,
+  type CharacterId,
+  type CharacterInteraction,
+  type CharacterState,
+} from "./characterState";
+import {
+  CHARACTER_VISUALS,
+  DEFAULT_CHARACTER_VISUAL,
+} from "./characterVisuals";
+import {
+  findAvailableSeat,
+  findNearbyAvailableSeat,
+  getSeatById,
+  type SeatKind,
+  type SeatSlot,
+} from "./seatRegistry";
+import {
   loadSave,
   restoreProp,
-  saveKhadijaPosition,
+  saveCharacterState,
+  saveContentState,
   saveProp,
-  savePlayState,
   saveRoomState,
+  saveSelectedCharacter,
   type OutfitId,
   type RoomId,
 } from "./storage";
 
+export type InteractionSound =
+  | "tap"
+  | "pickup"
+  | "success"
+  | "travel"
+  | "sleep"
+  | "bell"
+  | "toggle";
+
 export interface PlayState {
   heldItem: string | null;
   seated: boolean;
+  sleeping: boolean;
   outfit: OutfitId;
   activeRoom: RoomId;
+  selectedCharacter: CharacterId;
+  expression: CharacterExpression;
+  characters: Array<{
+    id: CharacterId;
+    room: RoomId;
+    expression: CharacterExpression;
+    heldItem: string | null;
+  }>;
 }
 
 export interface PrototypeRoom {
@@ -46,11 +84,13 @@ export interface PrototypeRoom {
   useHeldItem(): void;
   dropHeldItem(): void;
   setOutfit(outfit: OutfitId): void;
+  setExpression(expression: CharacterExpression): void;
+  selectCharacter(characterId: CharacterId): void;
   switchRoom(room: RoomId): void;
 }
 
 interface RoomOptions {
-  onAction(message: string): void;
+  onAction(message: string, sound?: InteractionSound): void;
   onPlayStateChange(state: PlayState): void;
 }
 
@@ -69,11 +109,18 @@ interface CharacterRig {
   setTarget(target: Vector3, onArrive?: () => void): void;
   moveBy(direction: Vector3, deltaSeconds: number): void;
   sitAt(position: Vector3, rotationY: number): void;
+  sleepAt(position: Vector3, rotationY: number): void;
   stand(): void;
+  placeAt(position: Vector3): void;
   setOutfitColor(color: Color3): void;
+  setExpression(expression: CharacterExpression): void;
+  setSelected(selected: boolean): void;
+  setVisible(visible: boolean): void;
   setBounds(minX: number, maxX: number, minZ: number, maxZ: number): void;
   playUseGesture(gesture: UseGesture): void;
   isSeated(): boolean;
+  isSleeping(): boolean;
+  isMoving(): boolean;
 }
 
 const colors = {
@@ -150,6 +197,8 @@ function createCharacter(
   hoodieColor: Color3,
   scale = 1,
   movable = false,
+  characterId?: CharacterId,
+  onPositionChanged?: (position: Vector3, rotationY: number) => void,
 ): CharacterRig {
   const root = new TransformNode(name, scene);
   root.position.copyFrom(position);
@@ -158,53 +207,167 @@ function createCharacter(
 
   const visualRoot = new TransformNode(`${name}-visual`, scene);
   visualRoot.parent = root;
+  const headPivot = new TransformNode(`${name}-head-pivot`, scene);
+  headPivot.position.y = 1.73;
+  headPivot.parent = visualRoot;
 
-  const skin = material(scene, `${name}-skin`, new Color3(0.58, 0.33, 0.21));
-  const hair = material(scene, `${name}-hair`, new Color3(0.055, 0.035, 0.04));
+  const visualStyle = characterId
+    ? CHARACTER_VISUALS[characterId]
+    : DEFAULT_CHARACTER_VISUAL;
+  const skin = material(scene, `${name}-skin`, new Color3(...visualStyle.skin));
+  const hair = material(scene, `${name}-hair`, new Color3(...visualStyle.hair));
+  const accent = material(scene, `${name}-accent`, new Color3(...visualStyle.accent));
   const hoodie = material(scene, `${name}-hoodie`, hoodieColor);
   const denim = material(scene, `${name}-denim`, new Color3(0.12, 0.31, 0.52));
   const white = material(scene, `${name}-white`, new Color3(0.96, 0.95, 0.91));
   const eye = material(scene, `${name}-eye`, colors.dark);
   const smile = material(scene, `${name}-smile`, new Color3(0.35, 0.08, 0.10));
+  const shoeMaterial = material(scene, `${name}-shoe-mat`, new Color3(...visualStyle.shoe));
+  const cheekMaterial = material(scene, `${name}-cheek-mat`, new Color3(.94, .43, .50));
 
   const body = MeshBuilder.CreateCapsule(`${name}-body`, { radius: 0.32, height: 1.1, tessellation: 14 }, scene);
   body.position.y = 0.95;
+  body.scaling.x = visualStyle.bodyWidth;
   body.material = hoodie;
   body.parent = visualRoot;
 
   const head = MeshBuilder.CreateSphere(`${name}-head`, { diameter: 0.88, segments: 18 }, scene);
-  head.position.y = 1.73;
-  head.scaling.z = 0.9;
+  head.scaling.set(visualStyle.faceWidth, 1, .9);
   head.material = skin;
-  head.parent = visualRoot;
+  head.parent = headPivot;
 
   const hairCap = MeshBuilder.CreateSphere(`${name}-hair-cap`, { diameter: 0.91, segments: 14, slice: 0.58 }, scene);
-  hairCap.position.set(0, 1.91, 0.02);
+  hairCap.position.set(0, .18, .02);
   hairCap.rotation.x = Math.PI;
+  if (visualStyle.hairStyle === "soft-crop") hairCap.scaling.y = .78;
   hairCap.material = hair;
-  hairCap.parent = visualRoot;
+  hairCap.parent = headPivot;
 
-  if (name === "khadija") {
+  if (visualStyle.hairStyle === "long-curls") {
+    for (const [x, y, diameter] of [
+      [-.36, -.08, .34],
+      [.36, -.08, .34],
+      [-.37, -.36, .31],
+      [.37, -.36, .31],
+      [-.25, -.57, .29],
+      [.25, -.57, .29],
+    ] as const) {
+      const curl = MeshBuilder.CreateSphere(
+        `${name}-curl-${x}-${y}`,
+        { diameter, segments: 10 },
+        scene,
+      );
+      curl.position.set(x, y, .12);
+      curl.material = hair;
+      curl.parent = headPivot;
+      curl.isPickable = false;
+    }
     const headband = MeshBuilder.CreateTorus(`${name}-headband`, { diameter: 0.76, thickness: 0.07, tessellation: 20 }, scene);
-    headband.position.set(0, 1.92, -0.03);
+    headband.position.set(0, .19, -.03);
     headband.rotation.x = Math.PI / 2;
-    headband.material = material(scene, `${name}-headband-mat`, colors.pink);
-    headband.parent = visualRoot;
+    headband.material = accent;
+    headband.parent = headPivot;
+
+    for (const x of [-.075, .075]) {
+      const bowLoop = MeshBuilder.CreateSphere(`${name}-bow-${x}`, { diameter: .15, segments: 8 }, scene);
+      bowLoop.scaling.set(1.25, .72, .42);
+      bowLoop.position.set(.26 + x, .43, -.25);
+      bowLoop.material = accent;
+      bowLoop.parent = headPivot;
+      bowLoop.isPickable = false;
+    }
+  } else if (visualStyle.hairStyle === "double-buns") {
+    for (const x of [-.36, .36]) {
+      const bun = MeshBuilder.CreateSphere(`${name}-bun-${x}`, { diameter: .38, segments: 11 }, scene);
+      bun.position.set(x, .28, .05);
+      bun.material = hair;
+      bun.parent = headPivot;
+      bun.isPickable = false;
+      const band = MeshBuilder.CreateTorus(
+        `${name}-bun-band-${x}`,
+        { diameter: .27, thickness: .045, tessellation: 14 },
+        scene,
+      );
+      band.position.set(x, .24, .01);
+      band.rotation.x = Math.PI / 2;
+      band.material = accent;
+      band.parent = headPivot;
+      band.isPickable = false;
+    }
+  } else {
+    for (const x of [-.25, -.08, .09, .26]) {
+      const curl = MeshBuilder.CreateSphere(`${name}-front-curl-${x}`, { diameter: .18, segments: 8 }, scene);
+      curl.position.set(x, .35 - Math.abs(x) * .18, -.16);
+      curl.material = hair;
+      curl.parent = headPivot;
+      curl.isPickable = false;
+    }
   }
 
+  const eyes: Mesh[] = [];
+  const pupils: Mesh[] = [];
+  const brows: Mesh[] = [];
+  const cheeks: Mesh[] = [];
   for (const x of [-0.18, 0.18]) {
-    const eyeMesh = MeshBuilder.CreateSphere(`${name}-eye-${x}`, { diameter: 0.105, segments: 10 }, scene);
-    eyeMesh.position.set(x, 1.76, -0.405);
-    eyeMesh.material = eye;
-    eyeMesh.parent = visualRoot;
+    const eyeMesh = MeshBuilder.CreateSphere(`${name}-eye-white-${x}`, { diameter: .17, segments: 10 }, scene);
+    eyeMesh.scaling.set(1.12, .86, .36);
+    eyeMesh.position.set(x, .035, -.397);
+    eyeMesh.material = white;
+    eyeMesh.parent = headPivot;
+    eyeMesh.isPickable = false;
+    eyes.push(eyeMesh);
+
+    const pupil = MeshBuilder.CreateSphere(`${name}-pupil-${x}`, { diameter: .082, segments: 9 }, scene);
+    pupil.scaling.z = .42;
+    pupil.position.set(x, .025, -.455);
+    pupil.material = eye;
+    pupil.parent = headPivot;
+    pupil.isPickable = false;
+    pupils.push(pupil);
+
+    const brow = MeshBuilder.CreateBox(
+      `${name}-brow-${x}`,
+      { width: .19, height: .026, depth: .025 },
+      scene,
+    );
+    brow.position.set(x, .17, -.425);
+    brow.material = hair;
+    brow.parent = headPivot;
+    brow.isPickable = false;
+    brows.push(brow);
+
+    const cheek = MeshBuilder.CreateSphere(`${name}-cheek-${x}`, { diameter: .12, segments: 8 }, scene);
+    cheek.scaling.set(1.3, .52, .28);
+    cheek.position.set(x < 0 ? -.285 : .285, -.095, -.405);
+    cheek.material = cheekMaterial;
+    cheek.parent = headPivot;
+    cheek.isPickable = false;
+    cheeks.push(cheek);
   }
 
   const mouth = MeshBuilder.CreateBox(`${name}-mouth`, { width: 0.22, height: 0.035, depth: 0.035 }, scene);
-  mouth.position.set(0, 1.57, -0.414);
+  mouth.position.set(0, -.16, -.414);
   mouth.rotation.z = -0.08;
   mouth.material = smile;
-  mouth.parent = visualRoot;
+  mouth.parent = headPivot;
   mouth.isPickable = false;
+
+  const mouthHighlight = MeshBuilder.CreateBox(
+    `${name}-smile-highlight`,
+    { width: .12, height: .025, depth: .02 },
+    scene,
+  );
+  mouthHighlight.position.set(0, -.145, -.438);
+  mouthHighlight.material = white;
+  mouthHighlight.parent = headPivot;
+  mouthHighlight.isPickable = false;
+
+  const nose = MeshBuilder.CreateSphere(`${name}-nose`, { diameter: .07, segments: 8 }, scene);
+  nose.scaling.set(.72, .88, .6);
+  nose.position.set(0, -.055, -.445);
+  nose.material = skin;
+  nose.parent = headPivot;
+  nose.isPickable = false;
 
   const leftLeg = new TransformNode(`${name}-left-leg-pivot`, scene);
   const rightLeg = new TransformNode(`${name}-right-leg-pivot`, scene);
@@ -221,8 +384,18 @@ function createCharacter(
 
     const shoe = MeshBuilder.CreateBox(`${name}-shoe-${suffix}`, { width: 0.27, height: 0.16, depth: 0.42 }, scene);
     shoe.position.set(0, -0.58, -0.08);
-    shoe.material = white;
+    shoe.material = shoeMaterial;
     shoe.parent = legRoot;
+
+    const sole = MeshBuilder.CreateBox(
+      `${name}-shoe-sole-${suffix}`,
+      { width: .29, height: .045, depth: .44 },
+      scene,
+    );
+    sole.position.set(0, -.66, -.08);
+    sole.material = white;
+    sole.parent = legRoot;
+    sole.isPickable = false;
   }
 
   const leftArm = new TransformNode(`${name}-left-arm-pivot`, scene);
@@ -237,26 +410,119 @@ function createCharacter(
     arm.position.y = -0.23;
     arm.material = hoodie;
     arm.parent = armRoot;
+
+    const hand = MeshBuilder.CreateSphere(`${name}-hand-${suffix}`, { diameter: .19, segments: 9 }, scene);
+    hand.position.y = -.53;
+    hand.material = skin;
+    hand.parent = armRoot;
+    hand.isPickable = false;
+  }
+
+  for (const x of [-.09, .09]) {
+    const drawstring = MeshBuilder.CreateCylinder(
+      `${name}-drawstring-${x}`,
+      { diameter: .018, height: .25, tessellation: 8 },
+      scene,
+    );
+    drawstring.position.set(x, 1.18, -.29);
+    drawstring.material = white;
+    drawstring.parent = visualRoot;
+    drawstring.isPickable = false;
+  }
+
+  const pocket = MeshBuilder.CreateBox(
+    `${name}-pocket`,
+    { width: .38, height: .2, depth: .035 },
+    scene,
+  );
+  pocket.position.set(0, .78, -.31);
+  pocket.material = hoodie;
+  pocket.parent = visualRoot;
+  pocket.isPickable = false;
+
+  const emblemCenter = MeshBuilder.CreateSphere(
+    `${name}-${visualStyle.emblem}-center`,
+    { diameter: .11, segments: 8 },
+    scene,
+  );
+  emblemCenter.scaling.z = .28;
+  emblemCenter.position.set(0, 1.03, -.337);
+  emblemCenter.material = accent;
+  emblemCenter.parent = visualRoot;
+  emblemCenter.isPickable = false;
+  const emblemPoints = visualStyle.emblem === "flower" ? 5 : visualStyle.emblem === "star" ? 4 : 2;
+  for (let index = 0; index < emblemPoints; index += 1) {
+    const angle = emblemPoints === 2 ? (index === 0 ? -.65 : .65) : (index / emblemPoints) * Math.PI * 2;
+    const detail = MeshBuilder.CreateSphere(
+      `${name}-${visualStyle.emblem}-detail-${index}`,
+      { diameter: visualStyle.emblem === "heart" ? .10 : .085, segments: 7 },
+      scene,
+    );
+    detail.scaling.set(
+      visualStyle.emblem === "heart" ? .9 : 1,
+      visualStyle.emblem === "heart" ? 1.2 : 1,
+      .25,
+    );
+    detail.position.set(
+      Math.cos(angle) * (visualStyle.emblem === "heart" ? .055 : .09),
+      1.03 + Math.sin(angle) * (visualStyle.emblem === "heart" ? .045 : .09),
+      -.342,
+    );
+    detail.material = accent;
+    detail.parent = visualRoot;
+    detail.isPickable = false;
   }
 
   const holdAnchor = new TransformNode(`${name}-hold-anchor`, scene);
   holdAnchor.position.set(0, -0.53, -0.17);
   holdAnchor.parent = rightArm;
 
+  const selectionMaterial = material(
+    scene,
+    `${name}-selection-mat`,
+    colors.yellow,
+    new Color3(.3, .18, .02),
+  );
+  const selectionRing = MeshBuilder.CreateTorus(
+    `${name}-selection-ring`,
+    { diameter: 1.18, thickness: .08, tessellation: 24 },
+    scene,
+  );
+  selectionRing.rotation.x = Math.PI / 2;
+  selectionRing.position.y = .035;
+  selectionRing.material = selectionMaterial;
+  selectionRing.parent = root;
+  selectionRing.isPickable = false;
+  selectionRing.setEnabled(false);
+  if (characterId) {
+    for (const childMesh of root.getChildMeshes()) {
+      if (childMesh !== selectionRing) {
+        childMesh.metadata = { ...childMesh.metadata, characterId };
+      }
+    }
+  }
+
   let target: Vector3 | null = null;
   let arrivalAction: (() => void) | null = null;
   let seated = false;
+  let sleeping = false;
   let walkPhase = 0;
   let gestureActive = false;
+  let expression: CharacterExpression = "neutral";
+  let idleClock = name.split("").reduce((total, letter) => total + letter.charCodeAt(0), 0) * .071;
+  const idleSeed = idleClock;
   const speed = movable ? 2.15 : 0;
+  const movementScratch = new Vector3();
+  const directionScratch = new Vector3();
 
   let bounds = { minX: -5.25, maxX: 5.15, minZ: -3.35, maxZ: 3.45 };
 
-  const clampPosition = (value: Vector3): Vector3 => new Vector3(
-    Math.max(bounds.minX, Math.min(bounds.maxX, value.x)),
-    0,
-    Math.max(bounds.minZ, Math.min(bounds.maxZ, value.z)),
-  );
+  const clampPositionInPlace = (value: Vector3): Vector3 => {
+    value.x = Math.max(bounds.minX, Math.min(bounds.maxX, value.x));
+    value.y = 0;
+    value.z = Math.max(bounds.minZ, Math.min(bounds.maxZ, value.z));
+    return value;
+  };
 
   const animateWalk = (moving: boolean, deltaSeconds: number): void => {
     if (!moving) {
@@ -270,7 +536,7 @@ function createCharacter(
         leftArm.rotation.z *= 0.72;
         rightArm.rotation.z *= 0.72;
       }
-      visualRoot.position.y *= 0.72;
+      if (!sleeping) visualRoot.position.y *= 0.72;
       return;
     }
 
@@ -287,14 +553,82 @@ function createCharacter(
     visualRoot.position.y = Math.abs(Math.sin(walkPhase * 2)) * 0.035;
   };
 
+  const expressionEyeScale = (): number => {
+    if (expression === "sleepy") return .18;
+    if (expression === "excited" || expression === "surprised") return 1.28;
+    return 1;
+  };
+
+  const applyExpression = (): void => {
+    const eyeY = expressionEyeScale();
+    for (const eyeMesh of eyes) eyeMesh.scaling.set(1.12, .86 * eyeY, .36);
+    for (const pupil of pupils) pupil.scaling.y = eyeY;
+    for (const cheek of cheeks) {
+      cheek.setEnabled(expression === "happy" || expression === "excited");
+    }
+    brows[0].rotation.z = 0;
+    brows[1].rotation.z = 0;
+    brows[0].position.y = .17;
+    brows[1].position.y = .17;
+    if (expression === "excited") {
+      brows[0].rotation.z = -.12;
+      brows[1].rotation.z = .12;
+      brows[0].position.y = .205;
+      brows[1].position.y = .205;
+    } else if (expression === "surprised") {
+      brows[0].position.y = .24;
+      brows[1].position.y = .24;
+    } else if (expression === "sleepy") {
+      brows[0].rotation.z = .08;
+      brows[1].rotation.z = -.08;
+      brows[0].position.y = .145;
+      brows[1].position.y = .145;
+    }
+    mouth.rotation.z = expression === "happy" || expression === "excited" ? -.14 : 0;
+    if (expression === "surprised") {
+      mouth.scaling.set(.45, 2.2, 1);
+    } else if (expression === "sleepy") {
+      mouth.scaling.set(.7, .7, 1);
+    } else if (expression === "excited") {
+      mouth.scaling.set(1.22, 1.35, 1);
+    } else {
+      mouth.scaling.set(1, 1, 1);
+    }
+    mouthHighlight.setEnabled(expression === "happy" || expression === "excited");
+  };
+
+  const animateIdle = (deltaSeconds: number): void => {
+    if (seated || sleeping || gestureActive || target) return;
+    idleClock += deltaSeconds;
+    visualRoot.rotation.z = Math.sin(idleClock * .82 + idleSeed) * .022;
+    headPivot.rotation.y = Math.sin(idleClock * .51 + idleSeed * 1.7) * .08;
+    headPivot.rotation.z = Math.sin(idleClock * .37 + idleSeed) * .018;
+
+    const blinkCycle = (idleClock + idleSeed) % (3.1 + (idleSeed % 1.4));
+    const blinking = blinkCycle < .11;
+    const eyeY = blinking ? .08 : expressionEyeScale();
+    for (const eyeMesh of eyes) eyeMesh.scaling.y = .86 * eyeY;
+    for (const pupil of pupils) pupil.scaling.y = eyeY;
+
+    const happyMoment = (idleClock + idleSeed * 2) % 9.5 > 9.05;
+    if (happyMoment && (expression === "happy" || expression === "excited")) {
+      leftArm.rotation.z = .16;
+      rightArm.rotation.z = -.16;
+    }
+  };
+
   const stand = (): void => {
-    if (!seated) return;
     seated = false;
+    sleeping = false;
     visualRoot.position.y = 0;
+    visualRoot.rotation.z = 0;
+    headPivot.rotation.setAll(0);
     leftLeg.rotation.x = 0;
     rightLeg.rotation.x = 0;
     root.position.y = 0;
   };
+
+  applyExpression();
 
   return {
     root,
@@ -302,7 +636,9 @@ function createCharacter(
     setTarget(nextTarget: Vector3, onArrive?: () => void): void {
       if (!movable) return;
       stand();
-      target = clampPosition(nextTarget);
+      target ??= new Vector3();
+      target.copyFrom(nextTarget);
+      clampPositionInPlace(target);
       arrivalAction = onArrive ?? null;
     },
     moveBy(direction: Vector3, deltaSeconds: number): void {
@@ -310,16 +646,17 @@ function createCharacter(
       stand();
       target = null;
       arrivalAction = null;
-      const normalized = direction.normalize();
-      const next = clampPosition(root.position.add(normalized.scale(speed * deltaSeconds)));
-      root.position.copyFrom(next);
-      root.rotation.y = Math.atan2(-normalized.x, -normalized.z);
+      movementScratch.copyFrom(direction).normalize().scaleInPlace(speed * deltaSeconds);
+      root.position.addInPlace(movementScratch);
+      clampPositionInPlace(root.position);
+      root.rotation.y = Math.atan2(-movementScratch.x, -movementScratch.z);
       animateWalk(true, deltaSeconds);
     },
     sitAt(seatPosition: Vector3, rotationY: number): void {
       target = null;
       arrivalAction = null;
       seated = true;
+      sleeping = false;
       root.position.copyFrom(seatPosition);
       root.rotation.y = rotationY;
       root.position.y = 0.43;
@@ -329,13 +666,46 @@ function createCharacter(
       leftArm.rotation.x = -0.15;
       rightArm.rotation.x = -0.15;
     },
+    sleepAt(sleepPosition: Vector3, rotationY: number): void {
+      target = null;
+      arrivalAction = null;
+      seated = true;
+      sleeping = true;
+      root.position.copyFrom(sleepPosition);
+      root.rotation.y = rotationY;
+      root.position.y = .48;
+      visualRoot.position.y = .15;
+      visualRoot.rotation.z = -Math.PI / 2;
+      leftLeg.rotation.x = -.18;
+      rightLeg.rotation.x = .18;
+      leftArm.rotation.x = .42;
+      rightArm.rotation.x = .42;
+    },
     stand,
+    placeAt(nextPosition: Vector3): void {
+      stand();
+      target = null;
+      arrivalAction = null;
+      root.position.copyFrom(nextPosition);
+      clampPositionInPlace(root.position);
+      onPositionChanged?.(root.position, root.rotation.y);
+    },
     setOutfitColor(color: Color3): void {
       hoodie.diffuseColor = color;
     },
+    setExpression(nextExpression: CharacterExpression): void {
+      expression = nextExpression;
+      applyExpression();
+    },
+    setSelected(selected: boolean): void {
+      selectionRing.setEnabled(selected);
+    },
+    setVisible(visible: boolean): void {
+      root.setEnabled(visible);
+    },
     setBounds(minX: number, maxX: number, minZ: number, maxZ: number): void {
       bounds = { minX, maxX, minZ, maxZ };
-      root.position.copyFrom(clampPosition(root.position));
+      clampPositionInPlace(root.position);
     },
     playUseGesture(gesture: UseGesture): void {
       if (gestureActive) return;
@@ -402,19 +772,26 @@ function createCharacter(
     isSeated(): boolean {
       return seated;
     },
+    isSleeping(): boolean {
+      return sleeping;
+    },
+    isMoving(): boolean {
+      return target !== null;
+    },
     update(deltaSeconds: number): void {
       if (!movable || !target) {
         animateWalk(false, deltaSeconds);
+        animateIdle(deltaSeconds);
         return;
       }
 
-      const direction = target.subtract(root.position);
-      direction.y = 0;
-      const distance = direction.length();
+      directionScratch.copyFrom(target).subtractInPlace(root.position);
+      directionScratch.y = 0;
+      const distance = directionScratch.length();
       if (distance < 0.06) {
         root.position.copyFrom(target);
         target = null;
-        saveKhadijaPosition(root.position);
+        onPositionChanged?.(root.position, root.rotation.y);
         animateWalk(false, deltaSeconds);
         const callback = arrivalAction;
         arrivalAction = null;
@@ -422,10 +799,10 @@ function createCharacter(
         return;
       }
 
-      const normalized = direction.scale(1 / distance);
       const step = Math.min(distance, speed * deltaSeconds);
-      root.position.addInPlace(normalized.scale(step));
-      root.rotation.y = Math.atan2(-normalized.x, -normalized.z);
+      directionScratch.scaleInPlace(step / distance);
+      root.position.addInPlace(directionScratch);
+      root.rotation.y = Math.atan2(-directionScratch.x, -directionScratch.z);
       animateWalk(true, deltaSeconds);
     },
   };
@@ -550,6 +927,7 @@ function makeDraggable(
 
 export function createPrototypeRoom(engine: Engine, options: RoomOptions): PrototypeRoom {
   const save = loadSave();
+  const contentState = save.content;
   const bedroomOffsetX = 22;
   const streetOffsetX = 44;
   const cafeOffsetX = 66;
@@ -717,8 +1095,34 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
   }
   box(scene, "tv-console", new Vector3(2.25, 0.58, 0.58), new Vector3(-4.55, 0.32, -2.4), wood);
   box(scene, "tv", new Vector3(1.85, 1.15, 0.12), new Vector3(-4.55, 1.16, -2.65), dark);
-  const tvScreen = box(scene, "tv-screen", new Vector3(1.62, 0.92, 0.03), new Vector3(-4.55, 1.16, -2.73), sky);
-  tvScreen.isPickable = false;
+  const tvScreenMaterial = material(
+    scene,
+    "tv-screen-material",
+    contentState.homeTvOn ? new Color3(.42, .78, .94) : new Color3(.13, .18, .24),
+    contentState.homeTvOn ? new Color3(.16, .27, .34) : Color3.Black(),
+  );
+  const tvScreen = box(
+    scene,
+    "tv-screen",
+    new Vector3(1.62, 0.92, 0.03),
+    new Vector3(-4.55, 1.16, -2.73),
+    tvScreenMaterial,
+  );
+  tvScreen.actionManager = new ActionManager(scene);
+  tvScreen.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => {
+    contentState.homeTvOn = !contentState.homeTvOn;
+    tvScreenMaterial.diffuseColor = contentState.homeTvOn
+      ? new Color3(.42, .78, .94)
+      : new Color3(.13, .18, .24);
+    tvScreenMaterial.emissiveColor = contentState.homeTvOn
+      ? new Color3(.16, .27, .34)
+      : Color3.Black();
+    saveContentState(contentState);
+    options.onAction(
+      contentState.homeTvOn ? "Story time is starting on TV!" : "The TV is tucked in for now.",
+      "toggle",
+    );
+  }));
 
   // Kitchen floor zone.
   const kitchenFloor = box(scene, "kitchen-floor", new Vector3(4.65, 0.025, 3.95), new Vector3(3.65, 0.012, 2), white);
@@ -949,6 +1353,70 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
   const toyBlock = box(scene, "bedroom-toy-block", new Vector3(0.48, 0.48, 0.48), bedroomPosition(1.55, 0.42, 2.72), teal);
   toyBlock.rotation.y = 0.25;
 
+  const musicBoxMaterial = material(
+    scene,
+    "bedroom-music-box-star-material",
+    colors.yellow,
+    contentState.bedroomMusicBoxOn ? new Color3(.35, .2, .05) : Color3.Black(),
+  );
+  const musicBox = box(
+    scene,
+    "bedroom-music-box",
+    new Vector3(.68, .36, .52),
+    bedroomPosition(2.95, 1.28, 2.82),
+    pink,
+  );
+  const musicBoxStar = MeshBuilder.CreatePolyhedron(
+    "bedroom-music-box-star",
+    { type: 1, size: .16 },
+    scene,
+  );
+  musicBoxStar.position.copyFrom(bedroomPosition(2.95, 1.57, 2.80));
+  musicBoxStar.material = musicBoxMaterial;
+  musicBoxStar.isPickable = false;
+  musicBox.actionManager = new ActionManager(scene);
+  musicBox.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => {
+    contentState.bedroomMusicBoxOn = !contentState.bedroomMusicBoxOn;
+    musicBoxMaterial.emissiveColor = contentState.bedroomMusicBoxOn
+      ? new Color3(.35, .2, .05)
+      : Color3.Black();
+    musicBoxStar.rotation.y += Math.PI / 3;
+    saveContentState(contentState);
+    options.onAction(
+      contentState.bedroomMusicBoxOn
+        ? "A tiny bedtime melody twinkles!"
+        : "The music box closes softly.",
+      contentState.bedroomMusicBoxOn ? "bell" : "toggle",
+    );
+  }));
+
+  toyBall.actionManager = new ActionManager(scene);
+  toyBall.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => {
+    const startY = toyBall.position.y;
+    Animation.CreateAndStartAnimation(
+      "bedroom-toy-ball-bounce",
+      toyBall,
+      "position.y",
+      30,
+      10,
+      startY,
+      startY + .48,
+      Animation.ANIMATIONLOOPMODE_CONSTANT,
+      undefined,
+      () => Animation.CreateAndStartAnimation(
+        "bedroom-toy-ball-land",
+        toyBall,
+        "position.y",
+        30,
+        8,
+        startY + .48,
+        startY,
+        Animation.ANIMATIONLOOPMODE_CONSTANT,
+      ),
+    );
+    options.onAction("Boing! The ball makes a happy bounce.", "tap");
+  }));
+
   // Bedroom lamp uses the same low-cost emissive technique as the home lamp.
   box(scene, "bedroom-lamp-stand", new Vector3(0.1, 1.25, 0.1), bedroomPosition(-1.2, 0.62, 1.35), wood);
   const bedroomLampMaterial = material(
@@ -1053,8 +1521,42 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     streetBenchMaterial,
   );
   box(scene, "street-mailbox-post", new Vector3(0.12, 1.15, 0.12), streetPosition(-5.1, 0.57, 0.75), wood);
-  box(scene, "street-mailbox", new Vector3(0.75, 0.52, 0.48), streetPosition(-5.1, 1.2, 0.75), teal);
-  box(scene, "street-mailbox-flag", new Vector3(0.08, 0.45, 0.08), streetPosition(-4.68, 1.45, 0.75), pink);
+  const streetMailbox = box(
+    scene,
+    "street-mailbox",
+    new Vector3(0.75, 0.52, 0.48),
+    streetPosition(-5.1, 1.2, 0.75),
+    teal,
+  );
+  const streetMailboxFlag = box(
+    scene,
+    "street-mailbox-flag",
+    new Vector3(0.08, 0.45, 0.08),
+    streetPosition(-4.68, 1.45, 0.75),
+    pink,
+  );
+  streetMailboxFlag.rotation.z = contentState.streetMailboxOpen ? -1.25 : 0;
+  streetMailbox.actionManager = new ActionManager(scene);
+  streetMailbox.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => {
+    contentState.streetMailboxOpen = !contentState.streetMailboxOpen;
+    Animation.CreateAndStartAnimation(
+      "street-mailbox-flag-toggle",
+      streetMailboxFlag,
+      "rotation.z",
+      30,
+      10,
+      streetMailboxFlag.rotation.z,
+      contentState.streetMailboxOpen ? -1.25 : 0,
+      Animation.ANIMATIONLOOPMODE_CONSTANT,
+    );
+    saveContentState(contentState);
+    options.onAction(
+      contentState.streetMailboxOpen
+        ? "A cheerful letter says: Have a sunny day!"
+        : "The letter is safe in the mailbox.",
+      contentState.streetMailboxOpen ? "success" : "toggle",
+    );
+  }));
 
   const scooterRoot = new TransformNode("street-scooter", scene);
   scooterRoot.position.copyFrom(streetPosition(1.0, 0, -0.15));
@@ -1101,12 +1603,60 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
   box(scene, "cafe-counter", new Vector3(4.25, 1.15, 1.2), cafePosition(3.4, 0.57, 1.95), mint);
   box(scene, "cafe-counter-top", new Vector3(4.5, 0.16, 1.4), cafePosition(3.4, 1.2, 1.95), white);
   box(scene, "cafe-back-counter", new Vector3(3.7, 0.9, 0.75), cafePosition(3.5, 0.45, 3.35), cafeBlue);
-  box(scene, "cafe-menu-board", new Vector3(2.3, 1.35, 0.1), cafePosition(2.5, 2.65, 3.8), dark);
+  const cafeMenuBoard = box(
+    scene,
+    "cafe-menu-board",
+    new Vector3(2.3, 1.35, 0.1),
+    cafePosition(2.5, 2.65, 3.8),
+    dark,
+  );
   for (let y = 2.35; y <= 2.95; y += 0.3) {
     const menuLine = box(scene, `cafe-menu-line-${y}`, new Vector3(1.65, 0.055, 0.04), cafePosition(2.5, y, 3.72), white);
     menuLine.isPickable = false;
     detailMeshes.push(menuLine);
   }
+
+  const cafeBell = MeshBuilder.CreateCylinder(
+    "cafe-counter-bell",
+    { diameterTop: .18, diameterBottom: .42, height: .28, tessellation: 16 },
+    scene,
+  );
+  cafeBell.position.copyFrom(cafePosition(2.05, 1.42, 1.65));
+  cafeBell.material = yellow;
+  cafeBell.actionManager = new ActionManager(scene);
+  cafeBell.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => {
+    contentState.cafeBellCount = Math.min(999, contentState.cafeBellCount + 1);
+    const startY = cafeBell.position.y;
+    Animation.CreateAndStartAnimation(
+      "cafe-bell-ring",
+      cafeBell,
+      "position.y",
+      30,
+      5,
+      startY,
+      startY - .09,
+      Animation.ANIMATIONLOOPMODE_CONSTANT,
+      undefined,
+      () => {
+        cafeBell.position.y = startY;
+      },
+    );
+    saveContentState(contentState);
+    options.onAction(
+      contentState.cafeBellCount % 3 === 0
+        ? "Ding ding! The café cheers for our favorite customer!"
+        : "Ding! The barista waves hello.",
+      "bell",
+    );
+  }));
+  cafeMenuBoard.actionManager = new ActionManager(scene);
+  cafeMenuBoard.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => {
+    const specials = ["berry cupcakes", "sunshine sandwiches", "warm cocoa"];
+    options.onAction(
+      `Today's special is ${specials[contentState.cafeBellCount % specials.length]}!`,
+      "tap",
+    );
+  }));
 
   // Lightweight pastry case with two playable food props.
   box(scene, "cafe-pastry-base", new Vector3(1.75, 0.75, 1.05), cafePosition(4.7, 0.48, 0.55), wood);
@@ -1360,37 +1910,49 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
   });
   box(scene, "wardrobe-drawer", new Vector3(1.35, 0.48, 0.42), new Vector3(4.95, 0.45, -3.38), mint);
 
-  // Placeholder characters establish scale before final Blender assets arrive.
-  const initialRoomDefinition = roomDefinitions[activeRoom];
-  const savedKhadijaPosition = new Vector3(save.khadijaPosition.x, 0, save.khadijaPosition.z);
-  const savedPositionIsInRoom = savedKhadijaPosition.x >= initialRoomDefinition.bounds.minX
-    && savedKhadijaPosition.x <= initialRoomDefinition.bounds.maxX
-    && savedKhadijaPosition.z >= initialRoomDefinition.bounds.minZ
-    && savedKhadijaPosition.z <= initialRoomDefinition.bounds.maxZ;
-  const khadijaStart = savedPositionIsInRoom
-    ? savedKhadijaPosition
-    : initialRoomDefinition.spawn.clone();
-  const khadija = createCharacter(scene, "khadija", khadijaStart, colors.pink, 1, true);
-  khadija.setBounds(
-    initialRoomDefinition.bounds.minX,
-    initialRoomDefinition.bounds.maxX,
-    initialRoomDefinition.bounds.minZ,
-    initialRoomDefinition.bounds.maxZ,
-  );
-  createCharacter(scene, "brother", new Vector3(-3.15, 0.58, 0.1), new Color3(0.14, 0.50, 0.28), 0.88);
-  createCharacter(scene, "little-sister", new Vector3(1.3, 0, -1.65), colors.yellow, 0.72);
-  createCharacter(scene, "street-neighbor", streetPosition(-3.65, 0, -0.85), new Color3(0.15, 0.48, 0.31), 0.84);
-  createCharacter(scene, "cafe-worker", cafePosition(3.55, 0, 2.75), colors.teal, 0.92);
-  createCharacter(scene, "cafe-little-sister", cafePosition(-4.55, 0, 1.65), colors.yellow, 0.72);
-
+  // PLAY.2 keeps one lightweight rig and independent state record per playable character.
+  const characters: Record<CharacterId, CharacterState> = save.characters;
+  let selectedCharacterId: CharacterId = save.selectedCharacter;
+  activeRoom = characters[selectedCharacterId].room;
+  const characterRigs = {} as Record<CharacterId, CharacterRig>;
   const outfitColors: Record<OutfitId, Color3> = {
     pink: colors.pink,
     teal: colors.teal,
     yellow: colors.yellow,
   };
-  let activeOutfit: OutfitId = save.outfit;
-  let heldItemId: string | null = null;
-  let seated = save.seated;
+
+  for (const characterId of CHARACTER_IDS) {
+    const state = characters[characterId];
+    const characterDefinition = CHARACTER_DEFINITIONS[characterId];
+    const roomDefinition = roomDefinitions[state.room];
+    const savedPosition = new Vector3(state.position.x, 0, state.position.z);
+    const positionIsValid = savedPosition.x >= roomDefinition.bounds.minX
+      && savedPosition.x <= roomDefinition.bounds.maxX
+      && savedPosition.z >= roomDefinition.bounds.minZ
+      && savedPosition.z <= roomDefinition.bounds.maxZ;
+    const rig = createCharacter(
+      scene,
+      characterId,
+      positionIsValid ? savedPosition : roomDefinition.spawn.clone(),
+      outfitColors[state.outfit],
+      characterDefinition.scale,
+      true,
+      characterId,
+    );
+    rig.root.rotation.y = state.rotationY;
+    rig.setBounds(
+      roomDefinition.bounds.minX,
+      roomDefinition.bounds.maxX,
+      roomDefinition.bounds.minZ,
+      roomDefinition.bounds.maxZ,
+    );
+    rig.setExpression(state.expression);
+    rig.setSelected(characterId === selectedCharacterId);
+    characterRigs[characterId] = rig;
+  }
+
+  createCharacter(scene, "street-neighbor", streetPosition(-3.65, 0, -0.85), new Color3(0.15, 0.48, 0.31), 0.84);
+  createCharacter(scene, "cafe-worker", cafePosition(3.55, 0, 2.75), colors.teal, 0.92);
 
   interface HoldableItem {
     id: string;
@@ -1407,31 +1969,158 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
 
   const holdables = new Map<string, HoldableItem>();
 
-  const emitPlayState = (): void => {
-    const state: PlayState = {
-      heldItem: heldItemId,
-      seated,
-      outfit: activeOutfit,
-      activeRoom,
+  const seats: readonly SeatSlot[] = [
+    {
+      id: "home-sofa-1",
+      kind: "sofa",
+      room: "home",
+      position: new Vector3(-3.75, 0, .05),
+      approach: new Vector3(-3.75, 0, -.48),
+      rotationY: 0,
+      sleeping: false,
+    },
+    {
+      id: "home-sofa-2",
+      kind: "sofa",
+      room: "home",
+      position: new Vector3(-2.72, 0, .05),
+      approach: new Vector3(-2.72, 0, -.48),
+      rotationY: 0,
+      sleeping: false,
+    },
+    {
+      id: "bedroom-bed-1",
+      kind: "bed",
+      room: "bedroom",
+      position: bedroomPosition(-3.72, 0, .38),
+      approach: bedroomPosition(-2.4, 0, -.5),
+      rotationY: Math.PI / 2,
+      sleeping: true,
+    },
+    {
+      id: "bedroom-bed-2",
+      kind: "bed",
+      room: "bedroom",
+      position: bedroomPosition(-3.15, 0, .38),
+      approach: bedroomPosition(-2.05, 0, -.15),
+      rotationY: Math.PI / 2,
+      sleeping: true,
+    },
+    {
+      id: "street-bench-1",
+      kind: "bench",
+      room: "street",
+      position: streetPosition(-2.48, 0, 1.08),
+      approach: streetPosition(-2.48, 0, .54),
+      rotationY: 0,
+      sleeping: false,
+    },
+    {
+      id: "street-bench-2",
+      kind: "bench",
+      room: "street",
+      position: streetPosition(-1.75, 0, 1.08),
+      approach: streetPosition(-1.75, 0, .54),
+      rotationY: 0,
+      sleeping: false,
+    },
+    {
+      id: "cafe-chair-1",
+      kind: "cafe-chair",
+      room: "cafe",
+      position: cafePosition(-3.5, 0, 0),
+      approach: cafePosition(-3.5, 0, -.58),
+      rotationY: 0,
+      sleeping: false,
+    },
+    {
+      id: "cafe-chair-2",
+      kind: "cafe-chair",
+      room: "cafe",
+      position: cafePosition(-1.1, 0, 0),
+      approach: cafePosition(-1.1, 0, -.58),
+      rotationY: 0,
+      sleeping: false,
+    },
+  ];
+
+  const selectedState = (): CharacterState => characters[selectedCharacterId];
+  const selectedRig = (): CharacterRig => characterRigs[selectedCharacterId];
+
+  const syncCharacterState = (characterId: CharacterId): CharacterState => {
+    const characterState = characters[characterId];
+    const rig = characterRigs[characterId];
+    characterState.position = {
+      x: rig.root.position.x,
+      y: 0,
+      z: rig.root.position.z,
     };
-    savePlayState(state);
-    options.onPlayStateChange(state);
+    characterState.rotationY = rig.root.rotation.y;
+    if (rig.isMoving()) characterState.interaction = "walking";
+    else if (characterState.interaction === "walking") characterState.interaction = "idle";
+    return characterState;
+  };
+
+  const persistCharacter = (characterId: CharacterId): void => {
+    saveCharacterState(syncCharacterState(characterId));
+  };
+
+  const updateCharacterVisibility = (): void => {
+    for (const characterId of CHARACTER_IDS) {
+      const visible = characters[characterId].room === activeRoom;
+      characterRigs[characterId].setVisible(visible);
+      characterRigs[characterId].setSelected(visible && characterId === selectedCharacterId);
+    }
+  };
+
+  const emitPlayState = (): void => {
+    const current = selectedState();
+    const playState: PlayState = {
+      heldItem: current.heldItem,
+      seated: current.activity === "sitting",
+      sleeping: current.sleeping,
+      outfit: current.outfit,
+      activeRoom,
+      selectedCharacter: selectedCharacterId,
+      expression: current.expression,
+      characters: CHARACTER_IDS.map((characterId) => ({
+        id: characterId,
+        room: characters[characterId].room,
+        expression: characters[characterId].expression,
+        heldItem: characters[characterId].heldItem,
+      })),
+    };
+    options.onPlayStateChange(playState);
   };
 
   const setOutfit = (outfit: OutfitId): void => {
-    activeOutfit = outfit;
-    khadija.setOutfitColor(outfitColors[outfit]);
-    options.onAction(`Khadija changed into the ${outfit} outfit`);
+    const current = selectedState();
+    current.outfit = outfit;
+    selectedRig().setOutfitColor(outfitColors[outfit]);
+    persistCharacter(selectedCharacterId);
+    options.onAction(`${CHARACTER_DEFINITIONS[selectedCharacterId].shortName} chose the ${outfit} outfit!`, "success");
     emitPlayState();
   };
 
-  khadija.setOutfitColor(outfitColors[activeOutfit]);
+  const setExpression = (expression: CharacterExpression): void => {
+    const current = selectedState();
+    current.expression = expression;
+    selectedRig().setExpression(expression);
+    persistCharacter(selectedCharacterId);
+    options.onAction(`${CHARACTER_DEFINITIONS[selectedCharacterId].shortName} feels ${expression}!`, "tap");
+    emitPlayState();
+  };
 
   const roomNames: Record<RoomId, string> = {
     home: "the family home",
     bedroom: "Khadija's bedroom",
     street: "the neighborhood street",
     cafe: "Sunny Café",
+  };
+  const arrivalOffsetZ: Record<CharacterId, number> = {
+    khadija: 0,
+    sister: .8,
+    brother: 1.6,
   };
 
   const switchRoom = (nextRoom: RoomId): void => {
@@ -1440,29 +2129,64 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
       return;
     }
 
-    if (seated) {
-      khadija.stand();
-      seated = false;
-    }
-
+    const current = selectedState();
+    const rig = selectedRig();
+    rig.stand();
+    current.activity = "standing";
+    current.sleeping = false;
+    current.seatId = null;
+    current.interaction = "idle";
     activeRoom = nextRoom;
+    current.room = nextRoom;
     const definition = roomDefinitions[activeRoom];
-    khadija.setBounds(
+    rig.setBounds(
       definition.bounds.minX,
       definition.bounds.maxX,
       definition.bounds.minZ,
       definition.bounds.maxZ,
     );
-    khadija.root.position.copyFrom(definition.spawn);
-    khadija.root.rotation.y = activeRoom === "home" || activeRoom === "street"
+    const arrivalPosition = definition.spawn.clone();
+    arrivalPosition.z += arrivalOffsetZ[selectedCharacterId];
+    rig.placeAt(arrivalPosition);
+    rig.root.rotation.y = activeRoom === "home" || activeRoom === "street"
       ? -Math.PI / 2
       : Math.PI / 2;
     camera.setTarget(definition.center);
     applyActiveRoomLighting();
-    saveKhadijaPosition(khadija.root.position);
+    updateCharacterVisibility();
+    persistCharacter(selectedCharacterId);
     emitPlayState();
-    options.onAction(`Welcome to ${roomNames[activeRoom]}!`);
+    options.onAction(`Welcome to ${roomNames[activeRoom]}!`, "travel");
   };
+
+  const selectCharacter = (characterId: CharacterId, announce = true): void => {
+    if (characterId === selectedCharacterId) {
+      if (announce) options.onAction(`${CHARACTER_DEFINITIONS[characterId].shortName} is ready to play!`);
+      return;
+    }
+
+    persistCharacter(selectedCharacterId);
+    selectedCharacterId = characterId;
+    const current = selectedState();
+    activeRoom = current.room;
+    const definition = roomDefinitions[activeRoom];
+    selectedRig().setBounds(
+      definition.bounds.minX,
+      definition.bounds.maxX,
+      definition.bounds.minZ,
+      definition.bounds.maxZ,
+    );
+    camera.setTarget(definition.center);
+    applyActiveRoomLighting();
+    updateCharacterVisibility();
+    saveSelectedCharacter(characterId);
+    emitPlayState();
+    if (announce) options.onAction(`Now playing with ${CHARACTER_DEFINITIONS[characterId].shortName}!`);
+  };
+
+  camera.setTarget(roomDefinitions[activeRoom].center);
+  applyActiveRoomLighting();
+  updateCharacterVisibility();
 
   const connectDoor = (door: Mesh, destination: RoomId): void => {
     door.actionManager = new ActionManager(scene);
@@ -1511,7 +2235,7 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     mesh: teddy,
     floorY: 0.38,
     holdScale: new Vector3(0.72, 0.72, 0.72),
-    useMessage: "Khadija gives the teddy a hug",
+    useMessage: "gives the teddy a hug",
     gesture: "hug",
     consumable: false,
   });
@@ -1521,7 +2245,7 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     mesh: book,
     floorY: 0.08,
     holdScale: new Vector3(0.62, 0.62, 0.62),
-    useMessage: "Khadija reads the book",
+    useMessage: "reads the book",
     gesture: "read",
     consumable: false,
   });
@@ -1531,7 +2255,7 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     mesh: apple,
     floorY: 0.18,
     holdScale: new Vector3(0.8, 0.8, 0.8),
-    useMessage: "Khadija eats the apple",
+    useMessage: "enjoys the apple",
     gesture: "eat",
     consumable: true,
     respawnPosition: new Vector3(3.2, 1.48, 0.55),
@@ -1543,7 +2267,7 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     mesh: cup,
     floorY: 0.24,
     holdScale: new Vector3(0.72, 0.72, 0.72),
-    useMessage: "Khadija takes a drink",
+    useMessage: "takes a cozy sip",
     gesture: "drink",
     consumable: false,
   });
@@ -1553,7 +2277,7 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     mesh: cupcake,
     floorY: 0.22,
     holdScale: new Vector3(0.78, 0.78, 0.78),
-    useMessage: "Khadija enjoys the cupcake",
+    useMessage: "enjoys the cupcake",
     gesture: "eat",
     consumable: true,
     respawnPosition: cafePosition(4.45, 1.12, 0.48),
@@ -1565,18 +2289,38 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     mesh: sandwich,
     floorY: 0.18,
     holdScale: new Vector3(0.72, 0.72, 0.72),
-    useMessage: "Khadija takes a bite of the sandwich",
+    useMessage: "takes a bite of the sandwich",
     gesture: "eat",
     consumable: true,
     respawnPosition: cafePosition(4.95, 1.12, 0.5),
     respawnMessage: "A fresh sandwich appeared in the café display",
   });
 
-  const detachHeldItem = (placeOnFloor: boolean): HoldableItem | null => {
-    if (!heldItemId) return null;
-    const item = holdables.get(heldItemId) ?? null;
+  const itemOwner = (itemId: string): CharacterId | null => {
+    for (const characterId of CHARACTER_IDS) {
+      if (characters[characterId].heldItem === itemId) return characterId;
+    }
+    return null;
+  };
+
+  const attachItemToCharacter = (item: HoldableItem, characterId: CharacterId): void => {
+    item.mesh.parent = characterRigs[characterId].holdAnchor;
+    item.mesh.position.set(0, 0, 0);
+    item.mesh.rotation.set(0, 0, item.id === "book" ? Math.PI / 2 : 0);
+    item.mesh.scaling.copyFrom(item.holdScale);
+    item.mesh.isPickable = false;
+    item.mesh.setEnabled(true);
+  };
+
+  const detachHeldItem = (
+    characterId: CharacterId,
+    placeOnFloor: boolean,
+  ): HoldableItem | null => {
+    const characterState = characters[characterId];
+    if (!characterState.heldItem) return null;
+    const item = holdables.get(characterState.heldItem) ?? null;
     if (!item) {
-      heldItemId = null;
+      characterState.heldItem = null;
       return null;
     }
 
@@ -1587,61 +2331,90 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     item.mesh.isPickable = true;
 
     if (placeOnFloor) {
-      const forward = new Vector3(-Math.sin(khadija.root.rotation.y), 0, -Math.cos(khadija.root.rotation.y));
-      const dropPosition = khadija.root.position.add(forward.scale(0.78));
+      const rig = characterRigs[characterId];
+      const forward = new Vector3(-Math.sin(rig.root.rotation.y), 0, -Math.cos(rig.root.rotation.y));
+      const dropPosition = rig.root.position.add(forward.scale(.78));
       item.mesh.position.set(dropPosition.x, item.floorY, dropPosition.z);
       saveProp(item.mesh);
     } else {
       item.mesh.position.copyFrom(absolutePosition);
     }
 
-    heldItemId = null;
+    characterState.heldItem = null;
+    persistCharacter(characterId);
     return item;
   };
 
   const dropHeldItem = (): void => {
-    const item = detachHeldItem(true);
+    const characterId = selectedCharacterId;
+    const item = detachHeldItem(characterId, true);
     if (!item) {
-      options.onAction("Khadija's hands are free!");
+      options.onAction(`${CHARACTER_DEFINITIONS[characterId].shortName}'s hands are free!`);
       return;
     }
     options.onAction(`The ${item.label} is ready to play with.`);
     emitPlayState();
   };
 
-  const holdItem = (id: string, announce = true): void => {
+  const holdItem = (
+    id: string,
+    characterId: CharacterId = selectedCharacterId,
+    announce = true,
+  ): void => {
     const item = holdables.get(id);
     if (!item) return;
-    if (heldItemId === id) {
-      options.onAction(`Khadija is already holding the ${item.label}!`);
+    const characterState = characters[characterId];
+    if (characterState.heldItem === id) {
+      options.onAction(`${CHARACTER_DEFINITIONS[characterId].shortName} is already holding the ${item.label}!`);
       return;
     }
-    detachHeldItem(true);
-    item.mesh.parent = khadija.holdAnchor;
-    item.mesh.position.set(0, 0, 0);
-    item.mesh.rotation.set(0, 0, id === "book" ? Math.PI / 2 : 0);
-    item.mesh.scaling.copyFrom(item.holdScale);
-    item.mesh.isPickable = false;
-    heldItemId = id;
-    if (announce) options.onAction(`Khadija picked up the ${item.label}!`);
-    emitPlayState();
+    const previousOwner = itemOwner(id);
+    if (previousOwner && previousOwner !== characterId) {
+      characters[previousOwner].heldItem = null;
+      persistCharacter(previousOwner);
+    }
+    detachHeldItem(characterId, true);
+    attachItemToCharacter(item, characterId);
+    characterState.heldItem = id;
+    persistCharacter(characterId);
+    if (announce) {
+      options.onAction(`${CHARACTER_DEFINITIONS[characterId].shortName} picked up the ${item.label}!`, "pickup");
+    }
+    if (characterId === selectedCharacterId) emitPlayState();
   };
 
   const useHeldItem = (): void => {
+    const characterId = selectedCharacterId;
+    const characterState = characters[characterId];
+    const heldItemId = characterState.heldItem;
     if (!heldItemId) {
       options.onAction("Pick up a toy, book, food or drink first");
       return;
     }
     const item = holdables.get(heldItemId);
     if (!item) return;
-    khadija.playUseGesture(item.gesture);
-    options.onAction(item.useMessage);
+    const interaction: Record<UseGesture, CharacterInteraction> = {
+      hug: "hugging",
+      read: "reading",
+      eat: "eating",
+      drink: "drinking",
+    };
+    characterState.interaction = interaction[item.gesture];
+    characterRigs[characterId].playUseGesture(item.gesture);
+    persistCharacter(characterId);
+    options.onAction(`${CHARACTER_DEFINITIONS[characterId].shortName} ${item.useMessage}!`);
+    window.setTimeout(() => {
+      if (characters[characterId].interaction === interaction[item.gesture]) {
+        characters[characterId].interaction = "idle";
+        persistCharacter(characterId);
+      }
+    }, 950);
 
     if (!item.consumable) return;
     window.setTimeout(() => {
-      detachHeldItem(false);
+      detachHeldItem(characterId, false);
       item.mesh.setEnabled(false);
-      emitPlayState();
+      if (characterId === selectedCharacterId) emitPlayState();
       window.setTimeout(() => {
         const respawnPosition = item.respawnPosition ?? new Vector3(3.2, 1.48, 0.55);
         item.mesh.position.copyFrom(respawnPosition);
@@ -1653,6 +2426,18 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
       }, 1800);
     }, 550);
   };
+
+  const restoredItemOwners = new Set<string>();
+  for (const characterId of CHARACTER_IDS) {
+    const heldItemId = characters[characterId].heldItem;
+    const item = heldItemId ? holdables.get(heldItemId) : null;
+    if (!heldItemId || !item || restoredItemOwners.has(heldItemId)) {
+      characters[characterId].heldItem = null;
+      continue;
+    }
+    restoredItemOwners.add(heldItemId);
+    attachItemToCharacter(item, characterId);
+  }
 
   for (const item of holdables.values()) {
     item.mesh.metadata = { ...item.mesh.metadata, holdableId: item.id };
@@ -1714,40 +2499,53 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
   pastryDisplayHotspot.actionManager = new ActionManager(scene);
   pastryDisplayHotspot.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => {
     if (activeRoom !== "cafe") return;
-    const choice = heldItemId === "cupcake" || !cupcake.isEnabled() ? "sandwich" : "cupcake";
-    holdItem(choice);
-    options.onAction(choice === "cupcake" ? "The barista served a cupcake" : "The barista served a sandwich");
+    const firstChoice = selectedState().heldItem === "cupcake" ? "sandwich" : "cupcake";
+    const choice = itemOwner(firstChoice) ? (firstChoice === "cupcake" ? "sandwich" : "cupcake") : firstChoice;
+    if (itemOwner(choice)) {
+      options.onAction("The treats are being enjoyed right now!");
+      return;
+    }
+    holdItem(choice, selectedCharacterId, false);
+    options.onAction(choice === "cupcake" ? "The barista served a cupcake!" : "The barista served a sandwich!");
   }));
 
   cafeDrinkHotspot.actionManager = new ActionManager(scene);
   cafeDrinkHotspot.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => {
     if (activeRoom !== "cafe") return;
-    if (heldItemId === "cup") {
-      options.onAction("The barista refilled Khadija's cup");
+    if (selectedState().heldItem === "cup") {
+      options.onAction(`The barista refilled ${CHARACTER_DEFINITIONS[selectedCharacterId].shortName}'s cup!`);
+      return;
+    }
+    const owner = itemOwner("cup");
+    if (owner && owner !== selectedCharacterId) {
+      options.onAction(`${CHARACTER_DEFINITIONS[owner].shortName} has the cup right now.`);
       return;
     }
     cup.setEnabled(true);
     cup.parent = null;
     cup.position.copyFrom(cafePosition(2.2, 1.32, 2.42));
-    holdItem("cup");
-    options.onAction("The barista prepared a warm drink");
+    holdItem("cup", selectedCharacterId, false);
+    options.onAction("The barista prepared a warm drink!");
   }));
 
   streetScooterHotspot.actionManager = new ActionManager(scene);
   streetScooterHotspot.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => {
     if (activeRoom !== "street") return;
-    if (seated) {
-      khadija.stand();
-      seated = false;
-      emitPlayState();
-    }
-    khadija.setTarget(streetPosition(1.0, 0, -0.55), () => {
-      options.onAction("Khadija rings the scooter bell and rides along the street");
-      khadija.setTarget(streetPosition(3.4, 0, -1.25), () => {
-        khadija.setTarget(streetPosition(1.0, 0, -0.55));
+    const characterId = selectedCharacterId;
+    const state = characters[characterId];
+    const rig = characterRigs[characterId];
+    rig.stand();
+    state.activity = "standing";
+    state.sleeping = false;
+    state.seatId = null;
+    rig.setTarget(streetPosition(1.0, 0, -0.55), () => {
+      options.onAction(`${CHARACTER_DEFINITIONS[characterId].shortName} rings the bell and rides!`, "bell");
+      rig.setTarget(streetPosition(3.4, 0, -1.25), () => {
+        rig.setTarget(streetPosition(1.0, 0, -0.55), () => persistCharacter(characterId));
       });
     });
-    options.onAction("Khadija is walking to the scooter");
+    options.onAction(`${CHARACTER_DEFINITIONS[characterId].shortName} is heading to the scooter!`, "travel");
+    emitPlayState();
   }));
 
   for (const wardrobeButton of wardrobeButtons) {
@@ -1758,126 +2556,230 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     }));
   }
 
-  // Sofa interaction walks Khadija to the seat and then changes her pose.
+  const standCharacter = (characterId: CharacterId, position?: Vector3): void => {
+    const state = characters[characterId];
+    const rig = characterRigs[characterId];
+    rig.stand();
+    if (position) rig.placeAt(position);
+    state.activity = "standing";
+    state.sleeping = false;
+    state.seatId = null;
+    state.interaction = "idle";
+    persistCharacter(characterId);
+  };
+
+  const placeCharacterInSeat = (characterId: CharacterId, seat: SeatSlot): void => {
+    const state = characters[characterId];
+    const rig = characterRigs[characterId];
+    if (seat.sleeping) {
+      rig.sleepAt(seat.position, seat.rotationY);
+      state.activity = "sleeping";
+      state.sleeping = true;
+      state.expression = "sleepy";
+      rig.setExpression("sleepy");
+    } else {
+      rig.sitAt(seat.position, seat.rotationY);
+      state.activity = "sitting";
+      state.sleeping = false;
+    }
+    state.seatId = seat.id;
+    state.interaction = "idle";
+    persistCharacter(characterId);
+  };
+
+  const useFurniture = (kind: SeatKind): void => {
+    const characterId = selectedCharacterId;
+    const state = characters[characterId];
+    const currentSeat = getSeatById(seats, state.seatId);
+    if (currentSeat?.kind === kind) {
+      standCharacter(characterId, currentSeat.approach);
+      options.onAction(`${CHARACTER_DEFINITIONS[characterId].shortName} is ready to play again!`);
+      emitPlayState();
+      return;
+    }
+
+    const seat = findAvailableSeat(seats, kind, activeRoom, characters, characterId);
+    if (!seat) {
+      options.onAction("That spot is cozy and full. Try another one!");
+      return;
+    }
+
+    standCharacter(characterId);
+    characterRigs[characterId].setTarget(seat.approach, () => {
+      placeCharacterInSeat(characterId, seat);
+      options.onAction(
+        seat.sleeping
+          ? `${CHARACTER_DEFINITIONS[characterId].shortName} is having a sleepy rest.`
+          : `${CHARACTER_DEFINITIONS[characterId].shortName} found a comfy seat!`,
+        seat.sleeping ? "sleep" : "success",
+      );
+      emitPlayState();
+    });
+    options.onAction(seat.sleeping ? "Time for a cozy rest!" : "Let's find a comfy spot!");
+    emitPlayState();
+  };
+
+  // Each furniture hotspot chooses the first free slot for the selected character.
   const seatMaterial = material(scene, "seat-hotspot-mat", colors.pink);
   seatMaterial.alpha = 0.03;
   const seatHotspot = box(scene, "sofa-seat-hotspot", new Vector3(2.45, 0.3, 0.7), new Vector3(-3.25, 0.95, 0.05), seatMaterial);
   seatHotspot.actionManager = new ActionManager(scene);
   seatHotspot.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => {
     if (activeRoom !== "home") return;
-    if (seated) {
-      khadija.stand();
-      khadija.root.position.set(-2.7, 0, -0.75);
-      saveKhadijaPosition(khadija.root.position);
-      seated = false;
-      options.onAction("Khadija stood up");
-      emitPlayState();
-      return;
-    }
-
-    khadija.setTarget(new Vector3(-3.25, 0, -0.45), () => {
-      khadija.sitAt(new Vector3(-3.25, 0, 0.05), 0);
-      seated = true;
-      options.onAction("Khadija sat on the sofa");
-      emitPlayState();
-    });
-    options.onAction("Let's sit on the sofa!");
+    useFurniture("sofa");
   }));
 
   bedHotspot.actionManager = new ActionManager(scene);
   bedHotspot.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => {
     if (activeRoom !== "bedroom") return;
-    if (seated) {
-      khadija.stand();
-      khadija.root.position.copyFrom(bedroomPosition(-2.1, 0, -0.6));
-      saveKhadijaPosition(khadija.root.position);
-      seated = false;
-      options.onAction("Khadija got off the bed");
-      emitPlayState();
-      return;
-    }
-
-    khadija.setTarget(bedroomPosition(-2.25, 0, -0.45), () => {
-      khadija.sitAt(bedroomPosition(-3.25, 0, 0.35), Math.PI / 2);
-      seated = true;
-      options.onAction("Khadija is relaxing on her bed");
-      emitPlayState();
-    });
-    options.onAction("Time to relax on the bed!");
+    useFurniture("bed");
   }));
 
   streetBenchHotspot.actionManager = new ActionManager(scene);
   streetBenchHotspot.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => {
     if (activeRoom !== "street") return;
-    if (seated) {
-      khadija.stand();
-      khadija.root.position.copyFrom(streetPosition(-1.4, 0, 0.25));
-      saveKhadijaPosition(khadija.root.position);
-      seated = false;
-      options.onAction("Khadija stood up from the bench");
-      emitPlayState();
-      return;
-    }
-
-    khadija.setTarget(streetPosition(-2.1, 0, 0.55), () => {
-      khadija.sitAt(streetPosition(-2.1, 0, 1.08), 0);
-      seated = true;
-      options.onAction("Khadija sat on the neighborhood bench");
-      emitPlayState();
-    });
-    options.onAction("Let's visit the neighborhood bench!");
+    useFurniture("bench");
   }));
 
   cafeSeatHotspot.actionManager = new ActionManager(scene);
   cafeSeatHotspot.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => {
     if (activeRoom !== "cafe") return;
-    if (seated) {
-      khadija.stand();
-      khadija.root.position.copyFrom(cafePosition(-2.8, 0, -0.55));
-      saveKhadijaPosition(khadija.root.position);
-      seated = false;
-      options.onAction("Khadija left the café chair");
+    useFurniture("cafe-chair");
+  }));
+
+  for (const characterId of CHARACTER_IDS) {
+    const state = characters[characterId];
+    const seat = getSeatById(seats, state.seatId);
+    if (seat && seat.room === state.room && state.activity !== "standing") {
+      placeCharacterInSeat(characterId, seat);
+    } else {
+      state.activity = "standing";
+      state.sleeping = false;
+      state.seatId = null;
+    }
+  }
+
+  const transferHeldItem = (fromId: CharacterId, toId: CharacterId): boolean => {
+    const fromState = characters[fromId];
+    const toState = characters[toId];
+    if (!fromState.heldItem || fromState.room !== toState.room) return false;
+    const distance = Vector3.Distance(characterRigs[fromId].root.position, characterRigs[toId].root.position);
+    if (distance > 2.25) return false;
+    const item = holdables.get(fromState.heldItem);
+    if (!item) return false;
+
+    detachHeldItem(toId, true);
+    fromState.heldItem = null;
+    toState.heldItem = item.id;
+    toState.expression = "excited";
+    characterRigs[toId].setExpression("excited");
+    attachItemToCharacter(item, toId);
+    persistCharacter(fromId);
+    persistCharacter(toId);
+    options.onAction(
+      `${CHARACTER_DEFINITIONS[fromId].shortName} gave the ${item.label} to ${CHARACTER_DEFINITIONS[toId].shortName}!`,
+      "success",
+    );
+    return true;
+  };
+
+  let characterDrag: {
+    characterId: CharacterId;
+    startX: number;
+    startY: number;
+    dragging: boolean;
+  } | null = null;
+  let suppressNextWalkPick = false;
+
+  scene.onPointerObservable.add((pointerInfo: PointerInfo) => {
+    const pointerEvent = pointerInfo.event as PointerEvent;
+    const pickedCharacterId = pointerInfo.pickInfo?.pickedMesh?.metadata?.characterId as CharacterId | undefined;
+
+    if (pointerInfo.type === PointerEventTypes.POINTERDOWN) {
+      characterDrag = pickedCharacterId
+        ? {
+            characterId: pickedCharacterId,
+            startX: pointerEvent.clientX,
+            startY: pointerEvent.clientY,
+            dragging: false,
+          }
+        : null;
+      return;
+    }
+
+    if (pointerInfo.type === PointerEventTypes.POINTERMOVE && characterDrag) {
+      const distance = Math.hypot(
+        pointerEvent.clientX - characterDrag.startX,
+        pointerEvent.clientY - characterDrag.startY,
+      );
+      if (!characterDrag.dragging && distance > 7) {
+        characterDrag.dragging = true;
+        selectCharacter(characterDrag.characterId);
+        standCharacter(characterDrag.characterId);
+      }
+      if (!characterDrag.dragging) return;
+
+      const floorPick = scene.pick(
+        scene.pointerX,
+        scene.pointerY,
+        (mesh) => mesh.metadata?.walkable === true && mesh.metadata?.room === activeRoom,
+      );
+      if (floorPick?.hit && floorPick.pickedPoint) {
+        characterRigs[characterDrag.characterId].placeAt(
+          new Vector3(floorPick.pickedPoint.x, 0, floorPick.pickedPoint.z),
+        );
+      }
+      return;
+    }
+
+    if (pointerInfo.type !== PointerEventTypes.POINTERUP || !characterDrag) return;
+    const completedDrag = characterDrag;
+    characterDrag = null;
+
+    if (completedDrag.dragging) {
+      suppressNextWalkPick = true;
+      const characterId = completedDrag.characterId;
+      const nearbySeat = findNearbyAvailableSeat(
+        seats,
+        activeRoom,
+        characterRigs[characterId].root.position,
+        characters,
+        characterId,
+      );
+      if (nearbySeat) {
+        placeCharacterInSeat(characterId, nearbySeat);
+        options.onAction(nearbySeat.sleeping ? "Snug as a bug!" : "Perfect spot!");
+      } else {
+        standCharacter(characterId);
+        options.onAction(`${CHARACTER_DEFINITIONS[characterId].shortName} is ready right there!`);
+      }
       emitPlayState();
       return;
     }
 
-    khadija.setTarget(cafePosition(-3.5, 0, -0.55), () => {
-      khadija.sitAt(cafePosition(-3.5, 0, 0), 0);
-      seated = true;
-      options.onAction("Khadija sat down for a café snack");
-      emitPlayState();
-    });
-    options.onAction("Let's find a cozy café seat!");
-  }));
-
-  if (save.seated) {
-    if (activeRoom === "bedroom") {
-      khadija.sitAt(bedroomPosition(-3.25, 0, 0.35), Math.PI / 2);
-    } else if (activeRoom === "street") {
-      khadija.sitAt(streetPosition(-2.1, 0, 1.08), 0);
-    } else if (activeRoom === "cafe") {
-      khadija.sitAt(cafePosition(-3.5, 0, 0), 0);
-    } else {
-      khadija.sitAt(new Vector3(-3.25, 0, 0.05), 0);
+    const targetId = completedDrag.characterId;
+    const giverId = selectedCharacterId;
+    if (targetId !== giverId && transferHeldItem(giverId, targetId)) {
+      selectCharacter(targetId, false);
+      return;
     }
-  }
-  if (save.heldItem && holdables.has(save.heldItem)) {
-    holdItem(save.heldItem, false);
-  } else {
-    options.onPlayStateChange({ heldItem: null, seated, outfit: activeOutfit, activeRoom });
-  }
+    selectCharacter(targetId);
+  });
 
-  // Click-to-walk plus keyboard movement.
+  // Click-to-walk always controls the selected character.
   scene.onPointerObservable.add((pointerInfo: PointerInfo) => {
     if (pointerInfo.type !== PointerEventTypes.POINTERPICK) return;
+    if (suppressNextWalkPick) {
+      suppressNextWalkPick = false;
+      return;
+    }
     const pick = pointerInfo.pickInfo;
     if (!pick?.hit || !pick.pickedPoint || !pick.pickedMesh?.metadata?.walkable) return;
     if (pick.pickedMesh.metadata.room !== activeRoom) return;
-    if (seated) {
-      seated = false;
-      emitPlayState();
-    }
-    khadija.setTarget(new Vector3(pick.pickedPoint.x, 0, pick.pickedPoint.z));
+    standCharacter(selectedCharacterId);
+    selectedRig().setTarget(new Vector3(pick.pickedPoint.x, 0, pick.pickedPoint.z));
+    selectedState().interaction = "walking";
+    emitPlayState();
     options.onAction("Off we go!");
   });
 
@@ -1891,9 +2793,10 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
   });
 
   let saveMovementTimer = 0;
+  const movementInput = new Vector3();
   scene.onBeforeRenderObservable.add(() => {
     const deltaSeconds = Math.min(engine.getDeltaTime() / 1000, 0.05);
-    const input = new Vector3(
+    movementInput.set(
       (pressedKeys.has("d") || pressedKeys.has("arrowright") ? 1 : 0)
         - (pressedKeys.has("a") || pressedKeys.has("arrowleft") ? 1 : 0),
       0,
@@ -1901,21 +2804,31 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
         - (pressedKeys.has("s") || pressedKeys.has("arrowdown") ? 1 : 0),
     );
 
-    if (input.lengthSquared() > 0) {
-      if (seated) {
-        seated = false;
+    const hasMovementInput = movementInput.lengthSquared() > 0;
+    if (hasMovementInput) {
+      if (selectedState().activity !== "standing") {
+        standCharacter(selectedCharacterId);
         emitPlayState();
       }
-      khadija.moveBy(input, deltaSeconds);
+      selectedState().interaction = "walking";
+      selectedRig().moveBy(movementInput, deltaSeconds);
       saveMovementTimer += deltaSeconds;
       if (saveMovementTimer >= 0.5) {
         saveMovementTimer = 0;
-        saveKhadijaPosition(khadija.root.position);
+        persistCharacter(selectedCharacterId);
       }
-    } else {
-      khadija.update(deltaSeconds);
+    }
+
+    for (const characterId of CHARACTER_IDS) {
+      if (characters[characterId].room !== activeRoom) continue;
+      if (characterId === selectedCharacterId && hasMovementInput) continue;
+      characterRigs[characterId].update(deltaSeconds);
     }
   });
+
+  // Synchronize the player-facing controls with a restored save before the
+  // player makes their first interaction.
+  emitPlayState();
 
   const setQuality = (settings: QualitySettings): void => {
     enhancedLighting = settings.enhancedLighting;
@@ -1930,6 +2843,8 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     useHeldItem,
     dropHeldItem,
     setOutfit,
+    setExpression,
+    selectCharacter,
     switchRoom,
   };
 }
