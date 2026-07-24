@@ -1,0 +1,20 @@
+{
+  "name": "khadijas-world",
+  "private": true,
+  "version": "0.5.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "check": "tsc --noEmit",
+    "deploy:wamp": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-wamp.ps1"
+  },
+  "dependencies": {
+    "@babylonjs/core": "9.18.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vite": "8.1.5"
+  }
+}

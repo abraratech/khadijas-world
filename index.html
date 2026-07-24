@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#7447b8" />
+    <meta
+      name="description"
+      content="Play, explore, and make stories with Khadija and her family."
+    />
+    <title>Khadija's World</title>
+  </head>
+  <body>
+    <main id="app">
+      <canvas id="game-canvas" aria-label="Khadija's World play area"></canvas>
+
+      <header class="top-bar">
+        <div class="brand" aria-label="Khadija's World">
+          <span class="brand-khadija">Khadija's</span>
+          <span class="brand-world">World <span aria-hidden="true">&#9733;</span></span>
+        </div>
+
+        <div class="top-actions">
+          <button
+            id="help-button"
+            class="round-button help-button"
+            type="button"
+            aria-label="How to play"
+            aria-expanded="false"
+          >
+            <span aria-hidden="true">?</span>
+          </button>
+          <button
+            id="settings-button"
+            class="round-button settings-button"
+            type="button"
+            aria-label="Open settings"
+            aria-expanded="false"
+          >
+            <span aria-hidden="true">&#9881;</span>
+          </button>
+        </div>
+      </header>
+
+      <nav class="location-tray" aria-label="Choose where to go">
+        <span class="tray-title"><span aria-hidden="true">&#10024;</span> Let's go!</span>
+        <div class="location-list">
+          <button
+            class="location-button is-active"
+            data-room="home"
+            type="button"
+            aria-label="Go to the family home"
+            aria-pressed="true"
+          >
+            <span class="location-icon home-icon" aria-hidden="true">&#127968;</span>
+            <span class="location-name">Home</span>
+          </button>
+          <span class="map-path" aria-hidden="true"></span>
+          <button
+            class="location-button"
+            data-room="bedroom"
+            type="button"
+            aria-label="Go to Khadija's bedroom"
+            aria-pressed="false"
+          >
+            <span class="location-icon bedroom-icon" aria-hidden="true">&#128719;&#65039;</span>
+            <span class="location-name">Bedroom</span>
+          </button>
+          <span class="map-path" aria-hidden="true"></span>
+          <button
+            class="location-button"
+            data-room="street"
+            type="button"
+            aria-label="Go to the neighborhood"
+            aria-pressed="false"
+          >
+            <span class="location-icon street-icon" aria-hidden="true">&#127795;</span>
+            <span class="location-name">Neighborhood</span>
+          </button>
+          <span class="map-path" aria-hidden="true"></span>
+          <button
+            class="location-button"
+            data-room="cafe"
+            type="button"
+            aria-label="Go to Sunny Café"
+            aria-pressed="false"
+          >
+            <span class="location-icon cafe-icon" aria-hidden="true">&#9749;</span>
+            <span class="location-name">Sunny Caf&eacute;</span>
+          </button>
+        </div>
+      </nav>
+
+      <section id="help-card" class="popover help-card" aria-label="How to play" hidden>
+        <div class="popover-heading">
+          <div>
+            <span class="eyebrow">Make your own story</span>
+            <h2>Come play!</h2>
+          </div>
+          <button class="close-button" data-close-popover type="button" aria-label="Close how to play">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="help-steps">
+          <div><span aria-hidden="true">&#128070;</span><p>Tap the floor to walk around.</p></div>
+          <div><span aria-hidden="true">&#129528;</span><p>Tap toys and treats to pick them up.</p></div>
+          <div><span aria-hidden="true">&#10024;</span><p>Tap furniture and special things to play.</p></div>
+          <div><span aria-hidden="true">&#129517;</span><p>Drag things onto glowing spots to decorate.</p></div>
+        </div>
+        <p class="keyboard-hint">You can also move with the arrow keys.</p>
+      </section>
+
+      <section id="settings-panel" class="popover settings-panel" aria-label="Settings" hidden>
+        <div class="popover-heading">
+          <div>
+            <span class="eyebrow">Make it yours</span>
+            <h2>Settings</h2>
+          </div>
+          <button class="close-button" data-close-popover type="button" aria-label="Close settings">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+
+        <div class="setting-row">
+          <span class="setting-icon sound-setting-icon" aria-hidden="true">&#128266;</span>
+          <span class="setting-copy"><strong>Sounds</strong><small>Play taps and happy chimes</small></span>
+          <button
+            id="sound-toggle"
+            class="switch is-on"
+            type="button"
+            role="switch"
+            aria-checked="true"
+            aria-label="Sounds"
+          ><span></span></button>
+        </div>
+
+        <div class="setting-row">
+          <span class="setting-icon music-setting-icon" aria-hidden="true">&#127925;</span>
+          <span class="setting-copy"><strong>Music</strong><small>Play gentle background music</small></span>
+          <button
+            id="music-toggle"
+            class="switch"
+            type="button"
+            role="switch"
+            aria-checked="false"
+            aria-label="Music"
+          ><span></span></button>
+        </div>
+
+        <fieldset class="graphics-setting">
+          <legend><span aria-hidden="true">&#10024;</span> Picture detail</legend>
+          <div class="quality-options">
+            <button class="quality-button" data-quality="low" type="button" aria-pressed="false">
+              <span>Low</span><small>Extra smooth</small>
+            </button>
+            <button class="quality-button is-active" data-quality="medium" type="button" aria-pressed="true">
+              <span>Medium</span><small>Best for most</small>
+            </button>
+            <button class="quality-button" data-quality="high" type="button" aria-pressed="false">
+              <span>High</span><small>More details</small>
+            </button>
+          </div>
+        </fieldset>
+
+        <button id="reset-button" class="fresh-start-button" type="button">
+          <span aria-hidden="true">&#8635;</span> Start my world fresh
+        </button>
+      </section>
+
+      <section class="play-tray" aria-label="Play controls">
+        <div class="held-item" aria-live="polite">
+          <span class="held-item-icon" aria-hidden="true">&#129306;</span>
+          <span class="held-item-copy">
+            <small>In Khadija's hand</small>
+            <output id="held-item-value">Nothing yet</output>
+          </span>
+        </div>
+
+        <div class="item-actions">
+          <button id="use-item-button" class="use-item-button" type="button" disabled>
+            <span aria-hidden="true">&#10024;</span>
+            <span>Pick something up</span>
+          </button>
+          <button
+            id="drop-item-button"
+            class="drop-item-button"
+            type="button"
+            aria-label="Put held item down"
+            disabled
+          >
+            <span aria-hidden="true">&#128075;</span>
+            <span>Put down</span>
+          </button>
+        </div>
+
+        <div class="outfit-controls" aria-label="Choose Khadija's outfit">
+          <span class="outfit-heading"><span aria-hidden="true">&#128087;</span> Outfit</span>
+          <div class="outfit-swatches">
+            <button class="outfit-button outfit-pink is-active" data-outfit="pink" type="button" aria-label="Pink outfit" aria-pressed="true"></button>
+            <button class="outfit-button outfit-teal" data-outfit="teal" type="button" aria-label="Teal outfit" aria-pressed="false"></button>
+            <button class="outfit-button outfit-yellow" data-outfit="yellow" type="button" aria-label="Yellow outfit" aria-pressed="false"></button>
+          </div>
+        </div>
+      </section>
+
+      <output id="action-value" class="action-message" aria-live="polite"></output>
+      <output id="room-value" class="visually-hidden">Family home</output>
+
+      <aside id="debug-panel" class="debug-panel" aria-label="Development diagnostics" hidden>
+        <strong>Development diagnostics</strong>
+        <span><b id="fps-value">&mdash;</b> FPS</span>
+        <span><b id="frame-value">&mdash;</b> frame time</span>
+        <span><b id="mesh-value">&mdash;</b> active meshes</span>
+        <span><b id="resolution-value">&mdash;</b> internal resolution</span>
+        <output id="status">Starting Babylon.js&hellip;</output>
+      </aside>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
