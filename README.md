@@ -4,15 +4,16 @@ A family-friendly Babylon.js dollhouse and neighborhood play prototype.
 
 ## Current release
 
-**CONTENT.1 Accelerated — Visual and content expansion**
+**LIFE.1 Accelerated — NPCs and living characters**
 
 The project contains four playable locations and three controllable family
 characters. Each character keeps their own location, outfit, expression, held
 item and furniture state. Existing movement, seating, object play, item actions,
 persistent saves, low-spec graphics presets and WAMP deployment remain supported.
-CONTENT.1 adds distinct family silhouettes and hairstyles, richer faces, more
-room interactions, location music, playful sound cues, improved feedback and
-touch-friendly controls.
+LIFE.1 makes unselected family members blink, react, look around, use held
+items and occasionally take a small safe walk without leaving their location.
+Mama, Auntie Noor and café worker Ms. Sana add greetings, item exchanges and
+lightweight location activities while remaining separate from character selection.
 
 ## Run locally
 
@@ -49,6 +50,9 @@ Then open `http://localhost/khadijas-world/`.
 - Click the street scooter for a short ride.
 - Click the café pastry display for food.
 - Click the café coffee machine for a drink.
+- Tap Mama, Auntie Noor or Ms. Sana to greet them, exchange an item or request
+  café service.
+- Use Settings to turn character wiggles or little walks on and off separately.
 
 ## Minimum test target
 

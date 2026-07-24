@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.8.0 — LIFE.1 Accelerated
+
+### Added
+
+- Staggered lightweight autonomy for unselected playable characters
+- Idle blinking, sway, head turns, nearby looks, reactions and held-item motion
+- Gentle seated pose changes and sleep breathing
+- Optional short room-safe walks that return toward the player-arranged position
+- Child-friendly settings for character wiggles and little walks
+- Reusable non-playable character definitions, state, prompts and dialogue
+- Mama in the family home, Auntie Noor on the street and Ms. Sana in Sunny Café
+- NPC greetings, item giving and receiving, sibling reactions and café service
+- Version 8 save migration for living settings and meaningful NPC state
+- Debug-only active living-update and decision counters
+
+### Performance
+
+- Decision logic runs on staggered intervals rather than every frame
+- Only characters and NPCs in the active location receive animation updates
+- Each location is capped to its single resident NPC
+- Existing low-spec rendering and adaptive resolution behavior remains unchanged
+
+### Retained
+
+- All CONTENT.1 and PLAY.2 character, room, item, seating, save and touch systems
+- Normal gameplay without development-facing diagnostics
+- Relative production paths and WAMP deployment
+
 ## 0.7.0 — CONTENT.1 Accelerated
 
 ### Added

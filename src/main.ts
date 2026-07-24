@@ -13,9 +13,11 @@ import {
 import { applyQuality, type QualityPreset } from "./game/quality";
 import {
   loadPlayerSettings,
+  loadLivingSettings,
   loadSave,
   resetSave,
   savePlayerSettings,
+  saveLivingSettings,
   saveQualityPreset,
   type OutfitId,
   type RoomId,
@@ -41,12 +43,15 @@ const helpCard = document.querySelector<HTMLElement>("#help-card");
 const settingsPanel = document.querySelector<HTMLElement>("#settings-panel");
 const soundToggle = document.querySelector<HTMLButtonElement>("#sound-toggle");
 const musicToggle = document.querySelector<HTMLButtonElement>("#music-toggle");
+const idleAnimationToggle = document.querySelector<HTMLButtonElement>("#idle-animation-toggle");
+const smallMovementToggle = document.querySelector<HTMLButtonElement>("#small-movement-toggle");
 const debugPanel = document.querySelector<HTMLElement>("#debug-panel");
 const status = document.querySelector<HTMLOutputElement>("#status");
 const fpsValue = document.querySelector<HTMLElement>("#fps-value");
 const frameValue = document.querySelector<HTMLElement>("#frame-value");
 const meshValue = document.querySelector<HTMLElement>("#mesh-value");
 const resolutionValue = document.querySelector<HTMLElement>("#resolution-value");
+const livingValue = document.querySelector<HTMLElement>("#living-value");
 const locationTransition = document.querySelector<HTMLElement>("#location-transition");
 const transitionIcon = document.querySelector<HTMLElement>("#transition-icon");
 const transitionTitle = document.querySelector<HTMLElement>("#transition-title");
@@ -66,8 +71,9 @@ if (
   !app || !canvas || !actionValue || !heldItemValue || !heldItemOwnerLabel || !roomValue
   || !useItemButton || !useItemLabel || !dropItemButton || !resetButton
   || !helpButton || !settingsButton || !helpCard || !settingsPanel
-  || !soundToggle || !musicToggle || !debugPanel || !status
-  || !fpsValue || !frameValue || !meshValue || !resolutionValue || !outfitControls
+  || !soundToggle || !musicToggle || !idleAnimationToggle || !smallMovementToggle
+  || !debugPanel || !status || !fpsValue || !frameValue || !meshValue
+  || !resolutionValue || !livingValue || !outfitControls
   || !locationTransition || !transitionIcon || !transitionTitle || !feedbackSparkles
   || outfitButtons.length === 0 || roomButtons.length === 0 || qualityButtons.length === 0
   || characterButtons.length === 0 || expressionButtons.length === 0
@@ -214,6 +220,7 @@ class GameAudio {
 }
 
 const uiPreferences = loadPlayerSettings();
+const livingPreferences = loadLivingSettings();
 const gameAudio = new GameAudio(uiPreferences.sound, uiPreferences.music);
 
 function updateSwitch(button: HTMLButtonElement, enabled: boolean): void {
@@ -223,6 +230,8 @@ function updateSwitch(button: HTMLButtonElement, enabled: boolean): void {
 
 updateSwitch(soundToggle, uiPreferences.sound);
 updateSwitch(musicToggle, uiPreferences.music);
+updateSwitch(idleAnimationToggle, livingPreferences.idleAnimations);
+updateSwitch(smallMovementToggle, livingPreferences.smallMovements);
 debugPanel.hidden = !isDebugMode;
 
 const engine = new Engine(
@@ -347,6 +356,7 @@ const room = createPrototypeRoom(engine, {
   onAction: showAction,
   onPlayStateChange: updatePlayState,
 });
+room.setLivingSettings(livingPreferences);
 
 const playerQualityToPreset: Record<PlayerQuality, QualityPreset> = {
   low: "low",
@@ -416,6 +426,26 @@ musicToggle.addEventListener("click", () => {
   gameAudio.setMusicEnabled(uiPreferences.music);
   updateSwitch(musicToggle, uiPreferences.music);
   savePlayerSettings(uiPreferences);
+});
+
+idleAnimationToggle.addEventListener("click", () => {
+  livingPreferences.idleAnimations = !livingPreferences.idleAnimations;
+  updateSwitch(idleAnimationToggle, livingPreferences.idleAnimations);
+  room.setLivingSettings(livingPreferences);
+  saveLivingSettings(livingPreferences);
+  showAction(livingPreferences.idleAnimations
+    ? "Character wiggles are on!"
+    : "Characters will hold still.", "toggle");
+});
+
+smallMovementToggle.addEventListener("click", () => {
+  livingPreferences.smallMovements = !livingPreferences.smallMovements;
+  updateSwitch(smallMovementToggle, livingPreferences.smallMovements);
+  room.setLivingSettings(livingPreferences);
+  saveLivingSettings(livingPreferences);
+  showAction(livingPreferences.smallMovements
+    ? "Little walks are on!"
+    : "Everyone will stay in their spot.", "toggle");
 });
 
 for (const button of qualityButtons) {
@@ -496,6 +526,9 @@ room.scene.onAfterRenderObservable.add(() => {
     frameValue.textContent = `${frameMs.toFixed(1)} ms`;
     meshValue.textContent = String(room.scene.getActiveMeshes().length);
     resolutionValue.textContent = `${width}\u00d7${height}`;
+    const livingDebug = room.getLivingDebugState();
+    livingValue.textContent = `${livingDebug.activePlayable}/${livingDebug.activeNpcs}`
+      + ` \u00b7 ${livingDebug.decisions} decisions`;
     status.value = `${activePreset} \u00b7 WebGL \u00b7 Babylon.js`;
   }
 

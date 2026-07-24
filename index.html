@@ -184,6 +184,32 @@
           ><span></span></button>
         </div>
 
+        <div class="setting-row">
+          <span class="setting-icon living-setting-icon" aria-hidden="true">&#128522;</span>
+          <span class="setting-copy"><strong>Character wiggles</strong><small>Blinks, smiles and gentle poses</small></span>
+          <button
+            id="idle-animation-toggle"
+            class="switch is-on"
+            type="button"
+            role="switch"
+            aria-checked="true"
+            aria-label="Character wiggles"
+          ><span></span></button>
+        </div>
+
+        <div class="setting-row">
+          <span class="setting-icon walk-setting-icon" aria-hidden="true">&#128095;</span>
+          <span class="setting-copy"><strong>Little walks</strong><small>Family members wander nearby</small></span>
+          <button
+            id="small-movement-toggle"
+            class="switch is-on"
+            type="button"
+            role="switch"
+            aria-checked="true"
+            aria-label="Little walks"
+          ><span></span></button>
+        </div>
+
         <fieldset class="graphics-setting">
           <legend><span aria-hidden="true">&#10024;</span> Picture detail</legend>
           <div class="quality-options">
@@ -269,6 +295,7 @@
         <span><b id="frame-value">&mdash;</b> frame time</span>
         <span><b id="mesh-value">&mdash;</b> active meshes</span>
         <span><b id="resolution-value">&mdash;</b> internal resolution</span>
+        <span><b id="living-value">&mdash;</b> living updates</span>
         <output id="status">Starting Babylon.js&hellip;</output>
       </aside>
     </main>

@@ -484,7 +484,12 @@ button:disabled {
   text-align: center;
 }
 
-.settings-panel { width: min(390px, calc(100vw - 36px)); }
+.settings-panel {
+  width: min(390px, calc(100vw - 36px));
+  max-height: calc(100% - 104px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 
 .setting-row {
   display: grid;
@@ -506,6 +511,8 @@ button:disabled {
 
 .sound-setting-icon { background: #dff2ff; }
 .music-setting-icon { background: #fde1ed; }
+.living-setting-icon { background: #fff0c9; }
+.walk-setting-icon { background: #e4f6e9; }
 
 .setting-copy {
   display: grid;

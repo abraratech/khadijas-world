@@ -42,10 +42,23 @@ import {
   type SeatSlot,
 } from "./seatRegistry";
 import {
+  chooseLivingAction,
+  createLivingController,
+  NPC_DEFINITIONS,
+  NPC_IDS,
+  scheduleNextDecision,
+  type LivingAction,
+  type LivingController,
+  type LivingSettings,
+  type NpcId,
+  type StoredNpcState,
+} from "./livingCharacters";
+import {
   loadSave,
   restoreProp,
   saveCharacterState,
   saveContentState,
+  saveNpcState,
   saveProp,
   saveRoomState,
   saveSelectedCharacter,
@@ -87,6 +100,12 @@ export interface PrototypeRoom {
   setExpression(expression: CharacterExpression): void;
   selectCharacter(characterId: CharacterId): void;
   switchRoom(room: RoomId): void;
+  setLivingSettings(settings: LivingSettings): void;
+  getLivingDebugState(): {
+    activePlayable: number;
+    activeNpcs: number;
+    decisions: number;
+  };
 }
 
 interface RoomOptions {
@@ -117,6 +136,9 @@ interface CharacterRig {
   setSelected(selected: boolean): void;
   setVisible(visible: boolean): void;
   setBounds(minX: number, maxX: number, minZ: number, maxZ: number): void;
+  setLivingAnimation(enabled: boolean, hasHeldItem?: boolean): void;
+  lookAt(target: Vector3 | null): void;
+  cancelMovement(): void;
   playUseGesture(gesture: UseGesture): void;
   isSeated(): boolean;
   isSleeping(): boolean;
@@ -508,6 +530,9 @@ function createCharacter(
   let sleeping = false;
   let walkPhase = 0;
   let gestureActive = false;
+  let livingAnimation = true;
+  let heldItemAnimation = false;
+  let lookTarget: Vector3 | null = null;
   let expression: CharacterExpression = "neutral";
   let idleClock = name.split("").reduce((total, letter) => total + letter.charCodeAt(0), 0) * .071;
   const idleSeed = idleClock;
@@ -598,11 +623,43 @@ function createCharacter(
   };
 
   const animateIdle = (deltaSeconds: number): void => {
-    if (seated || sleeping || gestureActive || target) return;
+    if (!livingAnimation || gestureActive || target) {
+      visualRoot.rotation.z *= .72;
+      headPivot.rotation.y *= .72;
+      headPivot.rotation.z *= .72;
+      holdAnchor.rotation.z *= .72;
+      return;
+    }
     idleClock += deltaSeconds;
-    visualRoot.rotation.z = Math.sin(idleClock * .82 + idleSeed) * .022;
-    headPivot.rotation.y = Math.sin(idleClock * .51 + idleSeed * 1.7) * .08;
-    headPivot.rotation.z = Math.sin(idleClock * .37 + idleSeed) * .018;
+    const breath = Math.sin(idleClock * (sleeping ? 1.25 : .82) + idleSeed);
+    visualRoot.rotation.z = breath * (sleeping ? .012 : seated ? .015 : .022);
+    visualRoot.scaling.y = 1 + breath * (sleeping ? .014 : .004);
+    headPivot.rotation.z = Math.sin(idleClock * .37 + idleSeed) * (sleeping ? .009 : .018);
+
+    if (lookTarget && !sleeping) {
+      const toTarget = lookTarget.subtract(root.position);
+      const desiredWorldYaw = Math.atan2(-toTarget.x, -toTarget.z);
+      let localYaw = desiredWorldYaw - root.rotation.y;
+      while (localYaw > Math.PI) localYaw -= Math.PI * 2;
+      while (localYaw < -Math.PI) localYaw += Math.PI * 2;
+      headPivot.rotation.y += (Math.max(-.52, Math.min(.52, localYaw)) - headPivot.rotation.y) * .08;
+    } else {
+      headPivot.rotation.y = Math.sin(idleClock * .51 + idleSeed * 1.7) * (sleeping ? .025 : .1);
+    }
+
+    if (seated && !sleeping) {
+      leftArm.rotation.x = -.15 + Math.sin(idleClock * .31 + idleSeed) * .055;
+      rightArm.rotation.x = -.15 + Math.sin(idleClock * .29 + idleSeed * 2) * .055;
+      leftLeg.rotation.x = -1.28 + Math.sin(idleClock * .24 + idleSeed) * .035;
+      rightLeg.rotation.x = -1.28 - Math.sin(idleClock * .24 + idleSeed) * .035;
+    }
+
+    if (sleeping) {
+      visualRoot.position.y = .15 + breath * .018;
+      for (const eyeMesh of eyes) eyeMesh.scaling.y = .055;
+      for (const pupil of pupils) pupil.scaling.y = .05;
+      return;
+    }
 
     const blinkCycle = (idleClock + idleSeed) % (3.1 + (idleSeed % 1.4));
     const blinking = blinkCycle < .11;
@@ -615,6 +672,9 @@ function createCharacter(
       leftArm.rotation.z = .16;
       rightArm.rotation.z = -.16;
     }
+    holdAnchor.rotation.z = heldItemAnimation
+      ? Math.sin(idleClock * 1.35 + idleSeed) * .08
+      : holdAnchor.rotation.z * .72;
   };
 
   const stand = (): void => {
@@ -706,6 +766,27 @@ function createCharacter(
     setBounds(minX: number, maxX: number, minZ: number, maxZ: number): void {
       bounds = { minX, maxX, minZ, maxZ };
       clampPositionInPlace(root.position);
+    },
+    setLivingAnimation(enabled: boolean, hasHeldItem = false): void {
+      livingAnimation = enabled;
+      heldItemAnimation = enabled && hasHeldItem;
+      if (!enabled) {
+        lookTarget = null;
+        visualRoot.rotation.z = 0;
+        visualRoot.scaling.y = 1;
+        headPivot.rotation.y = 0;
+        headPivot.rotation.z = 0;
+        holdAnchor.rotation.z = 0;
+        applyExpression();
+      }
+    },
+    lookAt(nextTarget: Vector3 | null): void {
+      lookTarget = nextTarget?.clone() ?? null;
+    },
+    cancelMovement(): void {
+      target = null;
+      arrivalAction = null;
+      animateWalk(false, 0);
     },
     playUseGesture(gesture: UseGesture): void {
       if (gestureActive) return;
@@ -928,6 +1009,7 @@ function makeDraggable(
 export function createPrototypeRoom(engine: Engine, options: RoomOptions): PrototypeRoom {
   const save = loadSave();
   const contentState = save.content;
+  const livingSettings: LivingSettings = { ...save.livingSettings };
   const bedroomOffsetX = 22;
   const streetOffsetX = 44;
   const cafeOffsetX = 66;
@@ -1951,8 +2033,86 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     characterRigs[characterId] = rig;
   }
 
-  createCharacter(scene, "street-neighbor", streetPosition(-3.65, 0, -0.85), new Color3(0.15, 0.48, 0.31), 0.84);
-  createCharacter(scene, "cafe-worker", cafePosition(3.55, 0, 2.75), colors.teal, 0.92);
+  const npcStates: Record<NpcId, StoredNpcState> = save.npcs;
+  const npcRigs = {} as Record<NpcId, CharacterRig>;
+  const npcOutfitColors = {
+    pink: new Color3(.62, .28, .48),
+    teal: new Color3(.12, .48, .43),
+    yellow: new Color3(.76, .52, .16),
+  };
+  const npcHelloMaterials = {
+    pink: material(scene, "npc-hello-pink-mat", colors.pink, new Color3(.22, .08, .12)),
+    yellow: material(scene, "npc-hello-yellow-mat", colors.yellow, new Color3(.22, .12, .04)),
+  };
+  const npcBounds: Record<NpcId, {
+    minX: number;
+    maxX: number;
+    minZ: number;
+    maxZ: number;
+  }> = {
+    parent: { minX: 1.25, maxX: 2.25, minZ: .8, maxZ: 1.9 },
+    neighbor: { minX: 39.1, maxX: 41.05, minZ: -1.55, maxZ: .35 },
+    "cafe-worker": { minX: 68.6, maxX: 70.35, minZ: 2.25, maxZ: 3.25 },
+  };
+
+  for (const npcId of NPC_IDS) {
+    const definition = NPC_DEFINITIONS[npcId];
+    const state = npcStates[npcId];
+    const rig = createCharacter(
+      scene,
+      `npc-${npcId}`,
+      new Vector3(state.position.x, 0, state.position.z),
+      npcOutfitColors[definition.outfit],
+      definition.scale,
+      true,
+    );
+    const bounds = npcBounds[npcId];
+    rig.setBounds(bounds.minX, bounds.maxX, bounds.minZ, bounds.maxZ);
+    rig.root.rotation.y = state.rotationY;
+    rig.setExpression(npcId === "cafe-worker" ? "happy" : "neutral");
+    for (const childMesh of rig.root.getChildMeshes()) {
+      childMesh.metadata = {
+        ...childMesh.metadata,
+        npcId,
+        interactionPrompt: definition.interactionPrompt,
+      };
+    }
+    const helloIcon = MeshBuilder.CreateSphere(
+      `npc-${npcId}-hello`,
+      { diameter: .2, segments: 8 },
+      scene,
+    );
+    helloIcon.position.set(0, 2.42, 0);
+    helloIcon.scaling.set(1, 1.25, .5);
+    helloIcon.material = npcId === "cafe-worker"
+      ? npcHelloMaterials.yellow
+      : npcHelloMaterials.pink;
+    helloIcon.parent = rig.root;
+    helloIcon.metadata = { npcId, interactionPrompt: definition.interactionPrompt };
+    if (npcId === "cafe-worker") {
+      const apron = box(
+        scene,
+        "npc-cafe-worker-apron",
+        new Vector3(.48, .62, .04),
+        new Vector3(0, .92, -.31),
+        white,
+        rig.root,
+      );
+      apron.metadata = { npcId, interactionPrompt: definition.interactionPrompt };
+    }
+    npcRigs[npcId] = rig;
+  }
+
+  const playableControllers = {} as Record<CharacterId, LivingController>;
+  const playableAnchors = {} as Record<CharacterId, Vector3>;
+  CHARACTER_IDS.forEach((characterId, index) => {
+    playableControllers[characterId] = createLivingController(index + 1);
+    playableAnchors[characterId] = characterRigs[characterId].root.position.clone();
+  });
+  const npcControllers = {} as Record<NpcId, LivingController>;
+  NPC_IDS.forEach((npcId, index) => {
+    npcControllers[npcId] = createLivingController(index + 7);
+  });
 
   interface HoldableItem {
     id: string;
@@ -2070,6 +2230,15 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
       const visible = characters[characterId].room === activeRoom;
       characterRigs[characterId].setVisible(visible);
       characterRigs[characterId].setSelected(visible && characterId === selectedCharacterId);
+      characterRigs[characterId].setLivingAnimation(
+        visible && characterId !== selectedCharacterId && livingSettings.idleAnimations,
+        Boolean(characters[characterId].heldItem),
+      );
+    }
+    for (const npcId of NPC_IDS) {
+      const visible = npcStates[npcId].room === activeRoom;
+      npcRigs[npcId].setVisible(visible);
+      npcRigs[npcId].setLivingAnimation(visible && livingSettings.idleAnimations, Boolean(npcStates[npcId].heldItem));
     }
   };
 
@@ -2148,6 +2317,7 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     const arrivalPosition = definition.spawn.clone();
     arrivalPosition.z += arrivalOffsetZ[selectedCharacterId];
     rig.placeAt(arrivalPosition);
+    playableAnchors[selectedCharacterId].copyFrom(arrivalPosition);
     rig.root.rotation.y = activeRoom === "home" || activeRoom === "street"
       ? -Math.PI / 2
       : Math.PI / 2;
@@ -2166,7 +2336,13 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     }
 
     persistCharacter(selectedCharacterId);
+    playableAnchors[selectedCharacterId].copyFrom(characterRigs[selectedCharacterId].root.position);
     selectedCharacterId = characterId;
+    characterRigs[characterId].cancelMovement();
+    characterRigs[characterId].lookAt(null);
+    characterRigs[characterId].setExpression(characters[characterId].expression);
+    playableControllers[characterId].action = "idle";
+    playableControllers[characterId].nextDecisionAt = performance.now() + 3200;
     const current = selectedState();
     activeRoom = current.room;
     const definition = roomDefinitions[activeRoom];
@@ -2296,9 +2472,17 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     respawnMessage: "A fresh sandwich appeared in the café display",
   });
 
-  const itemOwner = (itemId: string): CharacterId | null => {
+  type ItemOwnerId = CharacterId | NpcId;
+  const isPlayableOwner = (owner: ItemOwnerId): owner is CharacterId => (
+    CHARACTER_IDS.includes(owner as CharacterId)
+  );
+
+  const itemOwner = (itemId: string): ItemOwnerId | null => {
     for (const characterId of CHARACTER_IDS) {
       if (characters[characterId].heldItem === itemId) return characterId;
+    }
+    for (const npcId of NPC_IDS) {
+      if (npcStates[npcId].heldItem === itemId) return npcId;
     }
     return null;
   };
@@ -2310,6 +2494,29 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     item.mesh.scaling.copyFrom(item.holdScale);
     item.mesh.isPickable = false;
     item.mesh.setEnabled(true);
+  };
+
+  const attachItemToNpc = (item: HoldableItem, npcId: NpcId): void => {
+    item.mesh.parent = npcRigs[npcId].holdAnchor;
+    item.mesh.position.set(0, 0, 0);
+    item.mesh.rotation.set(0, 0, item.id === "book" ? Math.PI / 2 : 0);
+    item.mesh.scaling.copyFrom(item.holdScale);
+    item.mesh.isPickable = false;
+    item.mesh.setEnabled(true);
+  };
+
+  const clearNpcItem = (npcId: NpcId): HoldableItem | null => {
+    const state = npcStates[npcId];
+    if (!state.heldItem) return null;
+    const item = holdables.get(state.heldItem) ?? null;
+    state.heldItem = null;
+    if (item) {
+      item.mesh.parent = null;
+      item.mesh.scaling.setAll(1);
+      item.mesh.rotation.setAll(0);
+    }
+    saveNpcState(state);
+    return item;
   };
 
   const detachHeldItem = (
@@ -2370,8 +2577,12 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     }
     const previousOwner = itemOwner(id);
     if (previousOwner && previousOwner !== characterId) {
-      characters[previousOwner].heldItem = null;
-      persistCharacter(previousOwner);
+      if (isPlayableOwner(previousOwner)) {
+        characters[previousOwner].heldItem = null;
+        persistCharacter(previousOwner);
+      } else {
+        clearNpcItem(previousOwner);
+      }
     }
     detachHeldItem(characterId, true);
     attachItemToCharacter(item, characterId);
@@ -2403,6 +2614,17 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     characterRigs[characterId].playUseGesture(item.gesture);
     persistCharacter(characterId);
     options.onAction(`${CHARACTER_DEFINITIONS[characterId].shortName} ${item.useMessage}!`);
+    for (const otherId of CHARACTER_IDS) {
+      if (otherId === characterId || characters[otherId].room !== activeRoom) continue;
+      if (Vector3.Distance(characterRigs[otherId].root.position, characterRigs[characterId].root.position) > 3.4) continue;
+      characterRigs[otherId].lookAt(characterRigs[characterId].root.position);
+      temporaryReaction(otherId, item.gesture === "eat" || item.gesture === "drink" ? "happy" : "excited");
+    }
+    for (const npcId of NPC_IDS) {
+      if (npcStates[npcId].room !== activeRoom) continue;
+      if (Vector3.Distance(npcRigs[npcId].root.position, characterRigs[characterId].root.position) > 4.2) continue;
+      reactNpc(npcId, "happy");
+    }
     window.setTimeout(() => {
       if (characters[characterId].interaction === interaction[item.gesture]) {
         characters[characterId].interaction = "idle";
@@ -2437,6 +2659,16 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     }
     restoredItemOwners.add(heldItemId);
     attachItemToCharacter(item, characterId);
+  }
+  for (const npcId of NPC_IDS) {
+    const heldItemId = npcStates[npcId].heldItem;
+    const item = heldItemId ? holdables.get(heldItemId) : null;
+    if (!heldItemId || !item || restoredItemOwners.has(heldItemId)) {
+      npcStates[npcId].heldItem = null;
+      continue;
+    }
+    restoredItemOwners.add(heldItemId);
+    attachItemToNpc(item, npcId);
   }
 
   for (const item of holdables.values()) {
@@ -2518,7 +2750,10 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     }
     const owner = itemOwner("cup");
     if (owner && owner !== selectedCharacterId) {
-      options.onAction(`${CHARACTER_DEFINITIONS[owner].shortName} has the cup right now.`);
+      const ownerName = isPlayableOwner(owner)
+        ? CHARACTER_DEFINITIONS[owner].shortName
+        : NPC_DEFINITIONS[owner].displayName;
+      options.onAction(`${ownerName} has the cup right now.`);
       return;
     }
     cup.setEnabled(true);
@@ -2607,6 +2842,12 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     standCharacter(characterId);
     characterRigs[characterId].setTarget(seat.approach, () => {
       placeCharacterInSeat(characterId, seat);
+      for (const otherId of CHARACTER_IDS) {
+        if (otherId === characterId || characters[otherId].room !== state.room) continue;
+        if (Vector3.Distance(characterRigs[otherId].root.position, characterRigs[characterId].root.position) > 2.8) continue;
+        characterRigs[otherId].lookAt(characterRigs[characterId].root.position);
+        temporaryReaction(otherId, "happy");
+      }
       options.onAction(
         seat.sleeping
           ? `${CHARACTER_DEFINITIONS[characterId].shortName} is having a sleepy rest.`
@@ -2673,6 +2914,9 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     toState.heldItem = item.id;
     toState.expression = "excited";
     characterRigs[toId].setExpression("excited");
+    characterRigs[fromId].lookAt(characterRigs[toId].root.position);
+    characterRigs[toId].lookAt(characterRigs[fromId].root.position);
+    characterRigs[toId].playUseGesture("hug");
     attachItemToCharacter(item, toId);
     persistCharacter(fromId);
     persistCharacter(toId);
@@ -2682,6 +2926,114 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     );
     return true;
   };
+
+  const persistNpc = (npcId: NpcId): void => {
+    const state = npcStates[npcId];
+    const rig = npcRigs[npcId];
+    state.position = {
+      x: rig.root.position.x,
+      y: 0,
+      z: rig.root.position.z,
+    };
+    state.rotationY = rig.root.rotation.y;
+    saveNpcState(state);
+  };
+
+  const returnNpcToStation = (npcId: NpcId): void => {
+    const state = npcStates[npcId];
+    const station = NPC_DEFINITIONS[npcId].position;
+    state.activity = npcId === "cafe-worker" ? "work" : "relax";
+    npcRigs[npcId].setTarget(new Vector3(station.x, 0, station.z), () => {
+      npcRigs[npcId].root.rotation.y = npcId === "cafe-worker" ? Math.PI : 0;
+      persistNpc(npcId);
+    });
+  };
+
+  const reactNpc = (
+    npcId: NpcId,
+    expression: CharacterExpression,
+    gesture: UseGesture = "hug",
+  ): void => {
+    const rig = npcRigs[npcId];
+    rig.setExpression(expression);
+    rig.playUseGesture(gesture);
+    window.setTimeout(() => {
+      rig.setExpression(npcId === "cafe-worker" ? "happy" : "neutral");
+      if (npcId === "cafe-worker") returnNpcToStation(npcId);
+    }, 950);
+  };
+
+  const interactWithNpc = (npcId: NpcId): void => {
+    const definition = NPC_DEFINITIONS[npcId];
+    const npcState = npcStates[npcId];
+    if (definition.homeLocation !== activeRoom) return;
+    const player = selectedState();
+    const playerRig = selectedRig();
+    const npcRig = npcRigs[npcId];
+    playerRig.lookAt(npcRig.root.position);
+    npcRig.lookAt(playerRig.root.position);
+    npcState.activity = "greet";
+
+    if (player.heldItem) {
+      if (npcState.heldItem) {
+        options.onAction(`${definition.displayName}'s hands are full right now.`);
+        reactNpc(npcId, "happy");
+        return;
+      }
+      const item = detachHeldItem(selectedCharacterId, false);
+      if (!item) return;
+      npcState.heldItem = item.id;
+      attachItemToNpc(item, npcId);
+      saveNpcState(npcState);
+      reactNpc(npcId, "excited", item.gesture);
+      options.onAction(
+        `${definition.displayName} says thank you for the ${item.label}!`,
+        "success",
+      );
+      emitPlayState();
+      return;
+    }
+
+    if (npcState.heldItem) {
+      const item = clearNpcItem(npcId);
+      if (item) {
+        attachItemToCharacter(item, selectedCharacterId);
+        player.heldItem = item.id;
+        persistCharacter(selectedCharacterId);
+        reactNpc(npcId, "happy");
+        options.onAction(`${definition.displayName} handed over the ${item.label}!`, "pickup");
+        emitPlayState();
+        return;
+      }
+    }
+
+    if (npcId === "cafe-worker") {
+      const serviceChoices = ["cup", "cupcake", "sandwich"] as const;
+      const choice = serviceChoices.find((itemId) => !itemOwner(itemId));
+      if (choice) {
+        holdItem(choice, selectedCharacterId, false);
+        reactNpc(npcId, "excited", choice === "cup" ? "drink" : "eat");
+        options.onAction(
+          choice === "cup"
+            ? "Ms. Sana made a warm drink!"
+            : `Ms. Sana served a ${choice}!`,
+          "success",
+        );
+        emitPlayState();
+        return;
+      }
+    }
+
+    const dialogueIndex = npcControllers[npcId].decisionCount % definition.dialogue.length;
+    reactNpc(npcId, "happy");
+    options.onAction(`${definition.displayName}: ${definition.dialogue[dialogueIndex]}`, "tap");
+  };
+
+  scene.onPointerObservable.add((pointerInfo: PointerInfo) => {
+    if (pointerInfo.type !== PointerEventTypes.POINTERPICK) return;
+    const npcId = pointerInfo.pickInfo?.pickedMesh?.metadata?.npcId as NpcId | undefined;
+    if (npcId && NPC_IDS.includes(npcId)) interactWithNpc(npcId);
+  });
 
   let characterDrag: {
     characterId: CharacterId;
@@ -2792,7 +3144,262 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     if (keyboardInfo.type === KeyboardEventTypes.KEYUP) pressedKeys.delete(key);
   });
 
+  const temporaryReaction = (
+    characterId: CharacterId,
+    expression: CharacterExpression,
+    gesture?: UseGesture,
+  ): void => {
+    const rig = characterRigs[characterId];
+    rig.setExpression(expression);
+    if (gesture) rig.playUseGesture(gesture);
+    window.setTimeout(() => {
+      if (characterId !== selectedCharacterId) {
+        rig.setExpression(characters[characterId].expression);
+      }
+    }, 1050);
+  };
+
+  const nearestCompanionPosition = (
+    room: RoomId,
+    origin: Vector3,
+    exceptCharacter?: CharacterId,
+  ): Vector3 | null => {
+    let nearest: Vector3 | null = null;
+    let nearestDistance = 4.2;
+    for (const characterId of CHARACTER_IDS) {
+      if (characterId === exceptCharacter || characters[characterId].room !== room) continue;
+      const candidate = characterRigs[characterId].root.position;
+      const distance = Vector3.Distance(origin, candidate);
+      if (distance < nearestDistance) {
+        nearest = candidate;
+        nearestDistance = distance;
+      }
+    }
+    for (const npcId of NPC_IDS) {
+      if (npcStates[npcId].room !== room) continue;
+      const candidate = npcRigs[npcId].root.position;
+      const distance = Vector3.Distance(origin, candidate);
+      if (distance < nearestDistance) {
+        nearest = candidate;
+        nearestDistance = distance;
+      }
+    }
+    return nearest?.clone() ?? null;
+  };
+
+  const interestingTargets: Record<RoomId, readonly Vector3[]> = {
+    home: [
+      new Vector3(-4.45, 1.2, .35),
+      new Vector3(3.45, 1.25, .65),
+      new Vector3(.1, 1.4, 3.25),
+    ],
+    bedroom: [
+      bedroomPosition(-3.7, 1.1, .35),
+      bedroomPosition(4.9, 1.2, -3.2),
+      bedroomPosition(.6, .8, -.3),
+    ],
+    street: [
+      streetPosition(-5.05, 1.3, .75),
+      streetPosition(-.25, 2.1, 2.3),
+      streetPosition(3.45, 2.1, 3.1),
+    ],
+    cafe: [
+      cafePosition(2.1, 1.9, 3.05),
+      cafePosition(4.65, 1.35, .55),
+      cafePosition(-4.7, 1.2, 2.65),
+    ],
+  };
+
+  const safeHeldItemForWander = (itemId: string | null): boolean => (
+    itemId === null || itemId === "teddy" || itemId === "book"
+  );
+
+  const pointInside = (
+    point: Vector3,
+    minX: number,
+    maxX: number,
+    minZ: number,
+    maxZ: number,
+  ): boolean => (
+    point.x >= minX && point.x <= maxX && point.z >= minZ && point.z <= maxZ
+  );
+
+  const safeAutonomyPoint = (room: RoomId, point: Vector3): boolean => {
+    const blocked: Record<RoomId, readonly [number, number, number, number][]> = {
+      home: [
+        [-4.8, -2.05, -.7, .75],
+        [2.55, 4.55, -.1, 1.35],
+      ],
+      bedroom: [
+        [17.25, 19.45, -.95, 1.45],
+        [25.9, 27.35, -3.45, -2.55],
+      ],
+      street: [
+        [41.0, 42.7, .55, 1.7],
+        [38.55, 39.3, .2, 1.25],
+        [43.2, 44.45, 1.4, 3.3],
+      ],
+      cafe: [
+        [68.0, 71.8, 1.15, 3.55],
+        [61.7, 63.25, .25, 1.65],
+        [64.15, 65.65, .25, 1.65],
+      ],
+    };
+    return !blocked[room].some(([minX, maxX, minZ, maxZ]) => (
+      pointInside(point, minX, maxX, minZ, maxZ)
+    ));
+  };
+
+  const beginShortWander = (
+    characterId: CharacterId,
+    controller: LivingController,
+  ): void => {
+    const rig = characterRigs[characterId];
+    const anchor = playableAnchors[characterId];
+    const step = controller.decisionCount % 4;
+    const offset = [
+      new Vector3(.48, 0, .18),
+      new Vector3(-.4, 0, .3),
+      new Vector3(.18, 0, -.46),
+      new Vector3(-.32, 0, -.28),
+    ][step];
+    const candidate = anchor.add(offset);
+    if (!safeAutonomyPoint(characters[characterId].room, candidate)) {
+      controller.action = "look-around";
+      rig.lookAt(interestingTargets[activeRoom][controller.seed % interestingTargets[activeRoom].length]);
+      return;
+    }
+    controller.action = "short-wander";
+    rig.setTarget(candidate, () => {
+      if (
+        characterId !== selectedCharacterId
+        && livingSettings.smallMovements
+        && characters[characterId].room === activeRoom
+      ) {
+        window.setTimeout(() => {
+          if (characterId !== selectedCharacterId && livingSettings.smallMovements) {
+            rig.setTarget(anchor);
+          }
+        }, 650 + controller.seed * 90);
+      }
+    });
+  };
+
+  const decidePlayableAction = (
+    characterId: CharacterId,
+    now: number,
+  ): void => {
+    const state = characters[characterId];
+    const rig = characterRigs[characterId];
+    const controller = playableControllers[characterId];
+    if (characterId === selectedCharacterId || state.room !== activeRoom) return;
+
+    if (state.sleeping || rig.isSleeping()) {
+      controller.action = "sleep";
+      rig.lookAt(null);
+      scheduleNextDecision(controller, now, 7000, 11000);
+      return;
+    }
+
+    const choices: LivingAction[] = state.activity === "sitting"
+      ? ["relax", "look-around", "social", "use-item"]
+      : ["idle", "look-around", "react", "social", "use-item"];
+    if (
+      livingSettings.smallMovements
+      && state.activity === "standing"
+      && safeHeldItemForWander(state.heldItem)
+    ) {
+      choices.push("short-wander");
+    }
+    const action = chooseLivingAction(controller, choices);
+    controller.action = action;
+
+    if (action === "short-wander") {
+      beginShortWander(characterId, controller);
+      scheduleNextDecision(controller, now, 7600, 12200);
+      return;
+    }
+
+    if (action === "social") {
+      const companion = nearestCompanionPosition(activeRoom, rig.root.position, characterId);
+      rig.lookAt(companion);
+      temporaryReaction(characterId, "happy", "hug");
+    } else if (action === "react") {
+      temporaryReaction(
+        characterId,
+        controller.decisionCount % 2 === 0 ? "surprised" : "excited",
+      );
+    } else if (action === "use-item" && state.heldItem) {
+      const held = holdables.get(state.heldItem);
+      if (held) rig.playUseGesture(held.gesture);
+    } else if (action === "look-around") {
+      const targets = interestingTargets[activeRoom];
+      rig.lookAt(targets[(controller.seed + controller.decisionCount) % targets.length]);
+    } else if (action === "relax") {
+      rig.lookAt(nearestCompanionPosition(activeRoom, rig.root.position, characterId));
+    } else {
+      rig.lookAt(null);
+    }
+    scheduleNextDecision(controller, now);
+  };
+
+  const npcSafePoints: Record<NpcId, readonly Vector3[]> = {
+    parent: [
+      new Vector3(1.75, 0, 1.45),
+      new Vector3(1.35, 0, 1.1),
+      new Vector3(2.15, 0, 1.7),
+    ],
+    neighbor: [
+      streetPosition(-3.65, 0, -.85),
+      streetPosition(-4.25, 0, -.35),
+      streetPosition(-3.05, 0, -.55),
+    ],
+    "cafe-worker": [
+      cafePosition(3.55, 0, 2.75),
+      cafePosition(2.85, 0, 2.7),
+      cafePosition(3.95, 0, 3.05),
+    ],
+  };
+
+  const decideNpcAction = (npcId: NpcId, now: number): void => {
+    const definition = NPC_DEFINITIONS[npcId];
+    const state = npcStates[npcId];
+    const rig = npcRigs[npcId];
+    const controller = npcControllers[npcId];
+    if (state.room !== activeRoom) return;
+
+    const choices = definition.idleBehaviorSet.filter((choice) => (
+      choice !== "short-wander" || livingSettings.smallMovements
+    ));
+    const action = chooseLivingAction(controller, choices);
+    controller.action = action;
+
+    if (action === "short-wander" || (action === "work" && livingSettings.smallMovements)) {
+      const points = npcSafePoints[npcId];
+      const target = points[(controller.seed + controller.decisionCount) % points.length];
+      rig.setTarget(target, () => {
+        state.activity = action === "work" ? "work" : "relax";
+      });
+    } else if (action === "social") {
+      rig.lookAt(nearestCompanionPosition(activeRoom, rig.root.position));
+      reactNpc(npcId, "happy");
+    } else if (action === "react") {
+      reactNpc(npcId, "excited");
+    } else if (action === "use-item" && state.heldItem) {
+      const held = holdables.get(state.heldItem);
+      if (held) rig.playUseGesture(held.gesture);
+    } else {
+      const playerPosition = characters[selectedCharacterId].room === activeRoom
+        ? selectedRig().root.position
+        : null;
+      rig.lookAt(playerPosition);
+      if (action === "work") rig.playUseGesture(npcId === "cafe-worker" ? "drink" : "read");
+    }
+    scheduleNextDecision(controller, now, 4300, 8800);
+  };
+
   let saveMovementTimer = 0;
+  let livingDecisionTimer = 0;
   const movementInput = new Vector3();
   scene.onBeforeRenderObservable.add(() => {
     const deltaSeconds = Math.min(engine.getDeltaTime() / 1000, 0.05);
@@ -2824,6 +3431,33 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
       if (characterId === selectedCharacterId && hasMovementInput) continue;
       characterRigs[characterId].update(deltaSeconds);
     }
+
+    for (const npcId of NPC_IDS) {
+      if (npcStates[npcId].room !== activeRoom) continue;
+      npcRigs[npcId].update(deltaSeconds);
+    }
+
+    if (!livingSettings.idleAnimations) return;
+    livingDecisionTimer += deltaSeconds;
+    if (livingDecisionTimer < .25) return;
+    livingDecisionTimer = 0;
+    const now = performance.now();
+    for (const characterId of CHARACTER_IDS) {
+      const controller = playableControllers[characterId];
+      if (
+        characterId !== selectedCharacterId
+        && characters[characterId].room === activeRoom
+        && now >= controller.nextDecisionAt
+      ) {
+        decidePlayableAction(characterId, now);
+      }
+    }
+    for (const npcId of NPC_IDS) {
+      const controller = npcControllers[npcId];
+      if (npcStates[npcId].room === activeRoom && now >= controller.nextDecisionAt) {
+        decideNpcAction(npcId, now);
+      }
+    }
   });
 
   // Synchronize the player-facing controls with a restored save before the
@@ -2837,6 +3471,35 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     for (const mesh of detailMeshes) mesh.setEnabled(settings.decorativeDetails);
   };
 
+  const setLivingSettings = (settings: LivingSettings): void => {
+    livingSettings.idleAnimations = settings.idleAnimations;
+    livingSettings.smallMovements = settings.smallMovements;
+    if (!settings.idleAnimations || !settings.smallMovements) {
+      for (const characterId of CHARACTER_IDS) {
+        if (characterId !== selectedCharacterId) characterRigs[characterId].cancelMovement();
+      }
+      for (const npcId of NPC_IDS) npcRigs[npcId].cancelMovement();
+    }
+    updateCharacterVisibility();
+  };
+
+  const getLivingDebugState = (): {
+    activePlayable: number;
+    activeNpcs: number;
+    decisions: number;
+  } => ({
+    activePlayable: livingSettings.idleAnimations
+      ? CHARACTER_IDS.filter((id) => id !== selectedCharacterId && characters[id].room === activeRoom).length
+      : 0,
+    activeNpcs: livingSettings.idleAnimations
+      ? NPC_IDS.filter((id) => npcStates[id].room === activeRoom).length
+      : 0,
+    decisions: [
+      ...Object.values(playableControllers),
+      ...Object.values(npcControllers),
+    ].reduce((total, controller) => total + controller.decisionCount, 0),
+  });
+
   return {
     scene,
     setQuality,
@@ -2846,5 +3509,7 @@ export function createPrototypeRoom(engine: Engine, options: RoomOptions): Proto
     setExpression,
     selectCharacter,
     switchRoom,
+    setLivingSettings,
+    getLivingDebugState,
   };
 }
