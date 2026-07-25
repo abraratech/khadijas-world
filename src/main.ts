@@ -20,11 +20,15 @@ import { friendshipLevel } from "./game/npc/RelationshipController";
 import {
   loadPlayerSettings,
   loadLivingSettings,
+  loadAccessibilitySettings,
   loadSave,
   resetSave,
+  consumeSaveRecoveryNotice,
+  getSaveDebugState,
   savePlayerSettings,
   saveLivingSettings,
   saveDialogueState,
+  saveAccessibilitySettings,
   saveQualityPreset,
   type OutfitId,
   type RoomId,
@@ -53,6 +57,15 @@ const soundToggle = document.querySelector<HTMLButtonElement>("#sound-toggle");
 const musicToggle = document.querySelector<HTMLButtonElement>("#music-toggle");
 const idleAnimationToggle = document.querySelector<HTMLButtonElement>("#idle-animation-toggle");
 const smallMovementToggle = document.querySelector<HTMLButtonElement>("#small-movement-toggle");
+const reducedMotionToggle = document.querySelector<HTMLButtonElement>("#reduced-motion-toggle");
+const largeTextToggle = document.querySelector<HTMLButtonElement>("#large-text-toggle");
+const highContrastToggle = document.querySelector<HTMLButtonElement>("#high-contrast-toggle");
+const instantDialogueToggle = document.querySelector<HTMLButtonElement>("#instant-dialogue-toggle");
+const fullscreenButton = document.querySelector<HTMLButtonElement>("#fullscreen-button");
+const loadingScreen = document.querySelector<HTMLElement>("#loading-screen");
+const displayRecovery = document.querySelector<HTMLElement>("#display-recovery");
+const restoreDisplayButton = document.querySelector<HTMLButtonElement>("#restore-display-button");
+const reloadDisplayButton = document.querySelector<HTMLButtonElement>("#reload-display-button");
 const npcChatToggle = document.querySelector<HTMLButtonElement>("#npc-chat-toggle");
 const typedChatToggle = document.querySelector<HTMLButtonElement>("#typed-chat-toggle");
 const memoryToggle = document.querySelector<HTMLButtonElement>("#memory-toggle");
@@ -100,6 +113,9 @@ if (
   || !useItemButton || !useItemLabel || !dropItemButton || !togetherButton || !resetButton
   || !helpButton || !settingsButton || !helpCard || !settingsPanel
   || !soundToggle || !musicToggle || !idleAnimationToggle || !smallMovementToggle
+  || !reducedMotionToggle || !largeTextToggle || !highContrastToggle
+  || !instantDialogueToggle || !fullscreenButton || !loadingScreen
+  || !displayRecovery || !restoreDisplayButton || !reloadDisplayButton
   || !npcChatToggle || !typedChatToggle || !memoryToggle || !clearAllMemoriesButton
   || !chatPanel || !chatNpcPortrait || !chatNpcName || !chatFriendship
   || !chatCloseButton || !chatMessages || !chatThinking || !chatTopics
@@ -260,10 +276,21 @@ class GameAudio {
     void this.context?.close();
     this.context = null;
   }
+
+  setPageVisible(visible: boolean): void {
+    if (!this.context) return;
+    if (visible) {
+      void this.context.resume();
+      if (this.musicEnabled && this.musicOscillators.length === 0) this.startMusic();
+    } else {
+      void this.context.suspend();
+    }
+  }
 }
 
 const uiPreferences = loadPlayerSettings();
 const livingPreferences = loadLivingSettings();
+const accessibilityPreferences = loadAccessibilitySettings();
 const gameAudio = new GameAudio(uiPreferences.sound, uiPreferences.music);
 
 function updateSwitch(button: HTMLButtonElement, enabled: boolean): void {
@@ -275,6 +302,13 @@ updateSwitch(soundToggle, uiPreferences.sound);
 updateSwitch(musicToggle, uiPreferences.music);
 updateSwitch(idleAnimationToggle, livingPreferences.idleAnimations);
 updateSwitch(smallMovementToggle, livingPreferences.smallMovements);
+updateSwitch(reducedMotionToggle, accessibilityPreferences.reducedMotion);
+updateSwitch(largeTextToggle, accessibilityPreferences.largeText);
+updateSwitch(highContrastToggle, accessibilityPreferences.highContrast);
+updateSwitch(instantDialogueToggle, accessibilityPreferences.instantDialogue);
+app.classList.toggle("is-reduced-motion", accessibilityPreferences.reducedMotion);
+app.classList.toggle("is-large-text", accessibilityPreferences.largeText);
+app.classList.toggle("is-high-contrast", accessibilityPreferences.highContrast);
 debugPanel.hidden = !isDebugMode;
 
 const dialogueController = new DialogueController(loadSave().dialogue, saveDialogueState);
@@ -302,18 +336,24 @@ const showAction = (message: string, sound: InteractionSound = "success"): void 
   actionValue.value = message;
   actionValue.classList.add("is-visible");
   gameAudio.playEffect(sound);
-  const sparkles = Array.from({ length: 7 }, (_, index) => {
+  const sparkles = Array.from(
+    { length: accessibilityPreferences.reducedMotion ? 0 : 7 },
+    (_, index) => {
     const sparkle = document.createElement("span");
     sparkle.style.setProperty("--sparkle-angle", `${index * (360 / 7)}deg`);
     sparkle.style.setProperty("--sparkle-distance", `${34 + (index % 3) * 8}px`);
     sparkle.style.setProperty("--sparkle-delay", `${index * .012}s`);
     return sparkle;
-  });
+    },
+  );
   feedbackSparkles.replaceChildren(...sparkles);
   feedbackSparkles.classList.remove("is-playing");
   void feedbackSparkles.offsetWidth;
   feedbackSparkles.classList.add("is-playing");
-  if (window.matchMedia("(pointer: coarse)").matches) navigator.vibrate?.(12);
+  if (
+    !accessibilityPreferences.reducedMotion
+    && window.matchMedia("(pointer: coarse)").matches
+  ) navigator.vibrate?.(12);
   window.clearTimeout(actionTimer);
   window.clearTimeout(feedbackTimer);
   actionTimer = window.setTimeout(() => actionValue.classList.remove("is-visible"), 2400);
@@ -399,7 +439,7 @@ const submitChat = (message: string, forcedIntent?: DialogueIntent): void => {
       dialogueEntitiesValue.textContent = reply.entities.map((entity) => entity.id).join(", ") || "none";
       dialogueTemplateValue.textContent = reply.templateId;
     }
-  }, 240);
+  }, accessibilityPreferences.instantDialogue || accessibilityPreferences.reducedMotion ? 0 : 240);
 };
 
 const openNpcChat = (npcId: NpcId): void => {
@@ -483,7 +523,7 @@ const updatePlayState = (state: PlayState): void => {
     roomTransitionTimer = window.setTimeout(() => {
       app.classList.remove("is-room-changing");
       locationTransition.classList.remove("is-visible");
-    }, 620);
+    }, accessibilityPreferences.reducedMotion ? 0 : 620);
   }
   lastRoom = state.activeRoom;
   gameAudio.setLocation(state.activeRoom);
@@ -689,6 +729,56 @@ smallMovementToggle.addEventListener("click", () => {
     : "Everyone will stay in their spot.", "toggle");
 });
 
+const persistAccessibility = (): void => {
+  saveAccessibilitySettings(accessibilityPreferences);
+};
+
+reducedMotionToggle.addEventListener("click", () => {
+  accessibilityPreferences.reducedMotion = !accessibilityPreferences.reducedMotion;
+  updateSwitch(reducedMotionToggle, accessibilityPreferences.reducedMotion);
+  app.classList.toggle("is-reduced-motion", accessibilityPreferences.reducedMotion);
+  persistAccessibility();
+  showAction(accessibilityPreferences.reducedMotion
+    ? "Gentle motion is on."
+    : "Playful motion is on.", "toggle");
+});
+
+largeTextToggle.addEventListener("click", () => {
+  accessibilityPreferences.largeText = !accessibilityPreferences.largeText;
+  updateSwitch(largeTextToggle, accessibilityPreferences.largeText);
+  app.classList.toggle("is-large-text", accessibilityPreferences.largeText);
+  persistAccessibility();
+  showAction(accessibilityPreferences.largeText
+    ? "Words are a little larger."
+    : "Words are back to regular size.", "toggle");
+});
+
+highContrastToggle.addEventListener("click", () => {
+  accessibilityPreferences.highContrast = !accessibilityPreferences.highContrast;
+  updateSwitch(highContrastToggle, accessibilityPreferences.highContrast);
+  app.classList.toggle("is-high-contrast", accessibilityPreferences.highContrast);
+  persistAccessibility();
+  showAction(accessibilityPreferences.highContrast
+    ? "Control outlines are stronger."
+    : "Control colors are back to normal.", "toggle");
+});
+
+instantDialogueToggle.addEventListener("click", () => {
+  accessibilityPreferences.instantDialogue = !accessibilityPreferences.instantDialogue;
+  updateSwitch(instantDialogueToggle, accessibilityPreferences.instantDialogue);
+  persistAccessibility();
+  showAction(accessibilityPreferences.instantDialogue
+    ? "Neighborhood replies will appear right away."
+    : "Neighborhood replies will use a short pause.", "toggle");
+});
+
+fullscreenButton.addEventListener("click", () => {
+  const action = document.fullscreenElement
+    ? document.exitFullscreen()
+    : app.requestFullscreen();
+  void action.catch(() => showAction("Full screen is not available here.", "invalid"));
+});
+
 for (const button of qualityButtons) {
   button.addEventListener("click", () => {
     const playerQuality = button.dataset.quality as PlayerQuality | undefined;
@@ -745,8 +835,39 @@ window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") closePopovers();
 });
 
+let displayPaused = false;
+let firstFrameShown = false;
 engine.runRenderLoop(() => {
+  if (displayPaused || document.hidden) return;
   room.scene.render();
+  if (!firstFrameShown) {
+    firstFrameShown = true;
+    loadingScreen.classList.add("is-ready");
+    window.setTimeout(() => { loadingScreen.hidden = true; }, accessibilityPreferences.reducedMotion ? 0 : 400);
+  }
+});
+
+canvas.addEventListener("webglcontextlost", (event) => {
+  event.preventDefault();
+  displayPaused = true;
+  displayRecovery.hidden = false;
+});
+
+canvas.addEventListener("webglcontextrestored", () => {
+  displayPaused = false;
+  displayRecovery.hidden = true;
+  engine.resize();
+});
+
+restoreDisplayButton.addEventListener("click", () => {
+  displayPaused = false;
+  displayRecovery.hidden = true;
+  engine.resize();
+});
+reloadDisplayButton.addEventListener("click", () => window.location.reload());
+
+document.addEventListener("visibilitychange", () => {
+  gameAudio.setPageVisible(!document.hidden);
 });
 
 let metricsTimer = 0;
@@ -792,7 +913,16 @@ room.scene.onAfterRenderObservable.add(() => {
   }
 });
 
-window.setTimeout(() => showAction("Tap around and make your own story!"), 350);
+window.setTimeout(() => {
+  const recoveryNotice = consumeSaveRecoveryNotice();
+  showAction(recoveryNotice ?? "Tap around and make your own story!", recoveryNotice ? "invalid" : "success");
+  if (isDebugMode) {
+    const saveDebug = getSaveDebugState();
+    dialogueMemoryValue.textContent = saveDebug.validationFailures.length > 0
+      ? `${saveDebug.validationFailures.length} save warnings`
+      : "save ready";
+  }
+}, 350);
 window.addEventListener("resize", () => engine.resize());
 window.addEventListener("beforeunload", () => {
   gameAudio.dispose();

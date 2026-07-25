@@ -4,7 +4,7 @@ A family-friendly Babylon.js dollhouse and neighborhood play prototype.
 
 ## Current release
 
-**WORLD.3 Accelerated — park, grocery and offline NPC dialogue**
+**QUALITY.1 Accelerated — stability, performance and accessibility**
 
 The project now contains six playable locations, three controllable family
 characters, seven neighborhood NPCs, everyday cooking and storage play, park
@@ -12,6 +12,11 @@ activities, grocery shopping, and a fully local conversation system. NPC replies
 use bounded intents, entity aliases, authored templates, structured memories, and
 friendship progression. No network service, account, API key, or remote model is
 used for conversation.
+
+QUALITY.1 adds primary/backup save recovery, an interrupted-write safety slot,
+duplicate ownership repair, a first-frame loading screen, display-pause recovery,
+background-tab pausing, persistent accessibility controls, production source-map
+isolation, and automated regression tests for the pure gameplay systems.
 
 ## Run locally
 
@@ -69,3 +74,7 @@ Then open `http://localhost/khadijas-world/`.
 - Stable 30 FPS goal
 
 Concept images in `docs/visual-targets` are art-direction references, not engine screenshots.
+
+Quality measurements and honest physical-test limitations are documented in
+`docs/QUALITY_BASELINE.md`. Save recovery behavior is documented in
+`docs/SAVE_RECOVERY.md`.

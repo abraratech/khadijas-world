@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.11.0 — QUALITY.1 Accelerated
+
+### Reliability
+
+- Atomic temporary-to-primary save writes with a last-known-good backup
+- Automatic fallback to a valid backup and gentle player-facing recovery notice
+- Pre-migration snapshot, malformed-data normalization, duplicate-item cleanup,
+  and exclusive-seat reconciliation
+- Friendly display-pause recovery for graphics-context interruption
+- Background-tab rendering and audio suspension
+
+### Accessibility and input
+
+- Persistent gentle-motion, larger-words, stronger-colors, and instant-reply controls
+- Functional fullscreen control and visible keyboard focus indicators
+- Keyboard movement ignored while typing or operating HTML controls
+- Loading screen remains visible until the first playable scene frame
+
+### Testing and production
+
+- Vitest regression suite for saves, dialogue, memory, recipes, containers, and graphics
+- Production source maps disabled by default
+- Reusable regression, save-recovery, browser-support, and quality-baseline documents
+
 ## 0.10.0 — WORLD.3 Accelerated
 
 ### Added

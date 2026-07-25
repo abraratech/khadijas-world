@@ -39,7 +39,8 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
-button:focus-visible {
+button:focus-visible,
+input:focus-visible {
   outline: 4px solid #ffd45f;
   outline-offset: 3px;
 }
@@ -67,6 +68,123 @@ button:disabled {
 #app {
   position: relative;
   isolation: isolate;
+}
+
+.loading-screen,
+.display-recovery {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(255, 255, 255, .92), transparent 33%),
+    linear-gradient(145deg, #c8f0f4, #e8d5ff 54%, #ffe2bf);
+  color: #43276e;
+  text-align: center;
+}
+
+.loading-screen.is-ready {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .35s ease, visibility .35s ease;
+}
+
+.loading-logo {
+  align-self: end;
+  display: grid;
+  gap: .08rem;
+  padding: 1rem 1.6rem;
+  border: 5px solid white;
+  border-radius: 1.8rem;
+  background: linear-gradient(160deg, #ffcf45, #ff8e4f 45%, #9656d4 46%);
+  box-shadow: 0 10px 30px rgba(67, 39, 110, .2);
+  color: white;
+  text-shadow: 0 3px 0 #6b348f;
+  transform: rotate(-2deg);
+}
+
+.loading-logo strong {
+  font-size: clamp(2rem, 6vw, 4rem);
+  line-height: .9;
+}
+
+.loading-logo span {
+  font-size: clamp(1.3rem, 4vw, 2.7rem);
+  font-weight: 900;
+}
+
+.loading-spinner {
+  width: 3rem;
+  height: 3rem;
+  margin-top: 1.3rem;
+  border: .45rem solid rgba(116, 71, 184, .2);
+  border-top-color: #7447b8;
+  border-radius: 50%;
+  animation: loading-turn .8s linear infinite;
+}
+
+.loading-screen p {
+  align-self: start;
+  font-weight: 900;
+}
+
+@keyframes loading-turn {
+  to { transform: rotate(360deg); }
+}
+
+.display-recovery > div {
+  max-width: 32rem;
+  margin: 1rem;
+  padding: 2rem;
+  border: 5px solid white;
+  border-radius: 2rem;
+  background: #fffaf1;
+  box-shadow: 0 18px 50px rgba(54, 30, 79, .25);
+}
+
+.display-recovery h2 {
+  margin: .8rem 0 .4rem;
+}
+
+.display-recovery button {
+  min-height: 48px;
+  margin: .4rem;
+  padding: .75rem 1rem;
+  border-radius: 1rem;
+  background: #7447b8;
+  color: white;
+  font-weight: 900;
+}
+
+.is-large-text {
+  font-size: 112.5%;
+}
+
+.is-high-contrast .popover,
+.is-high-contrast .play-tray,
+.is-high-contrast .location-tray,
+.is-high-contrast .character-selector,
+.is-high-contrast .chat-panel {
+  border: 4px solid #2b174a;
+  box-shadow: 0 0 0 4px white, 0 10px 28px rgba(0, 0, 0, .32);
+}
+
+.is-high-contrast button {
+  border-color: #2b174a;
+}
+
+.is-reduced-motion *,
+.is-reduced-motion *::before,
+.is-reduced-motion *::after {
+  scroll-behavior: auto !important;
+  animation-duration: .001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: .001ms !important;
+}
+
+.is-reduced-motion .feedback-sparkles {
+  display: none;
 }
 
 #game-canvas {

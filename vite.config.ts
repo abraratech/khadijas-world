@@ -13,6 +13,7 @@ export default defineConfig({
   },
   build: {
     target: "es2020",
-    sourcemap: true,
+    // Public and WAMP builds omit source maps; debug diagnostics remain opt-in.
+    sourcemap: false,
   },
 });

@@ -1,13 +1,14 @@
 {
   "name": "khadijas-world",
   "private": true,
-  "version": "0.10.0",
+  "version": "0.11.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "check": "tsc --noEmit",
+    "test": "vitest run",
     "deploy:wamp": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-wamp.ps1"
   },
   "dependencies": {
@@ -15,6 +16,7 @@
   },
   "devDependencies": {
     "typescript": "^5.9.2",
-    "vite": "8.1.5"
+    "vite": "8.1.5",
+    "vitest": "^4.1.10"
   }
 }

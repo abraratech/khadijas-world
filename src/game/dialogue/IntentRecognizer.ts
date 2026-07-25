@@ -14,7 +14,7 @@ const patterns: ReadonlyArray<{
   { intent: "ask-role", terms: ["your job", "what do you do", "your role", "work here"] },
   { intent: "ask-memory", terms: ["remember", "memory", "what do you know about me"] },
   { intent: "ask-recipe", terms: ["recipe", "how do i make", "how to make", "ingredients for"] },
-  { intent: "ask-shop-ingredient", terms: ["find ingredient", "where is the bread", "where is cheese", "need ingredient"] },
+  { intent: "ask-shop-ingredient", terms: ["can you help me find an ingredient", "find ingredient", "find an ingredient", "where is the bread", "where is cheese", "need ingredient"] },
   { intent: "ask-park-plants", terms: ["park plants", "water flowers", "about flowers", "about plants"] },
   { intent: "ask-cafe-food", terms: ["cafe food", "cafe drink", "menu", "order", "snack here"] },
   { intent: "ask-current-location", terms: ["this place", "where are we", "about here"] },
@@ -55,4 +55,3 @@ export function recognizeIntent(text: string): IntentMatch {
   }
   return best;
 }
-

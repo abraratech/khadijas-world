@@ -36,8 +36,21 @@ import {
   normalizeWorld3State,
   type World3State,
 } from "./world3State";
+import {
+  readReliableJson,
+  writeReliableJson,
+  type ReliableSaveKeys,
+} from "./saveReliability";
 
 const STORAGE_KEY = "khadijas-world:world-2";
+const BACKUP_STORAGE_KEY = "khadijas-world:world-2:backup";
+const TEMP_STORAGE_KEY = "khadijas-world:world-2:temporary";
+const MIGRATION_STORAGE_KEY = "khadijas-world:world-2:pre-migration";
+const RELIABLE_SAVE_KEYS: ReliableSaveKeys = {
+  primary: STORAGE_KEY,
+  backup: BACKUP_STORAGE_KEY,
+  temporary: TEMP_STORAGE_KEY,
+};
 const WORLD_1_STORAGE_KEY = "khadijas-world:world-1";
 const PLAY_1_STORAGE_KEY = "khadijas-world:play-1";
 const FOUNDATION_2_STORAGE_KEY = "khadijas-world:foundation-2";
@@ -58,8 +71,15 @@ export interface PlayerSettings {
   music: boolean;
 }
 
+export interface AccessibilitySettings {
+  reducedMotion: boolean;
+  largeText: boolean;
+  highContrast: boolean;
+  instantDialogue: boolean;
+}
+
 export interface PrototypeSave {
-  version: 10;
+  version: 11;
   props: Record<string, StoredPosition>;
   cupboardOpen: boolean;
   lampOn: boolean;
@@ -76,6 +96,7 @@ export interface PrototypeSave {
   everyday: EverydayState;
   world3: World3State;
   dialogue: DialogueSaveState;
+  accessibility: AccessibilitySettings;
 
   // Mirrored legacy fields make older code paths and future downgrade tools safe.
   khadijaPosition: StoredPosition;
@@ -106,12 +127,24 @@ interface LegacySave {
   everyday?: unknown;
   world3?: unknown;
   dialogue?: unknown;
+  accessibility?: unknown;
 }
+
+const DEFAULT_ACCESSIBILITY: AccessibilitySettings = {
+  reducedMotion: false,
+  largeText: false,
+  highContrast: false,
+  instantDialogue: false,
+};
+
+let saveRecoveryNotice: string | null = null;
+let saveAvailable = true;
+let saveValidationFailures: string[] = [];
 
 function fallbackSave(): PrototypeSave {
   const characters = createDefaultCharacterStates();
   return {
-    version: 10,
+    version: 11,
     props: {},
     cupboardOpen: false,
     lampOn: true,
@@ -128,6 +161,7 @@ function fallbackSave(): PrototypeSave {
     everyday: createDefaultEverydayState(),
     world3: createDefaultWorld3State(),
     dialogue: createDefaultDialogueState(),
+    accessibility: { ...DEFAULT_ACCESSIBILITY },
     khadijaPosition: { ...characters.khadija.position },
     outfit: characters.khadija.outfit,
     heldItem: null,
@@ -142,6 +176,37 @@ function readJson(key: string): LegacySave | null {
   } catch {
     return null;
   }
+}
+
+function normalizeAccessibility(value: unknown): AccessibilitySettings {
+  if (!value || typeof value !== "object") return { ...DEFAULT_ACCESSIBILITY };
+  const candidate = value as Partial<AccessibilitySettings>;
+  return {
+    reducedMotion: candidate.reducedMotion === true,
+    largeText: candidate.largeText === true,
+    highContrast: candidate.highContrast === true,
+    instantDialogue: candidate.instantDialogue === true,
+  };
+}
+
+function readPrimaryOrBackup(): LegacySave | null {
+  const result = readReliableJson<LegacySave>(localStorage, RELIABLE_SAVE_KEYS);
+  saveValidationFailures = result.invalidKeys;
+  if (!result.value) {
+    if (result.invalidKeys.length > 0) {
+      saveRecoveryNotice = "We could not load a safe copy, so a fresh world is ready. Your old data was not deleted.";
+    }
+    return null;
+  }
+  if (result.source !== "primary") {
+    saveRecoveryNotice = "We found a problem loading your world, so we restored the most recent safe copy.";
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(result.value));
+    } catch {
+      saveAvailable = false;
+    }
+  }
+  return result.value;
 }
 
 function readLegacyPlayerSettings(): Partial<PlayerSettings> {
@@ -229,8 +294,56 @@ function seatIdForLegacyRoom(room: RoomId): string {
   return "home-sofa-1";
 }
 
+function reconcileExclusiveState(
+  characters: Record<CharacterId, CharacterState>,
+  npcs: Record<NpcId, StoredNpcState>,
+  everyday: EverydayState,
+): void {
+  const occupiedSeats = new Set<string>();
+  for (const id of CHARACTER_IDS) {
+    const character = characters[id];
+    if (!character.seatId) continue;
+    if (occupiedSeats.has(character.seatId)) {
+      character.seatId = null;
+      character.activity = "standing";
+      character.sleeping = false;
+    } else {
+      occupiedSeats.add(character.seatId);
+    }
+  }
+
+  const ownedItems = new Set<string>();
+  for (const id of CHARACTER_IDS) {
+    const itemId = characters[id].heldItem;
+    if (!itemId) continue;
+    if (ownedItems.has(itemId)) characters[id].heldItem = null;
+    else ownedItems.add(itemId);
+  }
+  for (const id of NPC_IDS) {
+    const itemId = npcs[id].heldItem;
+    if (!itemId) continue;
+    if (ownedItems.has(itemId)) npcs[id].heldItem = null;
+    else ownedItems.add(itemId);
+  }
+
+  const dedupeList = (items: string[]): string[] => items.filter((itemId) => {
+    if (!itemId || ownedItems.has(itemId)) return false;
+    ownedItems.add(itemId);
+    return true;
+  });
+  for (const id of Object.keys(everyday.storageContents) as Array<keyof typeof everyday.storageContents>) {
+    everyday.storageContents[id] = dedupeList(everyday.storageContents[id]);
+  }
+  for (const id of Object.keys(everyday.containerContents) as Array<keyof typeof everyday.containerContents>) {
+    everyday.containerContents[id] = dedupeList(everyday.containerContents[id]);
+  }
+  for (const id of Object.keys(everyday.stationInputs) as Array<keyof typeof everyday.stationInputs>) {
+    everyday.stationInputs[id] = dedupeList(everyday.stationInputs[id]);
+  }
+}
+
 export function loadSave(): PrototypeSave {
-  const parsed = readJson(STORAGE_KEY)
+  const parsed = readPrimaryOrBackup()
     ?? readJson(WORLD_1_STORAGE_KEY)
     ?? readJson(PLAY_1_STORAGE_KEY)
     ?? readJson(FOUNDATION_2_STORAGE_KEY)
@@ -249,6 +362,7 @@ export function loadSave(): PrototypeSave {
       || parsed.version === 8
       || parsed.version === 9
       || parsed.version === 10
+      || parsed.version === 11
     )
     && parsed.characters
   ) {
@@ -279,9 +393,22 @@ export function loadSave(): PrototypeSave {
     ? parsed.music
     : legacyPlayerSettings.music ?? false;
   const activeRoom = normalizeRoom(parsed.activeRoom, characters[selectedCharacter].room);
+  const npcs = normalizeNpcStates(parsed.npcs);
+  const everyday = normalizeEverydayState(parsed.everyday);
+  reconcileExclusiveState(characters, npcs, everyday);
+
+  if (typeof parsed.version === "number" && parsed.version < 11) {
+    try {
+      if (!localStorage.getItem(MIGRATION_STORAGE_KEY)) {
+        localStorage.setItem(MIGRATION_STORAGE_KEY, JSON.stringify(parsed));
+      }
+    } catch {
+      saveAvailable = false;
+    }
+  }
 
   return {
-    version: 10,
+    version: 11,
     props: parsed.props ?? {},
     cupboardOpen: parsed.cupboardOpen ?? false,
     lampOn: parsed.lampOn ?? true,
@@ -296,10 +423,11 @@ export function loadSave(): PrototypeSave {
     music,
     content: normalizeContentState(parsed.content),
     livingSettings: normalizeLivingSettings(parsed.livingSettings),
-    npcs: normalizeNpcStates(parsed.npcs),
-    everyday: normalizeEverydayState(parsed.everyday),
+    npcs,
+    everyday,
     world3: normalizeWorld3State(parsed.world3),
     dialogue: normalizeDialogueState(parsed.dialogue, NPC_IDS),
+    accessibility: normalizeAccessibility(parsed.accessibility),
     khadijaPosition: { ...characters.khadija.position },
     outfit: characters.khadija.outfit,
     heldItem: characters.khadija.heldItem,
@@ -317,7 +445,26 @@ function mirrorLegacyFields(save: PrototypeSave): void {
 
 function writeSave(save: PrototypeSave): void {
   mirrorLegacyFields(save);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(save));
+  saveAvailable = writeReliableJson(localStorage, RELIABLE_SAVE_KEYS, save);
+  if (!saveAvailable) {
+    saveRecoveryNotice = "Your browser is not allowing the game to save progress right now.";
+  }
+}
+
+export function consumeSaveRecoveryNotice(): string | null {
+  const notice = saveRecoveryNotice;
+  saveRecoveryNotice = null;
+  return notice;
+}
+
+export function getSaveDebugState(): {
+  available: boolean;
+  validationFailures: string[];
+} {
+  return {
+    available: saveAvailable,
+    validationFailures: [...saveValidationFailures],
+  };
 }
 
 export function saveProp(mesh: AbstractMesh): void {
@@ -440,6 +587,16 @@ export function saveDialogueState(dialogue: DialogueSaveState): void {
   writeSave(save);
 }
 
+export function loadAccessibilitySettings(): AccessibilitySettings {
+  return { ...loadSave().accessibility };
+}
+
+export function saveAccessibilitySettings(settings: AccessibilitySettings): void {
+  const save = loadSave();
+  save.accessibility = normalizeAccessibility(settings);
+  writeSave(save);
+}
+
 export function restoreProp(mesh: AbstractMesh): void {
   const position = loadSave().props[mesh.name];
   if (!position) return;
@@ -448,6 +605,9 @@ export function restoreProp(mesh: AbstractMesh): void {
 
 export function resetSave(): void {
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(BACKUP_STORAGE_KEY);
+  localStorage.removeItem(TEMP_STORAGE_KEY);
+  localStorage.removeItem(MIGRATION_STORAGE_KEY);
   localStorage.removeItem(WORLD_1_STORAGE_KEY);
   localStorage.removeItem(PLAY_1_STORAGE_KEY);
   localStorage.removeItem(FOUNDATION_2_STORAGE_KEY);
