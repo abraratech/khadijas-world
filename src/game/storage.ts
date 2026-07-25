@@ -78,8 +78,13 @@ export interface AccessibilitySettings {
   instantDialogue: boolean;
 }
 
+export interface ReleaseSettings {
+  firstLaunchComplete: boolean;
+  chatPrivacyAcknowledged: boolean;
+}
+
 export interface PrototypeSave {
-  version: 11;
+  version: 12;
   props: Record<string, StoredPosition>;
   cupboardOpen: boolean;
   lampOn: boolean;
@@ -97,6 +102,7 @@ export interface PrototypeSave {
   world3: World3State;
   dialogue: DialogueSaveState;
   accessibility: AccessibilitySettings;
+  release: ReleaseSettings;
 
   // Mirrored legacy fields make older code paths and future downgrade tools safe.
   khadijaPosition: StoredPosition;
@@ -128,6 +134,7 @@ interface LegacySave {
   world3?: unknown;
   dialogue?: unknown;
   accessibility?: unknown;
+  release?: unknown;
 }
 
 const DEFAULT_ACCESSIBILITY: AccessibilitySettings = {
@@ -137,14 +144,19 @@ const DEFAULT_ACCESSIBILITY: AccessibilitySettings = {
   instantDialogue: false,
 };
 
+const DEFAULT_RELEASE_SETTINGS: ReleaseSettings = {
+  firstLaunchComplete: false,
+  chatPrivacyAcknowledged: false,
+};
+
 let saveRecoveryNotice: string | null = null;
 let saveAvailable = true;
 let saveValidationFailures: string[] = [];
 
-function fallbackSave(): PrototypeSave {
+export function createDefaultWorldSave(): PrototypeSave {
   const characters = createDefaultCharacterStates();
   return {
-    version: 11,
+    version: 12,
     props: {},
     cupboardOpen: false,
     lampOn: true,
@@ -162,6 +174,7 @@ function fallbackSave(): PrototypeSave {
     world3: createDefaultWorld3State(),
     dialogue: createDefaultDialogueState(),
     accessibility: { ...DEFAULT_ACCESSIBILITY },
+    release: { ...DEFAULT_RELEASE_SETTINGS },
     khadijaPosition: { ...characters.khadija.position },
     outfit: characters.khadija.outfit,
     heldItem: null,
@@ -186,6 +199,15 @@ function normalizeAccessibility(value: unknown): AccessibilitySettings {
     largeText: candidate.largeText === true,
     highContrast: candidate.highContrast === true,
     instantDialogue: candidate.instantDialogue === true,
+  };
+}
+
+function normalizeReleaseSettings(value: unknown): ReleaseSettings {
+  if (!value || typeof value !== "object") return { ...DEFAULT_RELEASE_SETTINGS };
+  const candidate = value as Partial<ReleaseSettings>;
+  return {
+    firstLaunchComplete: candidate.firstLaunchComplete === true,
+    chatPrivacyAcknowledged: candidate.chatPrivacyAcknowledged === true,
   };
 }
 
@@ -348,7 +370,7 @@ export function loadSave(): PrototypeSave {
     ?? readJson(PLAY_1_STORAGE_KEY)
     ?? readJson(FOUNDATION_2_STORAGE_KEY)
     ?? readJson(FOUNDATION_1_STORAGE_KEY);
-  const fallback = fallbackSave();
+  const fallback = createDefaultWorldSave();
   if (!parsed) return fallback;
 
   const legacyPosition = normalizePosition(parsed.khadijaPosition, fallback.khadijaPosition);
@@ -363,6 +385,7 @@ export function loadSave(): PrototypeSave {
       || parsed.version === 9
       || parsed.version === 10
       || parsed.version === 11
+      || parsed.version === 12
     )
     && parsed.characters
   ) {
@@ -395,9 +418,11 @@ export function loadSave(): PrototypeSave {
   const activeRoom = normalizeRoom(parsed.activeRoom, characters[selectedCharacter].room);
   const npcs = normalizeNpcStates(parsed.npcs);
   const everyday = normalizeEverydayState(parsed.everyday);
+  const release = normalizeReleaseSettings(parsed.release);
+  if (parsed.version !== 12) release.firstLaunchComplete = true;
   reconcileExclusiveState(characters, npcs, everyday);
 
-  if (typeof parsed.version === "number" && parsed.version < 11) {
+  if (typeof parsed.version === "number" && parsed.version < 12) {
     try {
       if (!localStorage.getItem(MIGRATION_STORAGE_KEY)) {
         localStorage.setItem(MIGRATION_STORAGE_KEY, JSON.stringify(parsed));
@@ -408,7 +433,7 @@ export function loadSave(): PrototypeSave {
   }
 
   return {
-    version: 11,
+    version: 12,
     props: parsed.props ?? {},
     cupboardOpen: parsed.cupboardOpen ?? false,
     lampOn: parsed.lampOn ?? true,
@@ -428,6 +453,7 @@ export function loadSave(): PrototypeSave {
     world3: normalizeWorld3State(parsed.world3),
     dialogue: normalizeDialogueState(parsed.dialogue, NPC_IDS),
     accessibility: normalizeAccessibility(parsed.accessibility),
+    release,
     khadijaPosition: { ...characters.khadija.position },
     outfit: characters.khadija.outfit,
     heldItem: characters.khadija.heldItem,
@@ -446,6 +472,11 @@ function mirrorLegacyFields(save: PrototypeSave): void {
 function writeSave(save: PrototypeSave): void {
   mirrorLegacyFields(save);
   saveAvailable = writeReliableJson(localStorage, RELIABLE_SAVE_KEYS, save);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("khadijas-world:save-status", {
+      detail: { saved: saveAvailable },
+    }));
+  }
   if (!saveAvailable) {
     saveRecoveryNotice = "Your browser is not allowing the game to save progress right now.";
   }
@@ -595,6 +626,169 @@ export function saveAccessibilitySettings(settings: AccessibilitySettings): void
   const save = loadSave();
   save.accessibility = normalizeAccessibility(settings);
   writeSave(save);
+}
+
+export function loadReleaseSettings(): ReleaseSettings {
+  return { ...loadSave().release };
+}
+
+export function saveReleaseSettings(settings: ReleaseSettings): void {
+  const save = loadSave();
+  save.release = normalizeReleaseSettings(settings);
+  writeSave(save);
+}
+
+export function hasExistingWorld(): boolean {
+  try {
+    const reliable = readReliableJson<LegacySave>(localStorage, RELIABLE_SAVE_KEYS).value;
+    if (reliable) {
+      return reliable.version !== 12
+        || normalizeReleaseSettings(reliable.release).firstLaunchComplete;
+    }
+    return [
+      WORLD_1_STORAGE_KEY,
+      PLAY_1_STORAGE_KEY,
+      FOUNDATION_2_STORAGE_KEY,
+      FOUNDATION_1_STORAGE_KEY,
+    ].some((key) => readJson(key) !== null);
+  } catch {
+    return false;
+  }
+}
+
+export function exportWorldSave(): string {
+  return JSON.stringify(loadSave(), null, 2);
+}
+
+export interface SaveImportPreview {
+  accepted: boolean;
+  message: string;
+  schemaVersion?: number;
+}
+
+export function previewWorldSaveImport(raw: string): SaveImportPreview {
+  if (raw.length > 1_000_000) {
+    return { accepted: false, message: "That save file is too large to be a Khadija's World save." };
+  }
+  try {
+    const parsed = JSON.parse(raw) as LegacySave;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return { accepted: false, message: "That file is not a Khadija's World save." };
+    }
+    const version = parsed.version;
+    if (
+      typeof version !== "number"
+      || !Number.isInteger(version)
+      || version < 1
+      || version > 12
+    ) {
+      return { accepted: false, message: "That save file is not supported by this version." };
+    }
+    if (version >= 6) {
+      if (!parsed.characters || typeof parsed.characters !== "object") {
+        return { accepted: false, message: "That save file is missing its family characters." };
+      }
+      const characterKeys = Object.keys(parsed.characters);
+      if (
+        CHARACTER_IDS.some((id) => !characterKeys.includes(id))
+        || characterKeys.some((id) => !CHARACTER_IDS.includes(id as CharacterId))
+      ) {
+        return { accepted: false, message: "That save file has an unfamiliar character record." };
+      }
+    }
+    if (parsed.npcs && typeof parsed.npcs === "object") {
+      if (Object.keys(parsed.npcs).some((id) => !NPC_IDS.includes(id as NpcId))) {
+        return { accepted: false, message: "That save file has an unfamiliar neighborhood friend." };
+      }
+    }
+    if (parsed.props && Object.entries(parsed.props).some(([id, position]) => (
+      id.length > 128
+      || !/^[a-zA-Z0-9:_-]+$/.test(id)
+      || !position
+      || typeof position.x !== "number"
+      || typeof position.y !== "number"
+      || typeof position.z !== "number"
+      || !Number.isFinite(position.x + position.y + position.z)
+    ))) {
+      return { accepted: false, message: "That save file has an unfamiliar room object." };
+    }
+    const ownedItemIds: string[] = [];
+    const collectHeldItems = (records: unknown): boolean => {
+      if (!records || typeof records !== "object") return true;
+      for (const record of Object.values(records)) {
+        if (!record || typeof record !== "object") return false;
+        const heldItem = (record as { heldItem?: unknown }).heldItem;
+        if (heldItem !== undefined && heldItem !== null && typeof heldItem !== "string") return false;
+        if (typeof heldItem === "string") ownedItemIds.push(heldItem);
+      }
+      return true;
+    };
+    if (!collectHeldItems(parsed.characters) || !collectHeldItems(parsed.npcs)) {
+      return { accepted: false, message: "That save file has a malformed held item." };
+    }
+    if (parsed.everyday && typeof parsed.everyday === "object") {
+      for (const groupName of ["storageContents", "containerContents", "stationInputs"] as const) {
+        const group = (parsed.everyday as Record<string, unknown>)[groupName];
+        if (!group || typeof group !== "object") continue;
+        for (const items of Object.values(group)) {
+          if (!Array.isArray(items) || items.some((item) => typeof item !== "string")) {
+            return { accepted: false, message: "That save file has malformed stored items." };
+          }
+          ownedItemIds.push(...items);
+        }
+      }
+    }
+    if (new Set(ownedItemIds).size !== ownedItemIds.length) {
+      return { accepted: false, message: "That save file gives the same item to more than one place." };
+    }
+    return {
+      accepted: true,
+      message: `Save format ${version} is ready to import.`,
+      schemaVersion: version,
+    };
+  } catch {
+    return { accepted: false, message: "We could not read that save file." };
+  }
+}
+
+export function importWorldSave(raw: string): { accepted: boolean; message: string } {
+  const preview = previewWorldSaveImport(raw);
+  if (!preview.accepted) return preview;
+  try {
+    const parsed = JSON.parse(raw) as LegacySave;
+    parsed.release = {
+      ...normalizeReleaseSettings(parsed.release),
+      firstLaunchComplete: true,
+    };
+    if (!writeReliableJson(localStorage, RELIABLE_SAVE_KEYS, parsed)) {
+      return { accepted: false, message: "The browser could not safely store that save." };
+    }
+    return { accepted: true, message: "Your world is ready to continue!" };
+  } catch {
+    return { accepted: false, message: "We could not read that save file." };
+  }
+}
+
+export function startNewWorld(options?: {
+  sound?: boolean;
+  music?: boolean;
+  reducedMotion?: boolean;
+  qualityPreset?: PrototypeSave["qualityPreset"];
+}): boolean {
+  const current = loadSave();
+  const save = createDefaultWorldSave();
+  save.release.firstLaunchComplete = true;
+  save.sound = options?.sound ?? current.sound;
+  save.music = options?.music ?? current.music;
+  save.qualityPreset = options?.qualityPreset ?? current.qualityPreset;
+  save.accessibility = {
+    ...current.accessibility,
+    reducedMotion: options?.reducedMotion ?? current.accessibility.reducedMotion,
+  };
+  save.livingSettings = { ...current.livingSettings };
+  save.dialogue.settings = { ...current.dialogue.settings };
+  writeSave(save);
+  return saveAvailable;
 }
 
 export function restoreProp(mesh: AbstractMesh): void {

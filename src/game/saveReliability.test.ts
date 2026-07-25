@@ -37,4 +37,15 @@ describe("reliable saves", () => {
     expect(result.value?.safe).toBe(true);
     expect(result.invalidKeys).toContain("world");
   });
+
+  it("reports both malformed copies without deleting either one", () => {
+    const storage = new MemoryStorage();
+    storage.setItem("world", "{broken");
+    storage.setItem("backup", "[not-an-object]");
+    const result = readReliableJson<{ version: number }>(storage, keys);
+    expect(result).toMatchObject({ source: "none", value: null });
+    expect(result.invalidKeys).toEqual(["world", "backup"]);
+    expect(storage.getItem("world")).toBe("{broken");
+    expect(storage.getItem("backup")).toBe("[not-an-object]");
+  });
 });

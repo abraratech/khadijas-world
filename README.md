@@ -1,10 +1,13 @@
 # Khadija's World
 
-A family-friendly Babylon.js dollhouse and neighborhood play prototype.
+A family-friendly open-ended play world where characters can explore, cook,
+shop, play, and create everyday stories.
 
 ## Current release
 
-**QUALITY.1 Accelerated — stability, performance and accessibility**
+**Public Version 0.1.0 — Release 1**
+
+Repository package version: 0.12.0
 
 The project now contains six playable locations, three controllable family
 characters, seven neighborhood NPCs, everyday cooking and storage play, park
@@ -13,10 +16,12 @@ use bounded intents, entity aliases, authored templates, structured memories, an
 friendship progression. No network service, account, API key, or remote model is
 used for conversation.
 
-QUALITY.1 adds primary/backup save recovery, an interrupted-write safety slot,
-duplicate ownership repair, a first-frame loading screen, display-pause recovery,
-background-tab pausing, persistent accessibility controls, production source-map
-isolation, and automated regression tests for the pure gameplay systems.
+Release 1 adds a polished title and first-launch flow, Continue and confirmed New
+World actions, a lightweight Grown-Ups gate, parent controls, validated save
+export/import, privacy guidance, credits, release metadata, icons, pause behavior,
+save status, and friendly recovery screens. All conversation logic remains local
+and offline; the game has no accounts, advertising, analytics, external AI, or
+third-party tracking.
 
 ## Run locally
 
@@ -77,4 +82,5 @@ Concept images in `docs/visual-targets` are art-direction references, not engine
 
 Quality measurements and honest physical-test limitations are documented in
 `docs/QUALITY_BASELINE.md`. Save recovery behavior is documented in
-`docs/SAVE_RECOVERY.md`.
+`docs/SAVE_RECOVERY.md`. See `RELEASE_NOTES.md` and
+`docs/RELEASE_CHECKLIST.md` for public-release scope and validation status.

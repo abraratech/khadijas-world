@@ -1,17 +1,28 @@
 # Asset Credits
 
-## WORLD.3 release
+Audit date: 24 July 2026
 
-All visible 3D geometry, materials, interface styling, icons assembled from Unicode
-symbols, authored dialogue, and synthesized oscillator audio in this repository are
-original project work generated in source code for Khadija's World.
+## Distributed production assets
 
-The concept images under `docs/visual-targets`, when present, are visual direction
-references only and are not included in the production build.
+| Asset group | Source | Status |
+| --- | --- | --- |
+| 3D rooms, furniture, props, characters, portraits, logo treatment, and UI | Authored procedurally in the project source | Original project work |
+| NPC and activity dialogue | Authored in the project source | Original project work |
+| Music and sound effects | Synthesized at runtime with browser audio oscillators; no recordings shipped | Original project work |
+| `public/favicon.svg` and `public/app-icon.svg` | Created specifically for Khadija's World | Original project work |
+| Emoji and text symbols | Rendered by the player's system font; no font file is distributed | No bundled asset |
 
-No third-party model, texture, font, music, or sound-effect files are distributed
-by this release.
+The production bundle contains no third-party model, texture, image, font, music,
+or sound file. No remote asset, font, CDN, analytics script, or external chat
+service is referenced.
 
-The runtime uses Babylon.js. Package licensing is recorded in the repository's
-installed package metadata and will be summarized in the public third-party notice
-before a public release.
+## Source-only references
+
+The four files under `docs/visual-targets/` are user-supplied generated concept
+references. They are not copied into `dist`, are not shown by the game, and are
+not production assets. They remain source-only art-direction material and must
+not be separately published or marketed without the project owner's approval.
+
+## Open-source software
+
+Software attribution is recorded in `THIRD_PARTY_NOTICES.md`.

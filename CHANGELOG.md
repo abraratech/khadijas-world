@@ -1,5 +1,31 @@
 # Changelog
 
+## Public 0.1.0 / package 0.12.0 — RELEASE.1 Accelerated
+
+### Player entry and presentation
+
+- Polished title, first-launch, Continue, confirmed New World, credits, privacy,
+  loading, pause, save-status, and recovery experiences
+- Central release identity with public version, build, channel, support
+  placeholder, privacy version, copyright, and production path
+- Original favicon, app icon, browser metadata, and lightweight web manifest
+
+### Grown-ups, privacy, and saves
+
+- Lightweight arithmetic parent gate with access to all existing settings
+- Validated local save export and confirmation-before-replacement import
+- Import size, schema, character, NPC, object, item-type, and duplicate-ownership checks
+- Schema 12 migration with release settings and one-time typed-chat privacy reminder
+- Plain-language privacy notice, credits, asset audit, and open-source notices
+
+### Production
+
+- Friendly public failure screen and retained graphics-context recovery
+- Pause/menu flow that returns to title without reloading the world
+- Release regression tests and public-release documentation
+- Install manifest included; service worker and automatic update prompts deferred
+  to avoid fragile caching in the first WAMP release
+
 ## 0.11.0 — QUALITY.1 Accelerated
 
 ### Reliability

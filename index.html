@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#7447b8" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta property="og:title" content="Khadija's World" />
+    <meta property="og:description" content="A family-friendly open-ended play world for everyday stories." />
+    <meta property="og:type" content="website" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest" />
     <meta
       name="description"
       content="Play, explore, and make stories with Khadija and her family."
@@ -19,6 +25,116 @@
         <span class="loading-spinner" aria-hidden="true"></span>
         <p>Getting your world ready…</p>
       </section>
+
+      <section id="title-screen" class="title-screen" aria-labelledby="title-heading">
+        <div class="title-card">
+          <div class="title-logo" aria-hidden="true">
+            <strong>Khadija's</strong><span>World ★</span>
+          </div>
+          <h1 id="title-heading" class="visually-hidden">Khadija's World</h1>
+          <p>Explore, play, and make everyday stories together.</p>
+          <div class="title-actions">
+            <button id="continue-button" class="title-primary" type="button">Continue</button>
+            <button id="new-world-button" type="button">New World</button>
+            <button id="title-settings-button" type="button">Settings</button>
+            <button id="grown-ups-button" type="button">Grown-Ups</button>
+            <button id="title-credits-button" type="button">Credits</button>
+          </div>
+          <small id="title-version">Version 0.1.0</small>
+        </div>
+      </section>
+
+      <section id="first-launch-panel" class="release-modal" role="dialog" aria-modal="true" aria-labelledby="first-launch-heading" hidden>
+        <div class="release-card">
+          <h2 id="first-launch-heading">Welcome to Khadija's World!</h2>
+          <p>Choose a few things, then your world will be ready.</p>
+          <p class="privacy-short">Starting a new world replaces current rooms, characters, memories, and activities. Your comfort settings can stay the same.</p>
+          <label class="release-choice"><input id="setup-sound" type="checkbox" checked /> Sound effects</label>
+          <label class="release-choice"><input id="setup-music" type="checkbox" /> Gentle music</label>
+          <label class="release-choice"><input id="setup-reduced-motion" type="checkbox" /> Gentle motion</label>
+          <fieldset>
+            <legend>Picture detail</legend>
+            <label><input type="radio" name="setup-quality" value="low" /> Low</label>
+            <label><input type="radio" name="setup-quality" value="adaptive" checked /> Medium</label>
+            <label><input type="radio" name="setup-quality" value="balanced" /> High</label>
+          </fieldset>
+          <p class="privacy-short">Everything stays in this browser. NPC conversations are fully offline.</p>
+          <div class="release-actions">
+            <button id="start-world-button" class="title-primary" type="button">Start playing</button>
+            <button data-close-release type="button">Back</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="parent-gate-panel" class="release-modal" role="dialog" aria-modal="true" aria-labelledby="parent-gate-heading" hidden>
+        <div class="release-card">
+          <h2 id="parent-gate-heading">Grown-Ups</h2>
+          <p>Please answer this grown-up check: What is 4 + 3?</p>
+          <label>Answer <input id="parent-gate-answer" type="number" inputmode="numeric" /></label>
+          <p id="parent-gate-message" class="privacy-short" aria-live="polite"></p>
+          <div class="release-actions">
+            <button id="parent-gate-submit" class="title-primary" type="button">Open grown-up controls</button>
+            <button data-close-release type="button">Back</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="parent-panel" class="release-modal" role="dialog" aria-modal="true" aria-labelledby="parent-heading" hidden>
+        <div class="release-card release-card-wide">
+          <h2 id="parent-heading">Grown-Up Controls</h2>
+          <p>Keep real names, addresses, school details, and passwords private.</p>
+          <div class="parent-actions">
+            <button id="parent-settings-button" type="button">Game settings</button>
+            <button id="export-save-button" type="button">Export save</button>
+            <button id="import-save-button" type="button">Import save</button>
+            <input id="import-save-input" type="file" accept=".json,application/json" hidden />
+            <button id="parent-privacy-button" type="button">Privacy notice</button>
+            <button id="parent-notices-button" type="button">Third-party notices</button>
+            <button id="parent-credits-button" type="button">Credits</button>
+            <button id="parent-reset-button" class="danger-soft" type="button">Start a new world</button>
+          </div>
+          <p id="parent-result" class="privacy-short" aria-live="polite"></p>
+          <div class="release-actions"><button data-close-release type="button">Close</button></div>
+        </div>
+      </section>
+
+      <section id="credits-panel" class="release-modal" role="dialog" aria-modal="true" aria-labelledby="credits-heading" hidden>
+        <div class="release-card release-card-wide">
+          <h2 id="credits-heading">Credits</h2>
+          <p><strong>Khadija's World</strong> — Version <span data-release-version>0.1.0</span></p>
+          <dl class="credits-list">
+            <dt>Created by</dt><dd>Contributor details pending</dd>
+            <dt>Design and development</dt><dd>Contributor details pending</dd>
+            <dt>Art, music, and sound</dt><dd>Original project code and procedural assets</dd>
+            <dt>Technology</dt><dd>Babylon.js, TypeScript, and Vite</dd>
+            <dt>Testing</dt><dd>Vitest</dd>
+            <dt>Special thanks</dt><dd>Families helping shape a kind play world</dd>
+          </dl>
+          <p>Asset licenses and open-source notices are available in Grown-Up Controls.</p>
+          <p id="credits-copyright"></p>
+          <div class="release-actions"><button data-close-release type="button">Close</button></div>
+        </div>
+      </section>
+
+      <section id="privacy-panel" class="release-modal" role="dialog" aria-modal="true" aria-labelledby="privacy-heading" hidden>
+        <div class="release-card release-card-wide">
+          <h2 id="privacy-heading">Plain-Language Privacy Notice</h2>
+          <p>Khadija's World does not require an account. It does not use advertising, analytics, external AI, or remote NPC chat.</p>
+          <p>World progress and bounded conversation memories stay in this browser. Players can turn memories off, clear them, export a save, or import a trusted save file.</p>
+          <p>Clearing browser storage may remove progress. Please do not enter real names, addresses, school details, passwords, or other personal information in NPC chat.</p>
+          <p>Version 1.0 — effective 24 July 2026. This is a product privacy notice, not a claim of guaranteed legal compliance.</p>
+          <div class="release-actions"><button data-close-release type="button">Close</button></div>
+        </div>
+      </section>
+
+      <section id="notices-panel" class="release-modal" role="dialog" aria-modal="true" aria-labelledby="notices-heading" hidden>
+        <div class="release-card release-card-wide">
+          <h2 id="notices-heading">Open-Source Notices</h2>
+          <p>Babylon.js and TypeScript are provided under Apache-2.0 licenses. Vite and Vitest are provided under MIT licenses.</p>
+          <p>The game’s procedural geometry, authored dialogue, interface, and synthesized sound are original project work. No third-party model, texture, font, music, or sound file is distributed.</p>
+          <div class="release-actions"><button data-close-release type="button">Close</button></div>
+        </div>
+      </section>
       <canvas id="game-canvas" aria-label="Khadija's World play area"></canvas>
 
       <header class="top-bar">
@@ -28,6 +144,7 @@
         </div>
 
         <div class="top-actions">
+          <button id="menu-button" class="round-button menu-button" type="button" aria-label="Open main menu"><span aria-hidden="true">&#9776;</span></button>
           <button
             id="help-button"
             class="round-button help-button"
@@ -413,6 +530,10 @@
           <span></span><span></span><span></span>
         </div>
         <div id="chat-topics" class="chat-topics" aria-label="Things to talk about"></div>
+        <div id="chat-privacy-reminder" class="chat-privacy-reminder" hidden>
+          <span>Keep real names, addresses, school details, and passwords private.</span>
+          <button id="chat-privacy-acknowledge" type="button">Got it</button>
+        </div>
         <form id="chat-form" class="chat-form">
           <label class="visually-hidden" for="chat-input">Write a short message</label>
           <input
@@ -435,6 +556,23 @@
         </span>
       </div>
 
+      <output id="save-status" class="save-status" aria-live="polite"></output>
+
+      <section id="pause-panel" class="release-modal" role="dialog" aria-modal="true" aria-labelledby="pause-heading" hidden>
+        <div class="release-card">
+          <h2 id="pause-heading">Main Menu</h2>
+          <div class="parent-actions">
+            <button id="resume-button" class="title-primary" type="button">Resume</button>
+            <button id="pause-settings-button" type="button">Settings</button>
+            <button id="return-title-button" type="button">Return to title screen</button>
+            <button id="pause-grown-ups-button" type="button">Grown-Ups</button>
+            <button id="pause-credits-button" type="button">Credits</button>
+            <button id="exit-fullscreen-button" type="button">Exit full screen</button>
+          </div>
+          <p id="pause-save-status" class="privacy-short">Saved</p>
+        </div>
+      </section>
+
       <section id="display-recovery" class="display-recovery" role="alertdialog" aria-modal="true" hidden>
         <div>
           <span aria-hidden="true">&#127775;</span>
@@ -442,6 +580,15 @@
           <p>Try restoring it, or reload the game if it does not come back.</p>
           <button id="restore-display-button" type="button">Try restoring</button>
           <button id="reload-display-button" type="button">Reload game</button>
+        </div>
+      </section>
+
+      <section id="startup-error" class="display-recovery" role="alertdialog" aria-modal="true" hidden>
+        <div>
+          <span aria-hidden="true">&#127775;</span>
+          <h2>We could not open the play world</h2>
+          <p>Please try reloading. If that does not help, check that this browser is up to date.</p>
+          <button id="startup-reload-button" type="button">Reload game</button>
         </div>
       </section>
 

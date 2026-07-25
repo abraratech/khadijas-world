@@ -21,18 +21,25 @@ import {
   loadPlayerSettings,
   loadLivingSettings,
   loadAccessibilitySettings,
+  loadReleaseSettings,
   loadSave,
-  resetSave,
   consumeSaveRecoveryNotice,
+  exportWorldSave,
   getSaveDebugState,
+  hasExistingWorld,
+  importWorldSave,
+  previewWorldSaveImport,
   savePlayerSettings,
   saveLivingSettings,
   saveDialogueState,
   saveAccessibilitySettings,
+  saveReleaseSettings,
   saveQualityPreset,
+  startNewWorld,
   type OutfitId,
   type RoomId,
 } from "./game/storage";
+import { RELEASE } from "./game/release";
 
 type PlayerQuality = "low" | "medium" | "high";
 
@@ -64,6 +71,8 @@ const instantDialogueToggle = document.querySelector<HTMLButtonElement>("#instan
 const fullscreenButton = document.querySelector<HTMLButtonElement>("#fullscreen-button");
 const loadingScreen = document.querySelector<HTMLElement>("#loading-screen");
 const displayRecovery = document.querySelector<HTMLElement>("#display-recovery");
+const startupError = document.querySelector<HTMLElement>("#startup-error");
+const startupReloadButton = document.querySelector<HTMLButtonElement>("#startup-reload-button");
 const restoreDisplayButton = document.querySelector<HTMLButtonElement>("#restore-display-button");
 const reloadDisplayButton = document.querySelector<HTMLButtonElement>("#reload-display-button");
 const npcChatToggle = document.querySelector<HTMLButtonElement>("#npc-chat-toggle");
@@ -107,6 +116,50 @@ const characterLocationLabels = Array.from(
   document.querySelectorAll<HTMLElement>("[data-character-location]"),
 );
 const closePopoverButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-close-popover]"));
+const titleScreen = document.querySelector<HTMLElement>("#title-screen");
+const continueButton = document.querySelector<HTMLButtonElement>("#continue-button");
+const newWorldButton = document.querySelector<HTMLButtonElement>("#new-world-button");
+const titleSettingsButton = document.querySelector<HTMLButtonElement>("#title-settings-button");
+const grownUpsButton = document.querySelector<HTMLButtonElement>("#grown-ups-button");
+const titleCreditsButton = document.querySelector<HTMLButtonElement>("#title-credits-button");
+const titleVersion = document.querySelector<HTMLElement>("#title-version");
+const firstLaunchPanel = document.querySelector<HTMLElement>("#first-launch-panel");
+const setupSound = document.querySelector<HTMLInputElement>("#setup-sound");
+const setupMusic = document.querySelector<HTMLInputElement>("#setup-music");
+const setupReducedMotion = document.querySelector<HTMLInputElement>("#setup-reduced-motion");
+const startWorldButton = document.querySelector<HTMLButtonElement>("#start-world-button");
+const parentGatePanel = document.querySelector<HTMLElement>("#parent-gate-panel");
+const parentGateAnswer = document.querySelector<HTMLInputElement>("#parent-gate-answer");
+const parentGateMessage = document.querySelector<HTMLElement>("#parent-gate-message");
+const parentGateSubmit = document.querySelector<HTMLButtonElement>("#parent-gate-submit");
+const parentPanel = document.querySelector<HTMLElement>("#parent-panel");
+const parentSettingsButton = document.querySelector<HTMLButtonElement>("#parent-settings-button");
+const exportSaveButton = document.querySelector<HTMLButtonElement>("#export-save-button");
+const importSaveButton = document.querySelector<HTMLButtonElement>("#import-save-button");
+const importSaveInput = document.querySelector<HTMLInputElement>("#import-save-input");
+const parentPrivacyButton = document.querySelector<HTMLButtonElement>("#parent-privacy-button");
+const parentNoticesButton = document.querySelector<HTMLButtonElement>("#parent-notices-button");
+const parentCreditsButton = document.querySelector<HTMLButtonElement>("#parent-credits-button");
+const parentResetButton = document.querySelector<HTMLButtonElement>("#parent-reset-button");
+const parentResult = document.querySelector<HTMLElement>("#parent-result");
+const creditsPanel = document.querySelector<HTMLElement>("#credits-panel");
+const creditsCopyright = document.querySelector<HTMLElement>("#credits-copyright");
+const privacyPanel = document.querySelector<HTMLElement>("#privacy-panel");
+const noticesPanel = document.querySelector<HTMLElement>("#notices-panel");
+const releaseVersionLabels = Array.from(document.querySelectorAll<HTMLElement>("[data-release-version]"));
+const closeReleaseButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-close-release]"));
+const menuButton = document.querySelector<HTMLButtonElement>("#menu-button");
+const pausePanel = document.querySelector<HTMLElement>("#pause-panel");
+const resumeButton = document.querySelector<HTMLButtonElement>("#resume-button");
+const pauseSettingsButton = document.querySelector<HTMLButtonElement>("#pause-settings-button");
+const returnTitleButton = document.querySelector<HTMLButtonElement>("#return-title-button");
+const pauseGrownUpsButton = document.querySelector<HTMLButtonElement>("#pause-grown-ups-button");
+const pauseCreditsButton = document.querySelector<HTMLButtonElement>("#pause-credits-button");
+const exitFullscreenButton = document.querySelector<HTMLButtonElement>("#exit-fullscreen-button");
+const saveStatus = document.querySelector<HTMLOutputElement>("#save-status");
+const pauseSaveStatus = document.querySelector<HTMLElement>("#pause-save-status");
+const chatPrivacyReminder = document.querySelector<HTMLElement>("#chat-privacy-reminder");
+const chatPrivacyAcknowledge = document.querySelector<HTMLButtonElement>("#chat-privacy-acknowledge");
 
 if (
   !app || !canvas || !actionValue || !heldItemValue || !heldItemOwnerLabel || !roomValue
@@ -116,6 +169,7 @@ if (
   || !reducedMotionToggle || !largeTextToggle || !highContrastToggle
   || !instantDialogueToggle || !fullscreenButton || !loadingScreen
   || !displayRecovery || !restoreDisplayButton || !reloadDisplayButton
+  || !startupError || !startupReloadButton
   || !npcChatToggle || !typedChatToggle || !memoryToggle || !clearAllMemoriesButton
   || !chatPanel || !chatNpcPortrait || !chatNpcName || !chatFriendship
   || !chatCloseButton || !chatMessages || !chatThinking || !chatTopics
@@ -127,9 +181,29 @@ if (
   || outfitButtons.length === 0 || roomButtons.length === 0 || qualityButtons.length === 0
   || characterButtons.length === 0 || expressionButtons.length === 0
   || characterLocationLabels.length === 0
+  || !titleScreen || !continueButton || !newWorldButton || !titleSettingsButton || !grownUpsButton
+  || !titleCreditsButton || !titleVersion || !firstLaunchPanel || !setupSound
+  || !setupMusic || !setupReducedMotion || !startWorldButton || !parentGatePanel || !parentGateAnswer
+  || !parentGateMessage || !parentGateSubmit || !parentPanel || !parentSettingsButton
+  || !exportSaveButton || !importSaveButton || !importSaveInput || !parentPrivacyButton
+  || !parentNoticesButton || !parentCreditsButton || !parentResetButton || !parentResult
+  || !creditsPanel || !creditsCopyright || !privacyPanel || !noticesPanel
+  || !menuButton || !pausePanel || !resumeButton || !pauseSettingsButton
+  || !returnTitleButton || !pauseGrownUpsButton || !pauseCreditsButton
+  || !exitFullscreenButton || !saveStatus || !pauseSaveStatus
+  || !chatPrivacyReminder || !chatPrivacyAcknowledge
 ) {
   throw new Error("Required game UI elements are missing.");
 }
+
+const showPublicStartupError = (): void => {
+  loadingScreen.hidden = true;
+  titleScreen.hidden = true;
+  startupError.hidden = false;
+};
+window.addEventListener("error", showPublicStartupError);
+window.addEventListener("unhandledrejection", showPublicStartupError);
+startupReloadButton.addEventListener("click", () => window.location.reload());
 
 class GameAudio {
   private context: AudioContext | null = null;
@@ -291,7 +365,76 @@ class GameAudio {
 const uiPreferences = loadPlayerSettings();
 const livingPreferences = loadLivingSettings();
 const accessibilityPreferences = loadAccessibilitySettings();
+const releasePreferences = loadReleaseSettings();
 const gameAudio = new GameAudio(uiPreferences.sound, uiPreferences.music);
+let atTitleScreen = true;
+let gamePaused = false;
+
+titleVersion.textContent = `Version ${RELEASE.version}`;
+creditsCopyright.textContent = RELEASE.copyright;
+for (const label of releaseVersionLabels) label.textContent = RELEASE.version;
+const worldExistsAtStartup = hasExistingWorld();
+continueButton.disabled = !worldExistsAtStartup;
+continueButton.title = continueButton.disabled ? "Start a new world first" : "";
+newWorldButton.textContent = worldExistsAtStartup ? "New World" : "Play";
+
+const closeReleasePanels = (): void => {
+  for (const panel of [
+    firstLaunchPanel,
+    parentGatePanel,
+    parentPanel,
+    creditsPanel,
+    privacyPanel,
+    noticesPanel,
+  ]) panel.hidden = true;
+};
+
+const enterGame = (): void => {
+  closeReleasePanels();
+  titleScreen.hidden = true;
+  pausePanel.hidden = true;
+  atTitleScreen = false;
+  gamePaused = false;
+  gameAudio.setPageVisible(true);
+  gameAudio.resume();
+  canvas.focus();
+};
+
+const showTitle = (): void => {
+  closeReleasePanels();
+  closeChat();
+  closePopovers();
+  pausePanel.hidden = true;
+  titleScreen.hidden = false;
+  atTitleScreen = true;
+  gamePaused = true;
+  continueButton.disabled = !hasExistingWorld();
+  gameAudio.setPageVisible(false);
+  continueButton.focus();
+};
+
+const openReleasePanel = (panel: HTMLElement): void => {
+  closeReleasePanels();
+  panel.hidden = false;
+  panel.querySelector<HTMLElement>("button, input")?.focus();
+};
+
+const openParentGate = (): void => {
+  parentGateAnswer.value = "";
+  parentGateMessage.textContent = "";
+  openReleasePanel(parentGatePanel);
+};
+
+const openNewWorldSetup = (): void => {
+  if (!atTitleScreen) {
+    gamePaused = true;
+    gameAudio.setPageVisible(false);
+  }
+  setupSound.checked = uiPreferences.sound;
+  setupMusic.checked = uiPreferences.music;
+  setupReducedMotion.checked = accessibilityPreferences.reducedMotion;
+  openReleasePanel(firstLaunchPanel);
+};
 
 function updateSwitch(button: HTMLButtonElement, enabled: boolean): void {
   button.classList.toggle("is-on", enabled);
@@ -631,6 +774,141 @@ function togglePopover(target: HTMLElement, button: HTMLButtonElement): void {
   button.setAttribute("aria-expanded", String(shouldOpen));
 }
 
+continueButton.addEventListener("click", enterGame);
+newWorldButton.addEventListener("click", () => {
+  if (
+    hasExistingWorld()
+    && !window.confirm("Start a new world? Your current world will be replaced. You can export it first in Grown-Ups.")
+  ) return;
+  openNewWorldSetup();
+});
+grownUpsButton.addEventListener("click", openParentGate);
+titleCreditsButton.addEventListener("click", () => openReleasePanel(creditsPanel));
+titleSettingsButton.addEventListener("click", () => {
+  enterGame();
+  settingsPanel.hidden = false;
+  settingsButton.setAttribute("aria-expanded", "true");
+});
+
+startWorldButton.addEventListener("click", () => {
+  const selectedQuality = document.querySelector<HTMLInputElement>(
+    'input[name="setup-quality"]:checked',
+  )?.value;
+  const qualityPreset = selectedQuality === "low" || selectedQuality === "balanced"
+    ? selectedQuality
+    : "adaptive";
+  const saved = startNewWorld({
+    sound: setupSound.checked,
+    music: setupMusic.checked,
+    reducedMotion: setupReducedMotion.checked,
+    qualityPreset,
+  });
+  if (!saved) {
+    parentResult.textContent = "This browser could not safely create the new world.";
+    return;
+  }
+  window.location.reload();
+});
+
+parentGateSubmit.addEventListener("click", () => {
+  if (parentGateAnswer.value.trim() !== "7") {
+    parentGateMessage.textContent = "That answer did not match. Please ask a grown-up for help.";
+    parentGateAnswer.select();
+    return;
+  }
+  openReleasePanel(parentPanel);
+});
+parentGateAnswer.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") parentGateSubmit.click();
+});
+
+parentSettingsButton.addEventListener("click", () => {
+  enterGame();
+  settingsPanel.hidden = false;
+  settingsButton.setAttribute("aria-expanded", "true");
+  settingsPanel.querySelector<HTMLElement>("button")?.focus();
+});
+exportSaveButton.addEventListener("click", () => {
+  const blob = new Blob([exportWorldSave()], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `khadijas-world-save-${RELEASE.version}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+  parentResult.textContent = "Save exported. Keep the file somewhere safe.";
+});
+importSaveButton.addEventListener("click", () => importSaveInput.click());
+importSaveInput.addEventListener("change", async () => {
+  const file = importSaveInput.files?.[0];
+  if (!file) return;
+  parentResult.textContent = "Checking that save…";
+  const raw = await file.text();
+  const preview = previewWorldSaveImport(raw);
+  if (!preview.accepted) {
+    parentResult.textContent = `${preview.message} Your current world has not changed.`;
+    importSaveInput.value = "";
+    return;
+  }
+  const confirmed = window.confirm(
+    `This ${preview.message.toLowerCase()} Importing it will replace your current world after keeping a safe backup. Continue?`,
+  );
+  if (!confirmed) {
+    parentResult.textContent = "Import cancelled. Your current world is unchanged.";
+    importSaveInput.value = "";
+    return;
+  }
+  const result = importWorldSave(raw);
+  parentResult.textContent = result.message;
+  importSaveInput.value = "";
+  if (result.accepted) window.setTimeout(() => window.location.reload(), 500);
+});
+parentPrivacyButton.addEventListener("click", () => openReleasePanel(privacyPanel));
+parentNoticesButton.addEventListener("click", () => openReleasePanel(noticesPanel));
+parentCreditsButton.addEventListener("click", () => openReleasePanel(creditsPanel));
+parentResetButton.addEventListener("click", () => {
+  if (!window.confirm("Start a new world? Export the current world first if you want to keep it.")) return;
+  openNewWorldSetup();
+});
+for (const button of closeReleaseButtons) {
+  button.addEventListener("click", () => {
+    const panel = button.closest<HTMLElement>(".release-modal");
+    if (panel) panel.hidden = true;
+    if (gamePaused && !atTitleScreen) {
+      pausePanel.hidden = false;
+      resumeButton.focus();
+    }
+  });
+}
+
+menuButton.addEventListener("click", () => {
+  closeChat();
+  closePopovers();
+  gamePaused = true;
+  gameAudio.setPageVisible(false);
+  pausePanel.hidden = false;
+  resumeButton.focus();
+});
+resumeButton.addEventListener("click", enterGame);
+pauseSettingsButton.addEventListener("click", () => {
+  enterGame();
+  settingsPanel.hidden = false;
+  settingsButton.setAttribute("aria-expanded", "true");
+});
+returnTitleButton.addEventListener("click", showTitle);
+pauseGrownUpsButton.addEventListener("click", () => {
+  pausePanel.hidden = true;
+  openParentGate();
+});
+pauseCreditsButton.addEventListener("click", () => {
+  pausePanel.hidden = true;
+  openReleasePanel(creditsPanel);
+});
+exitFullscreenButton.addEventListener("click", () => {
+  if (document.fullscreenElement) void document.exitFullscreen();
+  else showAction("Full screen is already off.", "toggle");
+});
+
 helpButton.addEventListener("click", () => togglePopover(helpCard, helpButton));
 settingsButton.addEventListener("click", () => togglePopover(settingsPanel, settingsButton));
 for (const button of closePopoverButtons) button.addEventListener("click", closePopovers);
@@ -692,8 +970,18 @@ clearAllMemoriesButton.addEventListener("click", () => {
 });
 
 chatCloseButton.addEventListener("click", closeChat);
+chatInput.addEventListener("focus", () => {
+  chatPrivacyReminder.hidden = releasePreferences.chatPrivacyAcknowledged;
+});
+chatPrivacyAcknowledge.addEventListener("click", () => {
+  releasePreferences.chatPrivacyAcknowledged = true;
+  saveReleaseSettings(releasePreferences);
+  chatPrivacyReminder.hidden = true;
+  chatInput.focus();
+});
 chatForm.addEventListener("submit", (event) => {
   event.preventDefault();
+  if (!releasePreferences.chatPrivacyAcknowledged) chatPrivacyReminder.hidden = false;
   submitChat(chatInput.value);
 });
 chatClearButton.addEventListener("click", () => {
@@ -787,10 +1075,10 @@ for (const button of qualityButtons) {
 }
 
 resetButton.addEventListener("click", () => {
-  const shouldReset = window.confirm("Start Khadija's World fresh? Your room changes and outfits will be reset.");
+  const shouldReset = window.confirm("Start a new world? Export the current world first if you want to keep it.");
   if (!shouldReset) return;
-  resetSave();
-  window.location.reload();
+  closePopovers();
+  openNewWorldSetup();
 });
 
 useItemButton.addEventListener("click", () => room.useHeldItem());
@@ -832,13 +1120,42 @@ canvas.addEventListener("pointerdown", () => {
 
 window.addEventListener("pointerdown", () => gameAudio.resume(), { once: true, passive: true });
 window.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") closePopovers();
+  if (event.key !== "Escape") return;
+  const openRelease = [
+    firstLaunchPanel,
+    parentGatePanel,
+    parentPanel,
+    creditsPanel,
+    privacyPanel,
+    noticesPanel,
+  ].find((panel) => !panel.hidden);
+  if (openRelease) {
+    openRelease.hidden = true;
+    return;
+  }
+  if (!pausePanel.hidden) {
+    enterGame();
+    return;
+  }
+  if (!chatPanel.hidden) {
+    closeChat();
+    return;
+  }
+  if (!helpCard.hidden || !settingsPanel.hidden) {
+    closePopovers();
+    return;
+  }
+  if (!atTitleScreen) menuButton.click();
 });
 
 let displayPaused = false;
 let firstFrameShown = false;
 engine.runRenderLoop(() => {
-  if (displayPaused || document.hidden) return;
+  if (
+    displayPaused
+    || document.hidden
+    || ((gamePaused || atTitleScreen) && firstFrameShown)
+  ) return;
   room.scene.render();
   if (!firstFrameShown) {
     firstFrameShown = true;
@@ -867,7 +1184,23 @@ restoreDisplayButton.addEventListener("click", () => {
 reloadDisplayButton.addEventListener("click", () => window.location.reload());
 
 document.addEventListener("visibilitychange", () => {
-  gameAudio.setPageVisible(!document.hidden);
+  gameAudio.setPageVisible(!document.hidden && !gamePaused && !atTitleScreen);
+});
+
+let saveStatusTimer = 0;
+window.addEventListener("khadijas-world:save-status", (event) => {
+  const saved = (event as CustomEvent<{ saved: boolean }>).detail.saved;
+  window.clearTimeout(saveStatusTimer);
+  saveStatus.textContent = "Saving…";
+  pauseSaveStatus.textContent = "Saving…";
+  saveStatus.classList.add("is-visible");
+  saveStatusTimer = window.setTimeout(() => {
+    const message = saved ? "Saved" : "Saving is unavailable";
+    saveStatus.textContent = message;
+    pauseSaveStatus.textContent = message;
+    saveStatus.classList.toggle("is-error", !saved);
+    saveStatusTimer = window.setTimeout(() => saveStatus.classList.remove("is-visible"), 1800);
+  }, 160);
 });
 
 let metricsTimer = 0;

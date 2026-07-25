@@ -3,7 +3,8 @@
 ## Tested in this development pass
 
 - Codex in-app Chromium browser: startup, six locations, NPC chat, settings,
-  responsive layout, save migration, normal mode, and debug mode
+  responsive layout, save migration, normal mode, debug mode, title flow,
+  parent gate, pause flow, privacy, credits, and production hard refresh
 - WAMP/Apache subpath: production deployment and asset loading
 
 ## Release validation required
@@ -20,4 +21,7 @@ If audio cannot start automatically, it begins after the first player interactio
 If local storage is unavailable, temporary play remains possible but progress may
 not persist.
 
-No compatibility is claimed for a browser that was not actually tested.
+The Release 1 manifest provides install metadata. No service worker is registered,
+so updates use normal browser refresh behavior and cannot become stuck behind an
+application-managed cache. No compatibility is claimed for a browser that was
+not actually tested.

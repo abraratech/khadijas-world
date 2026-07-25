@@ -157,6 +157,210 @@ button:disabled {
   font-weight: 900;
 }
 
+.title-screen,
+.release-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: grid;
+  place-items: center;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+    max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  overflow: auto;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, .8), transparent 26%),
+    radial-gradient(circle at 80% 75%, rgba(255, 213, 116, .68), transparent 30%),
+    linear-gradient(145deg, rgba(183, 235, 239, .97), rgba(229, 205, 250, .97));
+}
+
+.release-modal {
+  z-index: 940;
+  background: rgba(52, 31, 79, .58);
+}
+
+.title-card,
+.release-card {
+  width: min(92vw, 31rem);
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  padding: clamp(1.2rem, 4vw, 2.4rem);
+  border: 5px solid white;
+  border-radius: 2.2rem;
+  background: rgba(255, 250, 239, .97);
+  box-shadow: 0 22px 70px rgba(56, 31, 83, .27);
+  color: #412463;
+  text-align: center;
+}
+
+.release-card-wide {
+  width: min(94vw, 40rem);
+}
+
+.title-logo {
+  display: grid;
+  width: fit-content;
+  margin: 0 auto 1rem;
+  padding: 1rem 1.7rem;
+  border-radius: 1.7rem;
+  background: linear-gradient(160deg, #ffd047, #ff8f4f 44%, #8d4dcc 45%);
+  color: white;
+  text-shadow: 0 3px 0 #5d2d88;
+  transform: rotate(-2deg);
+}
+
+.title-logo strong {
+  font-size: clamp(2.6rem, 8vw, 4.7rem);
+  line-height: .82;
+}
+
+.title-logo span {
+  font-size: clamp(1.7rem, 5vw, 3rem);
+  font-weight: 1000;
+}
+
+.title-card > p {
+  margin: 0 auto 1.4rem;
+  max-width: 24rem;
+  color: #6d5d7a;
+  font-weight: 800;
+}
+
+.title-actions,
+.parent-actions {
+  display: grid;
+  gap: .65rem;
+}
+
+.title-actions button,
+.parent-actions button,
+.release-actions button {
+  min-height: 48px;
+  padding: .8rem 1rem;
+  border: 2px solid #ded1eb;
+  border-radius: 1rem;
+  background: white;
+  color: #4c2d72;
+  font-weight: 1000;
+}
+
+.title-actions .title-primary,
+.parent-actions .title-primary,
+.release-actions .title-primary {
+  border-color: #7447b8;
+  background: linear-gradient(145deg, #8f57d1, #6a3fa8);
+  color: white;
+}
+
+.title-actions button:disabled {
+  background: #ded8e6;
+  color: #81768a;
+}
+
+.release-card h2 {
+  margin-top: 0;
+}
+
+.release-card fieldset {
+  display: flex;
+  justify-content: center;
+  gap: .75rem;
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 2px solid #ded1eb;
+  border-radius: 1rem;
+}
+
+.release-choice {
+  display: block;
+  min-height: 44px;
+  margin: .5rem 0;
+  padding: .65rem;
+  border-radius: .8rem;
+  background: #f3ecfa;
+  font-weight: 900;
+}
+
+.release-card input {
+  min-width: 1.25rem;
+  min-height: 1.25rem;
+}
+
+.release-actions {
+  display: flex;
+  justify-content: center;
+  gap: .7rem;
+  margin-top: 1rem;
+}
+
+.privacy-short {
+  color: #6d5d7a;
+  font-size: .88rem;
+  font-weight: 750;
+}
+
+.credits-list {
+  display: grid;
+  grid-template-columns: minmax(8rem, .7fr) 1fr;
+  gap: .45rem .8rem;
+  text-align: left;
+}
+
+.credits-list dt {
+  font-weight: 1000;
+}
+
+.credits-list dd {
+  margin: 0;
+}
+
+.danger-soft {
+  color: #8b2d52 !important;
+}
+
+.save-status {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 120;
+  min-width: 4.5rem;
+  padding: .45rem .7rem;
+  border-radius: 999px;
+  background: rgba(255, 250, 239, .94);
+  color: #57337f;
+  font-size: .78rem;
+  font-weight: 1000;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(.5rem);
+  transition: opacity .2s ease, transform .2s ease;
+}
+
+.save-status.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.chat-privacy-reminder {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .55rem .7rem;
+  background: #fff1bd;
+  color: #5b4212;
+  font-size: .74rem;
+  font-weight: 850;
+}
+
+.chat-privacy-reminder button {
+  flex: none;
+  min-height: 34px;
+  padding: .35rem .6rem;
+  border-radius: .65rem;
+  background: #7447b8;
+  color: white;
+  font-weight: 900;
+}
+
 .is-large-text {
   font-size: 112.5%;
 }
