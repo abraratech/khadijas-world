@@ -1258,6 +1258,7 @@ window.setTimeout(() => {
 }, 350);
 window.addEventListener("resize", () => engine.resize());
 window.addEventListener("beforeunload", () => {
+  room.dispose();
   gameAudio.dispose();
   engine.dispose();
 });

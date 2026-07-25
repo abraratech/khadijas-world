@@ -2,6 +2,19 @@
 
 Record browser, viewport, graphics preset, save origin, and console-error count.
 
+## ARCHITECTURE.1 scene reinitialization
+
+- [ ] Start a new world, return to title, and start again without duplicate
+  meshes, characters, listeners, timers, or music
+- [ ] Continue an existing schema 12 world and confirm positions, rooms,
+  outfits, expressions, held items, seats, storage, and NPC state
+- [ ] Switch through all six locations repeatedly by tray and doors
+- [ ] Refresh in each location and confirm the same state is restored
+- [ ] Export a save, start a new world, import it, and verify restoration
+- [ ] Compare normal play with `?debug=1`; diagnostics remain opt-in
+- [ ] Check the console during transitions, title return, import, refresh, and
+  graphics changes
+
 ## Startup and saves
 
 - [ ] Fresh world starts with safe defaults
@@ -32,6 +45,9 @@ Record browser, viewport, graphics preset, save origin, and console-error count.
 - [ ] Enter and exit home, bedroom, street, café, park, and grocery
 - [ ] Switch repeatedly and verify camera, lighting, audio, held item, and character
 - [ ] Confirm inactive characters and NPCs do not advance full updates
+- [ ] Toggle every home and bedroom light after repeated transitions
+- [ ] Confirm each location has exactly one geometry root and no duplicate
+  interaction response
 
 ## UI and input
 
