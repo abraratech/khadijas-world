@@ -84,3 +84,14 @@ Quality measurements and honest physical-test limitations are documented in
 `docs/QUALITY_BASELINE.md`. Save recovery behavior is documented in
 `docs/SAVE_RECOVERY.md`. See `RELEASE_NOTES.md` and
 `docs/RELEASE_CHECKLIST.md` for public-release scope and validation status.
+
+## World architecture
+
+World creation is coordinated through `src/game/world/createWorld.ts`. Family
+home, bedroom, street, Sunny Café, park, and grocery geometry each live in a
+dedicated builder under `src/game/locations`. Character construction is isolated
+under `src/game/characters`, while shared materials, mesh helpers, interaction
+ownership, and placement helpers live under `src/game/shared`.
+
+See `docs/ARCHITECTURE.md` for module contracts, disposal ownership, and the
+steps for adding a location or character visual.

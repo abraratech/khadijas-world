@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased — ARCHITECTURE.1 Scene Modularization
+
+### Architecture
+
+- Replaced the former 4,804-line world-construction entry point with a small
+  compatibility entry point, a focused coordinator, and cross-location runtime
+  wiring
+- Extracted family home, bedroom, street, Sunny Café, park, and grocery geometry
+  into dedicated typed location builders
+- Extracted character rig and semantic visual references into a dedicated
+  character builder
+- Centralized shared world materials, mesh helpers, interaction registration,
+  disposal ownership, and placement helpers
+- Added an exclusive location registry with activation, deactivation, and
+  idempotent disposal
+
+### Compatibility and tests
+
+- Preserved schema 12, all stable location/character/gameplay IDs, and existing
+  save migration behavior
+- Added pure regression coverage for location activation, exclusive slots,
+  character/material semantic contracts, disposal, and save-compatible IDs
+- No gameplay, UI, content, visual values, dependencies, or save fields changed
+
 ## Public 0.1.0 / package 0.12.0 — RELEASE.1 Accelerated
 
 ### Player entry and presentation
