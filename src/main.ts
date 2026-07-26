@@ -40,6 +40,7 @@ import {
   type RoomId,
 } from "./game/storage";
 import { RELEASE } from "./game/release";
+import type { InteractionHint } from "./game/readability/interactionReadability";
 
 type PlayerQuality = "low" | "medium" | "high";
 
@@ -106,6 +107,10 @@ const locationTransition = document.querySelector<HTMLElement>("#location-transi
 const transitionIcon = document.querySelector<HTMLElement>("#transition-icon");
 const transitionTitle = document.querySelector<HTMLElement>("#transition-title");
 const feedbackSparkles = document.querySelector<HTMLElement>("#feedback-sparkles");
+const interactionLabel = document.querySelector<HTMLOutputElement>("#interaction-label");
+const interactionLabelIcon = document.querySelector<HTMLElement>("#interaction-label-icon");
+const interactionLabelName = document.querySelector<HTMLElement>("#interaction-label-name");
+const interactionLabelHint = document.querySelector<HTMLElement>("#interaction-label-hint");
 const outfitControls = document.querySelector<HTMLElement>("#outfit-controls");
 const outfitButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-outfit]"));
 const roomButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-room]"));
@@ -503,6 +508,24 @@ const showAction = (message: string, sound: InteractionSound = "success"): void 
   feedbackTimer = window.setTimeout(() => feedbackSparkles.classList.remove("is-playing"), 650);
 };
 
+const updateInteractionLabel = (hint: InteractionHint | null): void => {
+  if (!hint || !interactionLabel || !interactionLabelIcon || !interactionLabelName || !interactionLabelHint) {
+    if (interactionLabel) interactionLabel.hidden = true;
+    return;
+  }
+  interactionLabelIcon.textContent = hint.icon;
+  interactionLabelName.textContent = hint.label;
+  interactionLabelHint.textContent = hint.hint;
+  interactionLabel.hidden = false;
+
+  const estimatedWidth = Math.min(260, Math.max(154, hint.label.length * 8 + 82));
+  const estimatedHeight = 62;
+  const left = Math.min(window.innerWidth - estimatedWidth - 12, Math.max(8, hint.x));
+  const top = Math.min(window.innerHeight - estimatedHeight - 12, Math.max(8, hint.y));
+  interactionLabel.style.left = `${left}px`;
+  interactionLabel.style.top = `${top}px`;
+};
+
 let room: PrototypeRoom;
 let activeChatNpc: NpcId | null = null;
 let activeChatCharacter: CharacterId | null = null;
@@ -719,6 +742,7 @@ room = createPrototypeRoom(engine, {
   onNpcChat: openNpcChat,
   isNpcChatEnabled: () => dialoguePreferences.npcChat,
   onNpcMemoryEvent: (event) => dialogueController.recordWorldEvent(event),
+  onInteractionHint: updateInteractionLabel,
 });
 room.setLivingSettings(livingPreferences);
 

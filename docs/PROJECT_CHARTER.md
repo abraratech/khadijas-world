@@ -31,6 +31,6 @@ Every milestone follows this order:
 
 ## Current milestone
 
-**FOUNDATION.1 R1 — Interactive Dollhouse Benchmark**
+**ART.1K — Visual Readability and Hero Procedural Cast Refinement**
 
-The current release establishes the engine, camera, low-spec rendering path, simple interactions, persistence and the physical scale of the first room.
+The current release removes obsolete single-player selection UI, makes interactive objects identifiable from the dollhouse camera, and then refines the procedural family and world cast. The deeper prop-remodelling and interaction-animation pass remains scheduled for ART.1L.

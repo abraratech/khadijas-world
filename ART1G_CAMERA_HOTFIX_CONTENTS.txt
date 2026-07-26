@@ -1,0 +1,37 @@
+Khadija's World — ART.1G Camera Framing Hotfix
+
+Apply over: C:\Projects\khadijas-world
+Do not extract into the WAMP deployment directory.
+
+Included:
+- Closer responsive orthographic framing on desktop and widescreen displays
+- Full-room fit protection for narrow viewports
+- All ArcRotate camera inputs disabled
+- Middle-button browser auto-scroll blocked on the canvas
+- Gameplay picks restricted to the primary pointer button
+- No save, room-layout, interaction, quality, or asset changes
+
+Changed/new files: 12
+- CHANGELOG.md
+- README.md
+- RELEASE_NOTES.md
+- docs/ART1G_CAMERA_HOTFIX.md
+- docs/PRODUCTION_ROADMAP.md
+- index.html
+- package-lock.json
+- package.json
+- src/game/release.ts
+- src/game/world/cameraFraming.test.ts
+- src/game/world/cameraFraming.ts
+- src/game/world/createWorldRuntime.ts
+
+Files to delete: 0
+
+Required local validation:
+- npm install
+- npm run validate:assets
+- npm test
+- npm run build
+- npm run deploy:wamp
+
+See docs/ART1G_CAMERA_HOTFIX.md.

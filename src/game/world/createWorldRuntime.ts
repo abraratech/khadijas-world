@@ -1,4 +1,5 @@
 import {
+  type AbstractMesh,
   ActionManager,
   Animation,
   ArcRotateCamera,
@@ -13,6 +14,7 @@ import {
   type KeyboardInfo,
   Mesh,
   MeshBuilder,
+  type Node,
   PointerEventTypes,
   type PointerInfo,
   Scene,
@@ -24,6 +26,7 @@ import type { QualitySettings } from "../quality";
 import {
   CHARACTER_DEFINITIONS,
   CHARACTER_IDS,
+  COMPANION_CHARACTER_IDS,
   type CharacterExpression,
   type CharacterId,
   type CharacterInteraction,
@@ -34,6 +37,15 @@ import {
   type CharacterRig,
   type UseGesture,
 } from "../characters/createCharacterVisual";
+import {
+  KHADIJA_PRODUCTION_ASSET,
+  PRODUCTION_CHARACTER_ASSETS,
+  PRODUCTION_NPC_ASSETS,
+  isProductionAssetAllowed,
+} from "../assets/characterAssets";
+import { createProductionCharacterVisual, type ProductionCharacterVisual } from "../assets/productionCharacterVisual";
+import { applyHeroCharacterPolish } from "../characters/applyHeroCharacterPolish";
+import { COMPANION_HERO_PROFILES, NPC_HERO_PROFILES } from "../characters/heroCharacterProfiles";
 import {
   findAvailableSeat,
   findNearbyAvailableSeat,
@@ -61,7 +73,6 @@ import {
   saveNpcState,
   saveProp,
   saveRoomState,
-  saveSelectedCharacter,
   saveWorld3State,
   type OutfitId,
   type RoomId,
@@ -102,6 +113,7 @@ import { buildFamilyHome } from "../locations/familyHome/buildFamilyHome";
 import { buildBedroom } from "../locations/bedroom/buildBedroom";
 import { buildStreet } from "../locations/street/buildStreet";
 import { buildCafe } from "../locations/cafe/buildCafe";
+import { applyWorldArtPolish } from "../locations/shared/applyWorldArtPolish";
 import { WorldRegistry } from "./WorldRegistry";
 import type { LocationBuildResult } from "./LocationBuildResult";
 import {
@@ -115,6 +127,31 @@ import type {
   RoomDialogueContext,
   RoomOptions,
 } from "./WorldContext";
+import {
+  createProductionApple,
+  createProductionBook,
+  createProductionBowl,
+  createProductionCup,
+  createProductionPlate,
+  createProductionTeddy,
+  createProductionTray,
+  presentationFor,
+  type HoldablePresentation,
+  type ItemMaterialPalette,
+} from "../items/productionItemVisuals";
+import {
+  calculateDollhouseOrthoFrame,
+  calculateDollhouseViewportMask,
+} from "./cameraFraming";
+import { applyWorldReadabilityPass } from "../readability/applyWorldReadabilityPass";
+import { createInteriorFurniturePlacements } from "../assets/interiorFurnitureAssets";
+import { createSelectiveInteriorFurnitureManager } from "../assets/productionFurnitureVisual";
+import {
+  descriptorFromMetadata,
+  humanizeInteractionId,
+  interactionMetadata,
+  type InteractionDescriptor,
+} from "../readability/interactionReadability";
 
 export function createWorldRuntime(engine: Engine, options: RoomOptions): PrototypeRoom {
   const save = loadSave();
@@ -193,10 +230,26 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
   };
   let activeRoom: RoomId = save.activeRoom;
 
+  const setInteraction = (mesh: AbstractMesh, descriptor: InteractionDescriptor): void => {
+    mesh.metadata = interactionMetadata(mesh.metadata, descriptor);
+  };
+
+  const interactionFromNode = (node: Node | null): InteractionDescriptor | null => {
+    let current: Node | null = node;
+    while (current) {
+      const descriptor = descriptorFromMetadata((current as AbstractMesh).metadata);
+      if (descriptor) return descriptor;
+      current = current.parent;
+    }
+    return null;
+  };
+
   const scene = new Scene(engine);
   const disposables = new DisposableBag();
   scene.clearColor = new Color4(0.78, 0.87, 0.91, 1);
-  scene.ambientColor = new Color3(0.38, 0.38, 0.38);
+  scene.ambientColor = new Color3(0.27, 0.28, 0.31);
+  scene.imageProcessingConfiguration.contrast = 1.11;
+  scene.imageProcessingConfiguration.exposure = 1.03;
 
   const camera = new ArcRotateCamera(
     "dollhouse-camera",
@@ -211,16 +264,44 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
   camera.upperBetaLimit = 1.08;
   camera.lowerAlphaLimit = -Math.PI / 2;
   camera.upperAlphaLimit = -Math.PI / 2;
-  camera.attachControl(engine.getRenderingCanvas(), true);
-  camera.inputs.removeByType("ArcRotateCameraPointersInput");
+  // The dollhouse camera is intentionally fixed. Clearing every input avoids
+  // accidental orbiting, panning, or wheel zoom and also prevents a middle
+  // mouse press from leaving the orthographic view in an invalid orientation.
+  camera.inputs.clear();
+
+  const renderingCanvas = engine.getRenderingCanvas();
+  if (renderingCanvas) {
+    const preventMiddleMouse = (event: MouseEvent): void => {
+      if (event.button !== 1) return;
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    renderingCanvas.addEventListener("mousedown", preventMiddleMouse);
+    renderingCanvas.addEventListener("auxclick", preventMiddleMouse);
+    disposables.add(() => {
+      renderingCanvas.removeEventListener("mousedown", preventMiddleMouse);
+      renderingCanvas.removeEventListener("auxclick", preventMiddleMouse);
+    });
+  }
 
   const updateOrtho = (): void => {
     const aspect = engine.getRenderWidth() / Math.max(engine.getRenderHeight(), 1);
-    const vertical = 5.2;
-    camera.orthoTop = vertical;
-    camera.orthoBottom = -vertical;
-    camera.orthoLeft = -vertical * aspect;
-    camera.orthoRight = vertical * aspect;
+    const frame = calculateDollhouseOrthoFrame(aspect);
+    const mask = calculateDollhouseViewportMask(aspect);
+    camera.orthoTop = frame.verticalHalfSpan;
+    camera.orthoBottom = -frame.verticalHalfSpan;
+    camera.orthoLeft = -frame.horizontalHalfSpan;
+    camera.orthoRight = frame.horizontalHalfSpan;
+
+    // The canvas remains full-screen for reliable rendering and pointer math,
+    // while CSS clips only its visible pixels to the dollhouse shell. DOM UI
+    // stays outside this mask and every Babylon interaction remains unchanged.
+    if (renderingCanvas) {
+      renderingCanvas.style.setProperty("--dollhouse-mask-top", `${mask.topPercent}%`);
+      renderingCanvas.style.setProperty("--dollhouse-mask-right", `${mask.rightPercent}%`);
+      renderingCanvas.style.setProperty("--dollhouse-mask-bottom", `${mask.bottomPercent}%`);
+      renderingCanvas.style.setProperty("--dollhouse-mask-left", `${mask.leftPercent}%`);
+    }
   };
   updateOrtho();
   engine.onResizeObservable.add(updateOrtho);
@@ -228,11 +309,15 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
 
   const hemi = new HemisphericLight("soft-fill", new Vector3(0, 1, -0.4), scene);
   hemi.intensity = 0.9;
-  hemi.groundColor = new Color3(0.42, 0.31, 0.28);
+  hemi.diffuse = new Color3(.84, .91, 1.0);
+  hemi.specular = new Color3(.72, .82, 1.0);
+  hemi.groundColor = new Color3(.20, .24, .34);
 
   const sun = new DirectionalLight("window-sun", new Vector3(-0.45, -1, 0.55), scene);
   sun.position.set(4, 8, -6);
   sun.intensity = 0.42;
+  sun.diffuse = new Color3(1.0, .89, .74);
+  sun.specular = new Color3(1.0, .94, .84);
 
   const materials = createWorldMaterials(scene);
   const {
@@ -252,6 +337,17 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     cafeBlue,
     glass,
   } = materials;
+
+  const itemMaterials: ItemMaterialPalette = {
+    wood,
+    dark,
+    pink,
+    yellow,
+    teal,
+    sky,
+    white,
+    green,
+  };
 
   const detailMeshes: Mesh[] = [];
   const world3Build = createWorld3Locations(scene, parkOffsetX, groceryOffsetX, {
@@ -399,6 +495,31 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     cupcake,
     sandwich,
   } = cafeBuild;
+
+  detailMeshes.push(...applyWorldArtPolish(scene, {
+    bedroom: bedroomOffsetX,
+    street: streetOffsetX,
+    cafe: cafeOffsetX,
+    park: parkOffsetX,
+    grocery: groceryOffsetX,
+  }));
+  detailMeshes.push(...applyWorldReadabilityPass(scene, {
+    bedroom: bedroomOffsetX,
+    street: streetOffsetX,
+    cafe: cafeOffsetX,
+    park: parkOffsetX,
+    grocery: groceryOffsetX,
+  }));
+
+  const interiorFurniture = createSelectiveInteriorFurnitureManager(
+    scene,
+    createInteriorFurniturePlacements({
+      bedroom: bedroomOffsetX,
+      cafe: cafeOffsetX,
+      grocery: groceryOffsetX,
+    }),
+    activeRoom,
+  );
 
   const locationRegistry = new WorldRegistry<LocationBuildResult>();
   const locationBuilds: LocationBuildResult[] = [
@@ -587,22 +708,21 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
   restoreProp(plantPot);
   makeDraggable(plantPot, 0.22, plantTargets, options.onAction);
 
-  const teddy = MeshBuilder.CreateSphere("draggable-teddy", { diameter: 0.62, segments: 12 }, scene);
-  teddy.position.set(-1.2, 0.38, -0.6);
-  teddy.material = wood;
-  for (const x of [-0.22, 0.22]) {
-    const ear = MeshBuilder.CreateSphere(`teddy-ear-${x}`, { diameter: 0.27, segments: 9 }, scene);
-    ear.position.set(x, 0.24, 0);
-    ear.material = wood;
-    ear.parent = teddy;
-    ear.isPickable = false;
-  }
+  const teddy = createProductionTeddy(
+    scene,
+    new Vector3(-1.2, .42, -.6),
+    itemMaterials,
+  );
   restoreProp(teddy);
-  makeDraggable(teddy, 0.38, teddyTargets, options.onAction);
+  makeDraggable(teddy, .42, teddyTargets, options.onAction);
 
-  const book = box(scene, "draggable-book", new Vector3(0.85, 0.12, 0.62), new Vector3(-3.1, 0.86, -1.72), pink);
+  const book = createProductionBook(
+    scene,
+    new Vector3(-3.1, .86, -1.72),
+    itemMaterials,
+  );
   restoreProp(book);
-  makeDraggable(book, 0.08, bookTargets, options.onAction);
+  makeDraggable(book, .09, bookTargets, options.onAction);
 
   // Wardrobe benchmark: three low-cost outfit choices, usable in-world or from the HUD.
   box(scene, "wardrobe-body", new Vector3(1.75, 2.7, 0.72), new Vector3(4.95, 1.35, -2.95), wood);
@@ -620,10 +740,13 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
   });
   box(scene, "wardrobe-drawer", new Vector3(1.35, 0.48, 0.42), new Vector3(4.95, 0.45, -3.38), mint);
 
-  // PLAY.2 keeps one lightweight rig and independent state record per playable character.
+  // ART.1A keeps the family state records for save compatibility, but Khadija
+  // is now the only player-controlled character. Her siblings remain living
+  // companion NPCs with their existing autonomous behavior and saved state.
   const characters: Record<CharacterId, CharacterState> = save.characters;
-  let selectedCharacterId: CharacterId = save.selectedCharacter;
-  activeRoom = characters[selectedCharacterId].room;
+  const selectedCharacterId: CharacterId = "khadija";
+  activeRoom = save.activeRoom;
+  characters.khadija.room = activeRoom;
   const characterRigs = {} as Record<CharacterId, CharacterRig>;
   const outfitColors: Record<OutfitId, Color3> = {
     pink: colors.pink,
@@ -658,8 +781,48 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     );
     rig.setExpression(state.expression);
     rig.setSelected(characterId === selectedCharacterId);
+    const companionHeroProfile = COMPANION_HERO_PROFILES[characterId];
+    if (companionHeroProfile) {
+      applyHeroCharacterPolish(scene, rig, companionHeroProfile);
+    }
     characterRigs[characterId] = rig;
   }
+
+  let mediumHighProductionEnabled = save.qualityPreset !== "low";
+  const characterProductionVisuals: Partial<
+    Record<CharacterId, ProductionCharacterVisual>
+  > = {};
+
+  for (const characterId of CHARACTER_IDS) {
+    const productionDefinition = PRODUCTION_CHARACTER_ASSETS[characterId];
+    if (!productionDefinition) continue;
+    const eagerOrCurrent = characterId === "khadija"
+      || characters[characterId].room === activeRoom;
+    const productionVisual = createProductionCharacterVisual(
+      scene,
+      characterRigs[characterId],
+      productionDefinition,
+      eagerOrCurrent
+        && isProductionAssetAllowed(productionDefinition, mediumHighProductionEnabled),
+      {
+        metadata: {
+          characterId,
+        },
+        logLabel: CHARACTER_DEFINITIONS[characterId].shortName,
+      },
+    );
+    productionVisual.setOutfit(characters[characterId].outfit);
+    productionVisual.setExpression(characters[characterId].expression);
+    characterProductionVisuals[characterId] = productionVisual;
+  }
+
+  const khadijaProductionVisual = characterProductionVisuals.khadija
+    ?? createProductionCharacterVisual(
+      scene,
+      characterRigs.khadija,
+      KHADIJA_PRODUCTION_ASSET,
+      false,
+    );
 
   const npcStates: Record<NpcId, StoredNpcState> = save.npcs;
   const npcRigs = {} as Record<NpcId, CharacterRig>;
@@ -672,6 +835,9 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     pink: material(scene, "npc-hello-pink-mat", colors.pink, new Color3(.22, .08, .12)),
     yellow: material(scene, "npc-hello-yellow-mat", colors.yellow, new Color3(.22, .12, .04)),
   };
+  const npcProductionVisuals: Partial<
+    Record<NpcId, ProductionCharacterVisual>
+  > = {};
   const npcBounds: Record<NpcId, {
     minX: number;
     maxX: number;
@@ -698,6 +864,10 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       definition.scale,
       true,
     );
+    // Hero-style procedural profiles provide a cohesive, fully animated cast.
+    // Mama now remains procedural on every quality tier because her archived
+    // Meshy GLB has no true idle/talk animation and reads as static in play.
+    applyHeroCharacterPolish(scene, rig, NPC_HERO_PROFILES[npcId]);
     const bounds = npcBounds[npcId];
     rig.setBounds(bounds.minX, bounds.maxX, bounds.minZ, bounds.maxZ);
     rig.root.rotation.y = state.rotationY;
@@ -725,16 +895,26 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       : npcHelloMaterials.pink;
     helloIcon.parent = rig.root;
     helloIcon.metadata = { npcId, interactionPrompt: definition.interactionPrompt };
-    if (npcId === "cafe-worker" || npcId === "shopkeeper") {
-      const apron = box(
+    const productionDefinition = PRODUCTION_NPC_ASSETS[npcId];
+    if (productionDefinition) {
+      // Imported NPC visuals are optional and location-aware. The active
+      // registry is currently empty because every world NPC, including Mama,
+      // uses the cohesive hero-procedural system.
+      const eagerOrCurrent = npcId === "parent" || state.room === activeRoom;
+      npcProductionVisuals[npcId] = createProductionCharacterVisual(
         scene,
-        `npc-${npcId}-apron`,
-        new Vector3(.48, .62, .04),
-        new Vector3(0, .92, -.31),
-        white,
-        rig.root,
+        rig,
+        productionDefinition,
+        eagerOrCurrent
+          && isProductionAssetAllowed(productionDefinition, mediumHighProductionEnabled),
+        {
+          metadata: {
+            npcId,
+            interactionPrompt: definition.interactionPrompt,
+          },
+          logLabel: definition.displayName,
+        },
       );
-      apron.metadata = { npcId, interactionPrompt: definition.interactionPrompt };
     }
     npcRigs[npcId] = rig;
   }
@@ -756,6 +936,9 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     mesh: Mesh;
     floorY: number;
     holdScale: Vector3;
+    holdOffset?: Vector3;
+    holdRotation?: Vector3;
+    presentation?: HoldablePresentation;
     useMessage: string;
     gesture: UseGesture;
     consumable: boolean;
@@ -881,8 +1064,18 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
   const ovenWindow = box(scene, "home-oven-window", new Vector3(.62, .42, .04), new Vector3(0, .05, -.27), glass, ovenBody);
   ovenWindow.isPickable = false;
   box(scene, "home-bin", new Vector3(.58, .72, .52), new Vector3(5.05, .36, .72), teal);
-  cylinder(scene, "home-prep-plate", .72, .08, new Vector3(4.28, 1.43, .55), white, 18);
-  cylinder(scene, "home-mixing-bowl", .72, .25, new Vector3(2.52, 1.47, .55), cafeBlue, 18);
+  createProductionPlate(
+    scene,
+    "home-prep-plate",
+    new Vector3(4.28, 1.43, .55),
+    itemMaterials,
+  );
+  createProductionBowl(
+    scene,
+    "home-mixing-bowl",
+    new Vector3(2.52, 1.47, .55),
+    itemMaterials,
+  );
   const applianceVisuals: Record<string, TransformNode> = {
     toaster: toasterBody,
     blender: blenderBody,
@@ -995,7 +1188,9 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     ["serving-tray", "serving tray", cafePosition(2.4, 1.35, 1.75), teal],
   ];
   for (const [id, label, position, itemMaterial] of portableDefinitions) {
-    const mesh = box(scene, `draggable-${id}`, new Vector3(.68, .48, .38), position, itemMaterial);
+    const mesh = id === "serving-tray"
+      ? createProductionTray(scene, position, itemMaterials)
+      : box(scene, `draggable-${id}`, new Vector3(.68, .48, .38), position, itemMaterial);
     for (let slot = 0; slot < 3; slot += 1) {
       const dot = MeshBuilder.CreateSphere(`${id}-visible-slot-${slot}`, { diameter: .13, segments: 6 }, scene);
       dot.position.set((slot - 1) * .18, .31, 0);
@@ -1046,6 +1241,29 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     saveCharacterState(syncCharacterState(characterId));
   };
 
+  const refreshProductionVisualLoading = (): void => {
+    for (const characterId of CHARACTER_IDS) {
+      const definition = PRODUCTION_CHARACTER_ASSETS[characterId];
+      const visual = characterProductionVisuals[characterId];
+      if (!definition || !visual) continue;
+      const eagerOrCurrent = characterId === "khadija"
+        || characters[characterId].room === activeRoom;
+      visual.setQualityEnabled(
+        eagerOrCurrent && isProductionAssetAllowed(definition, mediumHighProductionEnabled),
+      );
+    }
+
+    for (const npcId of NPC_IDS) {
+      const definition = PRODUCTION_NPC_ASSETS[npcId];
+      const visual = npcProductionVisuals[npcId];
+      if (!definition || !visual) continue;
+      const eagerOrCurrent = npcId === "parent" || npcStates[npcId].room === activeRoom;
+      visual.setQualityEnabled(
+        eagerOrCurrent && isProductionAssetAllowed(definition, mediumHighProductionEnabled),
+      );
+    }
+  };
+
   const updateCharacterVisibility = (): void => {
     for (const characterId of CHARACTER_IDS) {
       const visible = characters[characterId].room === activeRoom;
@@ -1059,8 +1277,12 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     for (const npcId of NPC_IDS) {
       const visible = npcStates[npcId].room === activeRoom;
       npcRigs[npcId].setVisible(visible);
-      npcRigs[npcId].setLivingAnimation(visible && livingSettings.idleAnimations, Boolean(npcStates[npcId].heldItem));
+      npcRigs[npcId].setLivingAnimation(
+        visible && livingSettings.idleAnimations,
+        Boolean(npcStates[npcId].heldItem),
+      );
     }
+    refreshProductionVisualLoading();
   };
 
   const emitPlayState = (): void => {
@@ -1087,6 +1309,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     const current = selectedState();
     current.outfit = outfit;
     selectedRig().setOutfitColor(outfitColors[outfit]);
+    khadijaProductionVisual.setOutfit(outfit);
     persistCharacter(selectedCharacterId);
     options.onAction(`${CHARACTER_DEFINITIONS[selectedCharacterId].shortName} chose the ${outfit} outfit!`, "success");
     emitPlayState();
@@ -1096,6 +1319,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     const current = selectedState();
     current.expression = expression;
     selectedRig().setExpression(expression);
+    khadijaProductionVisual.setExpression(expression);
     persistCharacter(selectedCharacterId);
     options.onAction(`${CHARACTER_DEFINITIONS[selectedCharacterId].shortName} feels ${expression}!`, "tap");
     emitPlayState();
@@ -1116,6 +1340,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
   };
 
   const switchRoom = (nextRoom: RoomId): void => {
+    options.onInteractionHint?.(null);
     if (nextRoom === activeRoom) {
       options.onAction(`We're already at ${roomNames[nextRoom]}!`);
       return;
@@ -1130,6 +1355,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     current.interaction = "idle";
     activeRoom = nextRoom;
     locationRegistry.activate(nextRoom);
+    interiorFurniture.setActiveRoom(nextRoom);
     current.room = nextRoom;
     const definition = roomDefinitions[activeRoom];
     rig.setBounds(
@@ -1154,35 +1380,16 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
   };
 
   const selectCharacter = (characterId: CharacterId, announce = true): void => {
-    if (characterId === selectedCharacterId) {
-      if (announce) options.onAction(`${CHARACTER_DEFINITIONS[characterId].shortName} is ready to play!`);
+    if (characterId !== "khadija") {
+      if (announce) {
+        options.onAction(
+          `${CHARACTER_DEFINITIONS[characterId].shortName} is part of Khadija's story and can still be moved, seated and given items.`,
+          "tap",
+        );
+      }
       return;
     }
-
-    persistCharacter(selectedCharacterId);
-    playableAnchors[selectedCharacterId].copyFrom(characterRigs[selectedCharacterId].root.position);
-    selectedCharacterId = characterId;
-    characterRigs[characterId].cancelMovement();
-    characterRigs[characterId].lookAt(null);
-    characterRigs[characterId].setExpression(characters[characterId].expression);
-    playableControllers[characterId].action = "idle";
-    playableControllers[characterId].nextDecisionAt = performance.now() + 3200;
-    const current = selectedState();
-    activeRoom = current.room;
-    locationRegistry.activate(activeRoom);
-    const definition = roomDefinitions[activeRoom];
-    selectedRig().setBounds(
-      definition.bounds.minX,
-      definition.bounds.maxX,
-      definition.bounds.minZ,
-      definition.bounds.maxZ,
-    );
-    camera.setTarget(definition.center);
-    applyActiveRoomLighting();
-    updateCharacterVisibility();
-    saveSelectedCharacter(characterId);
-    emitPlayState();
-    if (announce) options.onAction(`Now playing with ${CHARACTER_DEFINITIONS[characterId].shortName}!`);
+    if (announce) options.onAction("Khadija is ready to play!");
   };
 
   camera.setTarget(roomDefinitions[activeRoom].center);
@@ -1216,23 +1423,21 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     fruit.isPickable = false;
   }
 
-  const apple = MeshBuilder.CreateSphere("draggable-apple", { diameter: 0.34, segments: 10 }, scene);
-  apple.position.set(3.2, 1.48, 0.55);
-  apple.material = pink;
+  const apple = createProductionApple(
+    scene,
+    new Vector3(3.2, 1.48, .55),
+    itemMaterials,
+  );
   restoreProp(apple);
-  makeDraggable(apple, 0.18, foodTargets, options.onAction);
+  makeDraggable(apple, .2, foodTargets, options.onAction);
 
-  const cup = MeshBuilder.CreateCylinder("draggable-cup", { diameterTop: 0.34, diameterBottom: 0.3, height: 0.48, tessellation: 14 }, scene);
-  cup.position.set(4.15, 1.45, 0.55);
-  cup.material = sky;
-  const cupHandle = MeshBuilder.CreateTorus("cup-handle", { diameter: 0.3, thickness: 0.07, tessellation: 14 }, scene);
-  cupHandle.position.set(0.19, 0, 0);
-  cupHandle.rotation.y = Math.PI / 2;
-  cupHandle.material = sky;
-  cupHandle.parent = cup;
-  cupHandle.isPickable = false;
+  const cup = createProductionCup(
+    scene,
+    new Vector3(4.15, 1.45, .55),
+    itemMaterials,
+  );
   restoreProp(cup);
-  makeDraggable(cup, 0.24, cupTargets, options.onAction);
+  makeDraggable(cup, .25, cupTargets, options.onAction);
 
   holdables.set("teddy", {
     id: "teddy",
@@ -1345,8 +1550,11 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
 
   const attachItemToCharacter = (item: HoldableItem, characterId: CharacterId): void => {
     item.mesh.parent = characterRigs[characterId].holdAnchor;
-    item.mesh.position.set(0, 0, 0);
-    item.mesh.rotation.set(0, 0, item.id === "book" ? Math.PI / 2 : 0);
+    item.mesh.position.copyFrom(item.holdOffset ?? Vector3.Zero());
+    item.mesh.rotation.copyFrom(
+      item.holdRotation
+        ?? new Vector3(0, 0, item.id === "book" ? Math.PI / 2 : 0),
+    );
     item.mesh.scaling.copyFrom(item.holdScale);
     item.mesh.isPickable = false;
     item.mesh.setEnabled(true);
@@ -1354,8 +1562,11 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
 
   const attachItemToNpc = (item: HoldableItem, npcId: NpcId): void => {
     item.mesh.parent = npcRigs[npcId].holdAnchor;
-    item.mesh.position.set(0, 0, 0);
-    item.mesh.rotation.set(0, 0, item.id === "book" ? Math.PI / 2 : 0);
+    item.mesh.position.copyFrom(item.holdOffset ?? Vector3.Zero());
+    item.mesh.rotation.copyFrom(
+      item.holdRotation
+        ?? new Vector3(0, 0, item.id === "book" ? Math.PI / 2 : 0),
+    );
     item.mesh.scaling.copyFrom(item.holdScale);
     item.mesh.isPickable = false;
     item.mesh.setEnabled(true);
@@ -2109,6 +2320,27 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
 
   syncEverydayVisuals();
 
+  // ART.1B applies data-driven scale, orientation, offsets and footprints after
+  // all locations have registered their holdables. Items without a production
+  // override keep their existing prototype values.
+  for (const [itemId, item] of holdables) {
+    const presentation = presentationFor(itemId);
+    if (!presentation) continue;
+    item.presentation = presentation;
+    item.floorY = presentation.floorY;
+    item.holdScale.set(...presentation.holdScale);
+    item.holdOffset = new Vector3(...presentation.holdOffset);
+    item.holdRotation = new Vector3(...presentation.holdRotation);
+    item.mesh.metadata = {
+      ...item.mesh.metadata,
+      holdType: presentation.holdType,
+      placementFootprint: {
+        width: presentation.footprint[0],
+        depth: presentation.footprint[1],
+      },
+    };
+  }
+
   const restoredItemOwners = new Set<string>();
   for (const characterId of CHARACTER_IDS) {
     const heldItemId = characters[characterId].heldItem;
@@ -2173,6 +2405,10 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     const pointerEvent = pointerInfo.event as PointerEvent;
 
     if (pointerInfo.type === PointerEventTypes.POINTERDOWN) {
+      if (pointerEvent.button !== 0) {
+        holdTap = null;
+        return;
+      }
       const pickedMesh = pointerInfo.pickInfo?.pickedMesh;
       const groceryProduct = pickedMesh?.metadata?.groceryProduct as string | undefined;
       if (groceryProduct && addGroceryProduct(groceryProduct)) {
@@ -2510,6 +2746,16 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       return;
     }
 
+    // Mama is primarily a conversation NPC. A saved gift in her hands must
+    // not turn a normal click into an item hand-over or an unrelated work
+    // action. Clicking Mama opens chat unless Khadija is actively gifting an
+    // item (handled above).
+    if (npcId === "parent" && options.onNpcChat && options.isNpcChatEnabled?.() !== false) {
+      reactNpc(npcId, "happy");
+      options.onNpcChat(npcId);
+      return;
+    }
+
     if (npcState.heldItem) {
       const item = clearNpcItem(npcId);
       if (item) {
@@ -2553,6 +2799,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
 
   scene.onPointerObservable.add((pointerInfo: PointerInfo) => {
     if (pointerInfo.type !== PointerEventTypes.POINTERPICK) return;
+    if ((pointerInfo.event as PointerEvent).button !== 0) return;
     const npcId = pointerInfo.pickInfo?.pickedMesh?.metadata?.npcId as NpcId | undefined;
     if (npcId && NPC_IDS.includes(npcId)) interactWithNpc(npcId);
   });
@@ -2570,6 +2817,10 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     const pickedCharacterId = pointerInfo.pickInfo?.pickedMesh?.metadata?.characterId as CharacterId | undefined;
 
     if (pointerInfo.type === PointerEventTypes.POINTERDOWN) {
+      if (pointerEvent.button !== 0) {
+        characterDrag = null;
+        return;
+      }
       characterDrag = pickedCharacterId
         ? {
             characterId: pickedCharacterId,
@@ -2588,7 +2839,6 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       );
       if (!characterDrag.dragging && distance > 7) {
         characterDrag.dragging = true;
-        selectCharacter(characterDrag.characterId);
         standCharacter(characterDrag.characterId);
       }
       if (!characterDrag.dragging) return;
@@ -2633,8 +2883,16 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
 
     const targetId = completedDrag.characterId;
     const giverId = selectedCharacterId;
-    if (targetId !== giverId && transferHeldItem(giverId, targetId)) {
-      selectCharacter(targetId, false);
+    if (targetId !== giverId) {
+      if (transferHeldItem(giverId, targetId)) {
+        emitPlayState();
+        return;
+      }
+      if (transferHeldItem(targetId, giverId)) {
+        emitPlayState();
+        return;
+      }
+      options.onAction(`${CHARACTER_DEFINITIONS[targetId].shortName} smiles at Khadija.`, "tap");
       return;
     }
     selectCharacter(targetId);
@@ -2643,6 +2901,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
   // Click-to-walk always controls the selected character.
   scene.onPointerObservable.add((pointerInfo: PointerInfo) => {
     if (pointerInfo.type !== PointerEventTypes.POINTERPICK) return;
+    if ((pointerInfo.event as PointerEvent).button !== 0) return;
     if (suppressNextWalkPick) {
       suppressNextWalkPick = false;
       return;
@@ -2767,6 +3026,235 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       friendRig.lookAt(null);
     }, 1150);
   };
+
+  const interactionNames: Record<string, { label: string; hint: string; icon: string }> = {
+    "home-to-bedroom-door": { label: "Khadija's bedroom", hint: "Tap to go to the bedroom", icon: "🚪" },
+    "home-to-street-door": { label: "Neighborhood", hint: "Tap to go outside", icon: "🚪" },
+    "bedroom-to-home-door": { label: "Family home", hint: "Tap to return home", icon: "🚪" },
+    "street-to-home-door": { label: "Family home", hint: "Tap to go inside", icon: "🏠" },
+    "street-to-cafe-door": { label: "Sunny Café", hint: "Tap to enter the café", icon: "☕" },
+    "cafe-to-street-door": { label: "Neighborhood", hint: "Tap to go outside", icon: "🚪" },
+    "street-to-park-gate": { label: "Neighborhood park", hint: "Tap to visit the park", icon: "🌳" },
+    "street-to-grocery-door": { label: "Sunny Basket Grocery", hint: "Tap to visit the shop", icon: "🛒" },
+    "park-exit-door": { label: "Neighborhood", hint: "Tap to leave the park", icon: "🚪" },
+    "grocery-exit-door": { label: "Neighborhood", hint: "Tap to leave the shop", icon: "🚪" },
+    "lamp-shade": { label: "Living-room lamp", hint: "Tap to switch the light", icon: "💡" },
+    "bedroom-lamp-shade": { label: "Bedside lamp", hint: "Tap to switch the light", icon: "💡" },
+    "cafe-counter-bell": { label: "Counter bell", hint: "Tap to ring the bell", icon: "🔔" },
+    "cafe-menu-board": { label: "Café menu", hint: "Tap to hear today's special", icon: "📋" },
+    "cafe-pastry-hotspot": { label: "Pastry display", hint: "Tap to choose a treat", icon: "🧁" },
+    "cafe-drink-hotspot": { label: "Hot drinks", hint: "Tap to order a drink", icon: "☕" },
+    "cafe-seat-hotspot": { label: "Café chair", hint: "Tap to sit down", icon: "🪑" },
+    "sofa-seat-hotspot": { label: "Family sofa", hint: "Tap to sit down", icon: "🛋️" },
+    "bed-hotspot": { label: "Khadija's bed", hint: "Tap to rest or sleep", icon: "🛏️" },
+    "street-bench-hotspot": { label: "Neighborhood bench", hint: "Tap to sit down", icon: "🪑" },
+    "street-scooter-hotspot": { label: "Scooter", hint: "Tap to take a little ride", icon: "🛴" },
+  };
+
+  const everydayLabels: Record<string, { label: string; hint: string; icon: string }> = {
+    toaster: { label: "Toaster", hint: "Bring an ingredient and tap", icon: "🍞" },
+    blender: { label: "Blender", hint: "Bring ingredients and tap", icon: "🥤" },
+    kettle: { label: "Kettle", hint: "Bring a cup or tea and tap", icon: "🫖" },
+    oven: { label: "Oven", hint: "Bring an ingredient and tap", icon: "♨️" },
+    "prep-plate": { label: "Preparation plate", hint: "Place recipe ingredients here", icon: "🍽️" },
+    "mixing-bowl": { label: "Mixing bowl", hint: "Add ingredients for a recipe", icon: "🥣" },
+    "fridge-shelves": { label: "Fridge", hint: "Tap to open the food shelves", icon: "🧊" },
+    "kitchen-drawer": { label: "Kitchen drawer", hint: "Tap to look inside", icon: "🧽" },
+    "kitchen-cupboard": { label: "Kitchen cupboard", hint: "Tap to look inside", icon: "🚪" },
+    "cafe-display": { label: "Café display", hint: "Tap to choose a treat", icon: "🧁" },
+    "return-tray": { label: "Return tray", hint: "Bring used dishes here", icon: "🍽️" },
+    "wash-hands": { label: "Sink", hint: "Tap to wash hands", icon: "🫧" },
+    "brush-teeth": { label: "Toothbrush", hint: "Tap to brush teeth", icon: "🪥" },
+    "bath-time": { label: "Bath", hint: "Tap for bubble-bath play", icon: "🛁" },
+    "use-towel": { label: "Towel", hint: "Tap to get warm and dry", icon: "🧺" },
+    "mirror-smile": { label: "Mirror", hint: "Tap to make a happy face", icon: "🪞" },
+    "wardrobe-shelves": { label: "Wardrobe", hint: "Tap to open the clothes", icon: "👗" },
+    "toy-box": { label: "Toy box", hint: "Tap to look for a toy", icon: "🧸" },
+    "clean-table": { label: "Coffee table", hint: "Bring the sponge and tap to clean", icon: "✨" },
+    "clean-counter": { label: "Kitchen counter", hint: "Bring the sponge and tap to clean", icon: "✨" },
+    "wash-dish": { label: "Kitchen sink", hint: "Bring a dish and tap to wash", icon: "🫧" },
+    "bin-rubbish": { label: "Kitchen bin", hint: "Bring rubbish here", icon: "🗑️" },
+    "tidy-books": { label: "Book shelf", hint: "Bring the book back here", icon: "📚" },
+    "tidy-clothes": { label: "Wardrobe", hint: "Bring folded clothes here", icon: "👕" },
+  };
+
+  const worldActionLabels: Record<string, { label: string; hint: string; icon: string }> = {
+    "grocery-checkout": { label: "Checkout", hint: "Bring your basket and tap", icon: "🛒" },
+    "grocery-stock": { label: "Store shelves", hint: "Tap to restock the shop", icon: "📦" },
+    "park-bench-left": { label: "Park bench", hint: "Tap to sit down", icon: "🪑" },
+    "park-bench-right": { label: "Park bench", hint: "Tap to sit down", icon: "🪑" },
+    "park-picnic": { label: "Picnic blanket", hint: "Tap to enjoy a picnic", icon: "🧺" },
+    "park-slide": { label: "Slide", hint: "Tap to play on the slide", icon: "🛝" },
+    "park-swings": { label: "Swings", hint: "Tap to swing", icon: "🎠" },
+    "park-sandbox": { label: "Sandbox", hint: "Tap to build a sandcastle", icon: "🏖️" },
+    "park-fountain": { label: "Drinking fountain", hint: "Tap for a cool drink", icon: "⛲" },
+    "park-bin": { label: "Park bin", hint: "Bring rubbish here", icon: "🗑️" },
+    "park-sign": { label: "Park sign", hint: "Tap to read the park message", icon: "🪧" },
+    "park-flowers": { label: "Flower bed", hint: "Bring the watering can", icon: "🌷" },
+    "park-birds": { label: "Friendly birds", hint: "Bring a little fruit or bread", icon: "🐦" },
+  };
+
+  // Add readable interaction names without replacing any existing metadata or
+  // action managers. The label system is informational only.
+  for (const mesh of scene.meshes) {
+    const metadata = mesh.metadata as Record<string, unknown> | null | undefined;
+    const holdableId = metadata?.holdableId as string | undefined;
+    const npcId = metadata?.npcId as NpcId | undefined;
+    const characterId = metadata?.characterId as CharacterId | undefined;
+    const everydayId = metadata?.everydayTarget as string | undefined;
+    const worldAction = metadata?.world3Action as string | undefined;
+    const groceryProduct = metadata?.groceryProduct as string | undefined;
+    const outfit = metadata?.outfit as OutfitId | undefined;
+
+    if (holdableId) {
+      const held = holdables.get(holdableId);
+      setInteraction(mesh, {
+        label: held?.label ?? humanizeInteractionId(holdableId),
+        hint: groceryProduct ? "Pick up or add to the shopping basket" : "Pick up or drag to a new place",
+        icon: held?.gesture === "eat" ? "🍎" : held?.gesture === "drink" ? "🥤" : held?.gesture === "read" ? "📖" : "🧸",
+        room: metadata?.room as RoomId | undefined,
+      });
+      continue;
+    }
+
+    if (npcId && NPC_IDS.includes(npcId)) {
+      setInteraction(mesh, {
+        label: NPC_DEFINITIONS[npcId].displayName,
+        hint: "Talk, give a gift, or receive an item",
+        icon: npcId === "parent" ? "💬" : "👋",
+        room: NPC_DEFINITIONS[npcId].homeLocation,
+      });
+      continue;
+    }
+
+    if (characterId && characterId !== "khadija") {
+      setInteraction(mesh, {
+        label: CHARACTER_DEFINITIONS[characterId].shortName,
+        hint: "Tap to play together, or drag to move",
+        icon: characterId === "sister" ? "🧒" : "👦",
+        room: characters[characterId].room,
+      });
+      continue;
+    }
+
+    if (everydayId) {
+      const definition = everydayLabels[everydayId] ?? {
+        label: humanizeInteractionId(everydayId),
+        hint: "Tap to use",
+        icon: "✨",
+      };
+      setInteraction(mesh, { ...definition, room: metadata?.room as RoomId | undefined });
+      continue;
+    }
+
+    if (worldAction) {
+      const definition = worldActionLabels[worldAction] ?? {
+        label: humanizeInteractionId(worldAction),
+        hint: "Tap to play",
+        icon: "✨",
+      };
+      setInteraction(mesh, { ...definition, room: metadata?.room as RoomId | undefined });
+      continue;
+    }
+
+    if (groceryProduct) {
+      setInteraction(mesh, {
+        label: humanizeInteractionId(groceryProduct),
+        hint: "Pick up or add to the shopping basket",
+        icon: "🛒",
+        room: "grocery",
+      });
+      continue;
+    }
+
+    if (outfit) {
+      setInteraction(mesh, {
+        label: `${humanizeInteractionId(outfit)} outfit`,
+        hint: "Tap to change Khadija's clothes",
+        icon: "👗",
+        room: "home",
+      });
+      continue;
+    }
+
+    const named = interactionNames[mesh.name];
+    if (named) {
+      setInteraction(mesh, { ...named, room: metadata?.room as RoomId | undefined });
+      continue;
+    }
+
+    if (mesh.actionManager) {
+      const cleanedName = humanizeInteractionId(mesh.name)
+        .replace(/\bHotspot\b/gi, "")
+        .replace(/\bWorld3\b/gi, "")
+        .replace(/\bDraggable\b/gi, "")
+        .trim();
+      setInteraction(mesh, {
+        label: cleanedName || "Interactive object",
+        hint: "Tap to interact",
+        icon: "✨",
+        room: metadata?.room as RoomId | undefined,
+      });
+    }
+  }
+
+  let interactionHintTimer = 0;
+  let lastInteractionHint = "";
+  const clearInteractionHint = (): void => {
+    window.clearTimeout(interactionHintTimer);
+    lastInteractionHint = "";
+    options.onInteractionHint?.(null);
+  };
+  const showInteractionHint = (
+    descriptor: InteractionDescriptor,
+    pointerEvent: PointerEvent,
+    temporary: boolean,
+  ): void => {
+    if (descriptor.room && descriptor.room !== activeRoom) {
+      clearInteractionHint();
+      return;
+    }
+    const key = `${descriptor.label}|${descriptor.hint}`;
+    if (key !== lastInteractionHint || temporary) {
+      options.onInteractionHint?.({
+        ...descriptor,
+        x: pointerEvent.clientX,
+        y: pointerEvent.clientY,
+      });
+      lastInteractionHint = key;
+    } else {
+      options.onInteractionHint?.({
+        ...descriptor,
+        x: pointerEvent.clientX,
+        y: pointerEvent.clientY,
+      });
+    }
+    if (temporary) {
+      window.clearTimeout(interactionHintTimer);
+      interactionHintTimer = window.setTimeout(clearInteractionHint, 1700);
+    }
+  };
+
+  scene.onPointerObservable.add((pointerInfo: PointerInfo) => {
+    if (
+      pointerInfo.type !== PointerEventTypes.POINTERMOVE
+      && pointerInfo.type !== PointerEventTypes.POINTERDOWN
+    ) return;
+    const pointerEvent = pointerInfo.event as PointerEvent;
+    const descriptor = interactionFromNode(pointerInfo.pickInfo?.pickedMesh ?? null);
+    if (!descriptor) {
+      if (pointerInfo.type === PointerEventTypes.POINTERMOVE) clearInteractionHint();
+      return;
+    }
+    const isTouch = pointerEvent.pointerType === "touch";
+    if (pointerInfo.type === PointerEventTypes.POINTERMOVE && isTouch) return;
+    showInteractionHint(descriptor, pointerEvent, isTouch || pointerInfo.type === PointerEventTypes.POINTERDOWN);
+  });
+
+  if (renderingCanvas) {
+    renderingCanvas.addEventListener("pointerleave", clearInteractionHint);
+    disposables.add(() => renderingCanvas.removeEventListener("pointerleave", clearInteractionHint));
+  }
 
   const nearestCompanionPosition = (
     room: RoomId,
@@ -2906,9 +3394,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
         && characters[characterId].room === activeRoom
       ) {
         window.setTimeout(() => {
-          if (characterId !== selectedCharacterId && livingSettings.smallMovements) {
-            rig.setTarget(anchor);
-          }
+          if (livingSettings.smallMovements) rig.setTarget(anchor);
         }, 650 + controller.seed * 90);
       }
     });
@@ -3081,9 +3567,42 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       characterRigs[characterId].update(deltaSeconds);
     }
 
+    const khadijaMoving = hasMovementInput || selectedRig().isMoving();
+    if (!khadijaMoving && selectedState().interaction === "walking") {
+      selectedState().interaction = "idle";
+    }
+    khadijaProductionVisual.update(
+      khadijaMoving,
+      selectedState().activity,
+      selectedState().interaction,
+      Boolean(selectedState().heldItem),
+    );
+
+    for (const characterId of COMPANION_CHARACTER_IDS) {
+      const productionVisual = characterProductionVisuals[characterId];
+      const state = characters[characterId];
+      if (!productionVisual || state.room !== activeRoom) continue;
+      const moving = characterRigs[characterId].isMoving();
+      productionVisual.update(
+        moving,
+        state.activity,
+        moving ? "walking" : state.interaction,
+        Boolean(state.heldItem),
+      );
+    }
+
     for (const npcId of NPC_IDS) {
       if (npcStates[npcId].room !== activeRoom) continue;
       npcRigs[npcId].update(deltaSeconds);
+      const productionVisual = npcProductionVisuals[npcId];
+      if (!productionVisual) continue;
+      const moving = npcRigs[npcId].isMoving();
+      productionVisual.update(
+        moving,
+        "standing",
+        moving ? "walking" : "idle",
+        Boolean(npcStates[npcId].heldItem),
+      );
     }
 
     if (!livingSettings.idleAnimations) return;
@@ -3118,6 +3637,12 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     sun.intensity = enhancedLighting ? 0.58 : 0.35;
     applyActiveRoomLighting();
     for (const mesh of detailMeshes) mesh.setEnabled(settings.decorativeDetails);
+    interiorFurniture.setQualityEnabled(settings.decorativeDetails);
+    // High-detail Meshy hero characters remain disabled on Low. Procedural
+    // companions and world NPCs remain available on every quality preset.
+    mediumHighProductionEnabled = settings.adaptive
+      || settings.hardwareScalingLevel < 1.6;
+    refreshProductionVisualLoading();
   };
 
   const setLivingSettings = (settings: LivingSettings): void => {
@@ -3137,11 +3662,10 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     activeNpcs: number;
     decisions: number;
   } => ({
-    activePlayable: livingSettings.idleAnimations
-      ? CHARACTER_IDS.filter((id) => id !== selectedCharacterId && characters[id].room === activeRoom).length
-      : 0,
+    activePlayable: 0,
     activeNpcs: livingSettings.idleAnimations
-      ? NPC_IDS.filter((id) => npcStates[id].room === activeRoom).length
+      ? COMPANION_CHARACTER_IDS.filter((id) => characters[id].room === activeRoom).length
+        + NPC_IDS.filter((id) => npcStates[id].room === activeRoom).length
       : 0,
     decisions: [
       ...Object.values(playableControllers),
@@ -3184,7 +3708,14 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     getDialogueContext,
     getLivingDebugState,
     dispose: () => {
+      for (const productionVisual of Object.values(characterProductionVisuals)) {
+        productionVisual?.dispose();
+      }
+      for (const productionVisual of Object.values(npcProductionVisuals)) {
+        productionVisual?.dispose();
+      }
       disposables.dispose();
+      interiorFurniture.dispose();
       locationRegistry.dispose();
       scene.dispose();
     },

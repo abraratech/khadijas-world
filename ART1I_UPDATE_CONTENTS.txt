@@ -1,0 +1,50 @@
+Khadija's World — ART.1I Cafe and Grocery Quality Pass
+
+Apply over: C:\Projects\khadijas-world
+Base expected: latest ART.1H bedroom package.
+Do not extract into the WAMP deployment directory.
+
+Included:
+- Dedicated High-quality Sunny Cafe visual layer
+- Dedicated High-quality Sunny Basket Grocery visual layer
+- Layered commercial fixtures, stock, signage, lighting, and contact depth
+- Restrained cafe steam, grocery mist, sign movement, and light pulses
+- Existing products, seats, exits, hotspots, NPCs, dialogue, and saves preserved
+- Twelve source-only commercial candidates from the uploaded Blend pack
+- Optional local Blender batch-export helper; no third-party furniture active
+- Production roadmap advanced to ART.1I
+
+Changed/new files: 21
+- ASSET_CREDITS.md
+- CHANGELOG.md
+- README.md
+- RELEASE_NOTES.md
+- THIRD_PARTY_NOTICES.md
+- docs/ART1I_APPLY.md
+- docs/ART1I_COMMERCIAL_ART_DIRECTION.md
+- docs/ART1I_GENERATION_REPORT.md
+- docs/ART1I_INTERIOR_PACK_WORKFLOW.md
+- docs/INTERIOR_PACK_INVENTORY.md
+- docs/PRODUCTION_ROADMAP.md
+- index.html
+- package-lock.json
+- package.json
+- scripts/export-interior-commercial.ps1
+- src/game/assets/interiorPackCatalog.test.ts
+- src/game/assets/interiorPackCatalog.ts
+- src/game/locations/cafe/applyCafeHighPolish.ts
+- src/game/locations/grocery/applyGroceryHighPolish.ts
+- src/game/locations/shared/applyWorldArtPolish.ts
+- src/game/release.ts
+
+Files to delete: 0
+
+Run locally:
+- npm install
+- npm run validate:assets
+- npm test
+- npm run build
+- npm run deploy:wamp
+
+See docs/ART1I_APPLY.md, docs/ART1I_COMMERCIAL_ART_DIRECTION.md,
+docs/ART1I_INTERIOR_PACK_WORKFLOW.md, and docs/PRODUCTION_ROADMAP.md.

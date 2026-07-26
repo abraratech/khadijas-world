@@ -97,7 +97,14 @@ export class DialogueController {
     const entities = recognizeEntities(text);
     const intent = profile.allowedIntents.includes(match.intent) ? match.intent : "unknown";
     const memory = this.memory.get(context.npcId);
-    const templates = DIALOGUE_TEMPLATES[intent] ?? profile.fallbackResponses;
+    // "unknown" intentionally bypasses DIALOGUE_TEMPLATES: every NPC profile already
+    // defines its own personality-flavored fallbackResponses (park-keeper mentions
+    // flowers/birds, cafe-worker mentions treats, etc). DIALOGUE_TEMPLATES.unknown
+    // used to win this lookup unconditionally, so every NPC said the exact same
+    // generic line instead of their own. This keeps the per-NPC flavor.
+    const templates = intent === "unknown"
+      ? profile.fallbackResponses
+      : (DIALOGUE_TEMPLATES[intent] ?? profile.fallbackResponses);
     const templateIndex = (
       memory.recentConversation.length + memory.friendship + entities.length
     ) % templates.length;
@@ -164,4 +171,3 @@ export class DialogueController {
     return "I don't have a special memory yet. We can make one by helping or playing together!";
   }
 }
-

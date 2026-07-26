@@ -29,6 +29,8 @@ describe("graphics presets", () => {
     expect(QUALITY_SETTINGS.low.hardwareScalingLevel).toBeGreaterThan(1);
     expect(QUALITY_SETTINGS.low.decorativeDetails).toBe(false);
     expect(QUALITY_SETTINGS.adaptive.adaptive).toBe(true);
+    expect(QUALITY_SETTINGS.adaptive.decorativeDetails).toBe(false);
     expect(QUALITY_SETTINGS.balanced.enhancedLighting).toBe(true);
+    expect(QUALITY_SETTINGS.balanced.decorativeDetails).toBe(true);
   });
 });

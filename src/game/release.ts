@@ -1,7 +1,7 @@
 export const RELEASE_INFO = {
   title: "Khadija's World",
-  version: "0.1.0",
-  build: "release-1",
+  version: "0.1.18",
+  build: "art-1k-a-selective-interiors",
   channel: "public",
   copyright: "© 2026 Khadija's World. All rights reserved.",
   productionPath: "/khadijas-world/",

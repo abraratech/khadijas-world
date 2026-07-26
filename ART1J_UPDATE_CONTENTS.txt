@@ -1,0 +1,43 @@
+Khadija's World — ART.1J Neighborhood and Park Quality Pass
+
+Apply over: C:\Projects\khadijas-world
+Base expected: latest ART.1I package.
+Do not extract into the WAMP deployment directory.
+
+Included:
+- Dedicated High-quality Neighborhood visual layer
+- Dedicated High-quality Park visual layer
+- Finished facades, doors, windows, awning, paving, curbs, gardens, lamps, and wayfinding
+- Layered park planting, paths, benches, picnic, playground, pond, fountain, birds, and signs
+- Restrained leaves, flowers, awning, signs, bunting, swings, water, and lily-pad motion
+- Existing travel, mailbox, scooter, activities, NPCs, dialogue, movement, and saves preserved
+- No third-party exterior runtime assets activated
+- Production roadmap advanced to ART.1J
+
+Changed/new files: 14
+- CHANGELOG.md
+- README.md
+- RELEASE_NOTES.md
+- docs/ART1J_APPLY.md
+- docs/ART1J_EXTERIOR_ART_DIRECTION.md
+- docs/ART1J_GENERATION_REPORT.md
+- docs/PRODUCTION_ROADMAP.md
+- index.html
+- package-lock.json
+- package.json
+- src/game/locations/park/applyParkHighPolish.ts
+- src/game/locations/shared/applyWorldArtPolish.ts
+- src/game/locations/street/applyStreetHighPolish.ts
+- src/game/release.ts
+
+Files to delete: 0
+
+Run locally:
+- npm install
+- npm run validate:assets
+- npm test
+- npm run build
+- npm run deploy:wamp
+
+See docs/ART1J_APPLY.md, docs/ART1J_EXTERIOR_ART_DIRECTION.md,
+docs/ART1J_GENERATION_REPORT.md, and docs/PRODUCTION_ROADMAP.md.

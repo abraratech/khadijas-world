@@ -1,0 +1,50 @@
+Khadija's World — ART.1K Readability Foundation
+
+Apply over: C:\Projects\khadijas-world
+Base expected: latest ART.1J package.
+Do not extract into the WAMP deployment directory.
+
+Included:
+- Removed Khadija's obsolete in-world selection ring
+- Mouse-hover and touch context labels for interactive objects
+- Parent-node label resolution for multi-mesh characters and props
+- High-quality play-set plaques for ambiguous room and shop areas
+- Appliance controls and handles for improved silhouette readability
+- Updated help text, roadmap, charter, release notes, and tests
+- Existing actions, stable IDs, collisions, dialogue, and saves preserved
+
+Changed/new files: 22
+- CHANGELOG.md
+- README.md
+- RELEASE_NOTES.md
+- docs/ART1K_APPLY.md
+- docs/ART1K_GENERATION_REPORT.md
+- docs/ART1K_READABILITY_FOUNDATION.md
+- docs/PRODUCTION_ROADMAP.md
+- docs/PROJECT_CHARTER.md
+- index.html
+- package-lock.json
+- package.json
+- src/game/assets/productionCharacterVisual.ts
+- src/game/characters/createCharacterVisual.ts
+- src/game/readability/applyWorldReadabilityPass.ts
+- src/game/readability/createWorldPlaque.ts
+- src/game/readability/interactionReadability.test.ts
+- src/game/readability/interactionReadability.ts
+- src/game/release.ts
+- src/game/world/WorldContext.ts
+- src/game/world/createWorldRuntime.ts
+- src/main.ts
+- src/styles.css
+
+Files to delete: 0
+
+Run locally:
+- npm install
+- npm run validate:assets
+- npm test
+- npm run build
+- npm run deploy:wamp
+
+See docs/ART1K_APPLY.md, docs/ART1K_READABILITY_FOUNDATION.md,
+docs/ART1K_GENERATION_REPORT.md, and docs/PRODUCTION_ROADMAP.md.

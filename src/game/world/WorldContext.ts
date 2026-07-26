@@ -7,6 +7,7 @@ import type {
 import type { LivingSettings, NpcId } from "../livingCharacters";
 import type { NpcWorldMemoryEvent } from "../npc/NpcMemoryStore";
 import type { OutfitId, RoomId } from "../storage";
+import type { InteractionHint } from "../readability/interactionReadability";
 
 export type InteractionSound =
   | "tap"
@@ -80,4 +81,5 @@ export interface RoomOptions {
   onNpcChat?(npcId: NpcId): void;
   isNpcChatEnabled?(): boolean;
   onNpcMemoryEvent?(event: NpcWorldMemoryEvent): void;
+  onInteractionHint?(hint: InteractionHint | null): void;
 }

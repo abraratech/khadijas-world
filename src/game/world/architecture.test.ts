@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { CHARACTER_IDS } from "../characterState";
+import { CHARACTER_IDS, COMPANION_CHARACTER_IDS, PLAYABLE_CHARACTER_IDS } from "../characterState";
 import { CHARACTER_VISUAL_SEMANTIC_KEYS } from "../characters/createCharacterVisual";
 import { WORLD_MATERIAL_KEYS } from "../shared/createMaterials";
 import { DisposableBag } from "../shared/interactionHelpers";
@@ -86,6 +86,8 @@ describe("modular world contracts", () => {
       "grocery",
     ]);
     expect(CHARACTER_IDS).toEqual(["khadija", "sister", "brother"]);
+    expect(PLAYABLE_CHARACTER_IDS).toEqual(["khadija"]);
+    expect(COMPANION_CHARACTER_IDS).toEqual(["sister", "brother"]);
   });
 
   it("runs listener cleanup in reverse order only once", () => {

@@ -1,0 +1,32 @@
+Khadija's World ART.1A single-character update
+
+Extract over C:\Projects\khadijas-world (not the WAMP www folder).
+Then follow docs/ART1A_APPLY.md.
+
+Changed or added files:
+- .gitignore
+- ASSET_CREDITS.md
+- CHANGELOG.md
+- README.md
+- RELEASE_NOTES.md
+- THIRD_PARTY_NOTICES.md
+- art/ASSET_MANIFEST.json
+- docs/ARCHITECTURE.md
+- docs/ART1A_APPLY.md
+- docs/ART1A_GENERATION_REPORT.md
+- docs/ART1A_SINGLE_CHARACTER.md
+- docs/REGRESSION_CHECKLIST.md
+- index.html
+- package-lock.json
+- package.json
+- public/assets/characters/khadija/khadija-v1.glb
+- scripts/validate-assets.mjs
+- src/game/assets/characterAssets.test.ts
+- src/game/assets/characterAssets.ts
+- src/game/assets/productionCharacterVisual.ts
+- src/game/characterState.ts
+- src/game/release.ts
+- src/game/storage.ts
+- src/game/storageRelease.test.ts
+- src/game/world/architecture.test.ts
+- src/game/world/createWorldRuntime.ts

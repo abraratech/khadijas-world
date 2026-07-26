@@ -89,7 +89,9 @@ export const NPC_DEFINITIONS: Record<NpcId, NpcDefinition> = {
     ],
     workStation: "home-reading-corner",
     seatId: "home-sofa-2",
-    scale: 1.02,
+    // Slightly taller than the other procedural adults so Mama reads clearly
+    // as the family's adult guardian beside Khadija.
+    scale: 1.08,
   },
   neighbor: {
     id: "neighbor",

@@ -358,28 +358,12 @@ export function createCharacterVisual(
   holdAnchor.position.set(0, -0.53, -0.17);
   holdAnchor.parent = rightArm;
 
-  const selectionMaterial = createMaterial(
-    scene,
-    `${name}-selection-mat`,
-    WORLD_COLORS.yellow,
-    new Color3(.3, .18, .02),
-  );
-  const selectionRing = MeshBuilder.CreateTorus(
-    `${name}-selection-ring`,
-    { diameter: 1.18, thickness: .08, tessellation: 24 },
-    scene,
-  );
-  selectionRing.rotation.x = Math.PI / 2;
-  selectionRing.position.y = .035;
-  selectionRing.material = selectionMaterial;
-  selectionRing.parent = root;
-  selectionRing.isPickable = false;
-  selectionRing.setEnabled(false);
+  // Khadija is the sole playable character, so a permanent selection ring no
+  // longer communicates a meaningful choice. Character identity is conveyed by
+  // the HUD and direct interaction labels instead.
   if (characterId) {
     for (const childMesh of root.getChildMeshes()) {
-      if (childMesh !== selectionRing) {
-        childMesh.metadata = { ...childMesh.metadata, characterId };
-      }
+      childMesh.metadata = { ...childMesh.metadata, characterId };
     }
   }
 
@@ -629,8 +613,8 @@ export function createCharacterVisual(
       expression = nextExpression;
       applyExpression();
     },
-    setSelected(selected: boolean): void {
-      selectionRing.setEnabled(selected);
+    setSelected(_selected: boolean): void {
+      // Intentionally empty: Khadija is the only playable character.
     },
     setVisible(visible: boolean): void {
       root.setEnabled(visible);

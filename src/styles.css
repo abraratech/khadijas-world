@@ -1,7 +1,7 @@
 :root {
   font-family: ui-rounded, "Trebuchet MS", "Arial Rounded MT Bold", system-ui, sans-serif;
   color: #35234f;
-  background: #c7b5e5;
+  background: #c7dee8;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   --purple: #7146b3;
@@ -26,7 +26,7 @@ body,
   overflow: hidden;
 }
 
-body { background: #c7b5e5; }
+body { background: #c7dee8; }
 
 button,
 fieldset {
@@ -68,6 +68,7 @@ button:disabled {
 #app {
   position: relative;
   isolation: isolate;
+  background: #c7dee8;
 }
 
 .loading-screen,
@@ -397,11 +398,82 @@ button:disabled {
   display: block;
   touch-action: none;
   outline: none;
-  transition: filter .28s ease, transform .28s ease;
+  clip-path: inset(
+    var(--dollhouse-mask-top, 0%)
+    var(--dollhouse-mask-right, 0%)
+    var(--dollhouse-mask-bottom, 0%)
+    var(--dollhouse-mask-left, 0%)
+  );
+  transition: filter .28s ease, transform .28s ease, clip-path .18s ease;
 }
 
 .is-chat-open #game-canvas {
   pointer-events: none;
+}
+
+.interaction-label {
+  position: fixed;
+  z-index: 24;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-width: 154px;
+  max-width: min(260px, calc(100vw - 24px));
+  padding: 8px 11px 8px 8px;
+  border: 3px solid rgba(255, 255, 255, .96);
+  border-radius: 17px;
+  color: #4d355c;
+  background: linear-gradient(145deg, rgba(255, 252, 240, .98), rgba(244, 231, 255, .98));
+  box-shadow: 0 10px 28px rgba(58, 35, 78, .24), 0 3px 0 rgba(111, 71, 151, .12);
+  pointer-events: none;
+  transform: translate(14px, 16px);
+  animation: interaction-label-in .13s ease-out;
+}
+
+.interaction-label-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 13px;
+  color: #5c3b78;
+  background: linear-gradient(145deg, #ffe07a, #ffbd69);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .78);
+  font-size: 1.25rem;
+}
+
+.interaction-label-copy {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.interaction-label-copy strong {
+  overflow: hidden;
+  font-size: .82rem;
+  font-weight: 1000;
+  line-height: 1.08;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.interaction-label-copy small {
+  color: #786a82;
+  font-size: .66rem;
+  font-weight: 850;
+  line-height: 1.15;
+}
+
+.is-high-contrast .interaction-label {
+  border-color: #2b174a;
+  color: #241135;
+  background: #fffdf4;
+}
+
+@keyframes interaction-label-in {
+  from { opacity: 0; transform: translate(14px, 20px) scale(.96); }
+  to { opacity: 1; transform: translate(14px, 16px) scale(1); }
 }
 
 .top-bar {

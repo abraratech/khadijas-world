@@ -1,0 +1,45 @@
+Khadija's World — ART.1B Home and Playable Item Polish
+
+Apply over:
+C:\Projects\khadijas-world
+
+Do not extract into the WAMP deployment directory.
+
+Changed/new files: 26
+- ASSET_CREDITS.md
+- CHANGELOG.md
+- README.md
+- RELEASE_NOTES.md
+- THIRD_PARTY_NOTICES.md
+- art/ASSET_MANIFEST.json
+- docs/ARCHITECTURE.md
+- docs/ART1A_OUTFIT_HOTFIX.md
+- docs/ART1B_APPLY.md
+- docs/ART1B_GENERATION_REPORT.md
+- docs/ART1B_HOME_AND_ITEMS.md
+- docs/REGRESSION_CHECKLIST.md
+- package-lock.json
+- package.json
+- public/assets/characters/khadija/outfits/khadija-pink.webp
+- public/assets/characters/khadija/outfits/khadija-teal.webp
+- public/assets/characters/khadija/outfits/khadija-yellow.webp
+- src/game/assets/characterAssets.test.ts
+- src/game/assets/characterAssets.ts
+- src/game/assets/productionCharacterVisual.ts
+- src/game/items/productionItemVisuals.test.ts
+- src/game/items/productionItemVisuals.ts
+- src/game/locations/familyHome/buildFamilyHome.ts
+- src/game/locations/familyHome/homeVisualHelpers.ts
+- src/game/release.ts
+- src/game/world/createWorldRuntime.ts
+
+Files to delete: none
+
+Required local validation:
+- npm install
+- npm run validate:assets
+- npm test
+- npm run build
+- npm run deploy:wamp
+
+See docs/ART1B_APPLY.md and docs/ART1B_HOME_AND_ITEMS.md.

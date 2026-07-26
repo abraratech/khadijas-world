@@ -1,0 +1,52 @@
+Khadija's World — ART.1E Hero Procedural Cast, Dialogue, and Scene Polish
+
+Apply over: C:\Projects\khadijas-world
+Do not extract into the WAMP deployment directory.
+
+Included:
+- Project-owner DialogueController full replacement
+- Project-owner IntentRecognizer full replacement
+- Project-owner NPC dialogue profile full replacement
+- Hero-style procedural Little Sister, Brother, and world NPC cast
+- Quaternius runtime visuals disabled; Khadija and Mama remain active GLBs
+- Layered faces, eyes, hair, clothing, accessories, and shoes
+- Decorative polish for home, bedroom, street, cafe, park, and grocery
+- Stable gameplay, dialogue-memory, relationship, and save IDs preserved
+
+Changed/new files: 25
+- ASSET_CREDITS.md
+- CHANGELOG.md
+- README.md
+- RELEASE_NOTES.md
+- docs/ART1E_APPLY.md
+- docs/ART1E_DIALOGUE_UPDATE.md
+- docs/ART1E_GENERATION_REPORT.md
+- docs/ART1E_HERO_PROCEDURAL_CAST.md
+- docs/ART1E_SCENE_POLISH.md
+- index.html
+- package-lock.json
+- package.json
+- src/game/assets/characterAssets.test.ts
+- src/game/assets/characterAssets.ts
+- src/game/characters/applyHeroCharacterPolish.ts
+- src/game/characters/heroCharacterProfiles.test.ts
+- src/game/characters/heroCharacterProfiles.ts
+- src/game/content/dialogue/npcProfiles.ts
+- src/game/dialogue/DialogueController.ts
+- src/game/dialogue/IntentRecognizer.ts
+- src/game/dialogue/dialogue.test.ts
+- src/game/locations/shared/applyWorldArtPolish.ts
+- src/game/release.ts
+- src/game/shared/createMaterials.ts
+- src/game/world/createWorldRuntime.ts
+
+Files to delete: 0
+
+Required local validation:
+- npm install
+- npm run validate:assets
+- npm test
+- npm run build
+- npm run deploy:wamp
+
+See docs/ART1E_APPLY.md and docs/ART1E_GENERATION_REPORT.md.

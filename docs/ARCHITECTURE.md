@@ -5,7 +5,7 @@
 `src/game/createPrototypeRoom.ts` remains the stable public entry point. It
 delegates to `src/game/world/createWorld.ts`, the small world coordinator. The
 coordinator calls `createWorldRuntime`, which owns only the cross-location
-systems that must share state: transitions, playable and NPC registries,
+systems that must share state: transitions, player/companion and NPC registries,
 holding/hand-offs, recipes, storage, autonomy, camera, lighting, save callbacks,
 and quality controls.
 
@@ -68,10 +68,17 @@ pre-refactor implementation. Location builders receive that registry rather
 than recreating shared materials.
 
 `shared/meshHelpers.ts` owns standard box/cylinder construction, blob shadows,
-and rotation animation. `shared/placementHelpers.ts` owns snap targets and drag
-placement. `shared/interactionHelpers.ts` owns reusable pick registration and
-callback disposal. `shared/interactionSlotRegistry.ts` supplies pure exclusive
-slot behavior.
+and rotation animation. `locations/familyHome/homeVisualHelpers.ts` adds the
+single-mesh rounded-cuboid and home-only soft-detail helpers used by ART.1B.
+`shared/placementHelpers.ts` owns snap targets and drag placement.
+`shared/interactionHelpers.ts` owns reusable pick registration and callback
+disposal. `shared/interactionSlotRegistry.ts` supplies pure exclusive slot
+behavior.
+
+`items/productionItemVisuals.ts` owns lightweight hero-item construction plus
+the data-driven hold presentation registry. Gameplay continues to use stable
+item IDs while visual scale, offset, rotation, footprint, and hold type are
+resolved from this module.
 
 ## Character-visual contract
 
@@ -85,7 +92,25 @@ anchor. Shared gameplay uses the rig API and semantic references rather than
 discovering raw primitive names.
 
 Existing character IDs (`khadija`, `sister`, `brother`), outfits, expressions,
-movement, animation behavior, and save data are unchanged.
+movement, animation behavior, and save data remain stable. Khadija is the only
+playable ID; sister and brother are persistent companions that reuse the existing
+logical rig and save-compatible state.
+
+## Production character asset layer
+
+`assets/characterAssets.ts` is the typed manifest-facing registry for production
+character files. `assets/productionCharacterVisual.ts` loads the Meshy GLB,
+parents it to Khadija's existing authoritative gameplay root, maps semantic walk
+and run actions, and toggles it against the procedural visual. Pink, teal, and yellow variants
+swap optimized textures on the imported PBR material without replacing the
+model. The procedural rig continues to own movement, bounds, item anchors,
+selection, seating, sleeping, state restoration, and unsupported specialist
+poses.
+
+Asset URLs resolve from `document.baseURI`, preserving both the Vite root and the
+WAMP `/khadijas-world/` subpath. A load or animation failure is non-fatal and
+restores the procedural model. Production assets are validated by
+`scripts/validate-assets.mjs` against `art/ASSET_MANIFEST.json`.
 
 ## Adding a location
 
@@ -142,3 +167,21 @@ large-chunk advisory remains unchanged; no new build warning was introduced.
 Measured physical-device FPS and long-session heap profiling remain part of the
 hardware regression checklist. This mechanical refactor does not add assets,
 network requests, render loops, save fields, or gameplay systems.
+
+## ART.1D production character loading
+
+Production character artwork is registered in
+`src/game/assets/characterAssets.ts` and attached to the existing procedural
+`CharacterRig` roots through `createProductionCharacterVisual`.
+
+The ART.1D loading policy is location-aware:
+
+- hero home assets may start during title-screen world construction
+- Brother loads when his saved room is active
+- world NPCs load on the first visit to their own location
+- loaded visuals remain attached and cached for return visits
+- a missing/failed asset keeps the procedural visual active
+
+The logical character/NPC root remains authoritative for movement, bounds,
+click metadata, held items, save state, dialogue, and relationships. GLBs are a
+replaceable visible layer, not gameplay state.
