@@ -13,3 +13,7 @@ Thumbs.db
 *.bak
 art/**/renders/
 art/**/previews/
+# QA.1 browser acceptance artifacts
+test-results/
+playwright-report/
+blob-report/

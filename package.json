@@ -12,13 +12,21 @@
     "deploy:wamp": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-wamp.ps1",
     "validate:assets": "node scripts/validate-assets.mjs",
     "check:bundle": "node scripts/check-bundle-size.mjs",
-    "build:verified": "npm run build && npm run check:bundle"
+    "build:verified": "npm run build && npm run check:bundle",
+    "check:qa": "tsc --noEmit -p tsconfig.qa.json",
+    "qa:install": "playwright install chromium",
+    "qa:browser": "playwright test",
+    "qa:browser:headed": "playwright test --headed",
+    "qa:browser:ui": "playwright test --ui",
+    "qa:verified": "npm run validate:assets && npm run check && npm test && npm run check:qa && npm run qa:browser && npm run check:bundle"
   },
   "dependencies": {
     "@babylonjs/core": "9.18.0",
     "@babylonjs/loaders": "9.18.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.61.1",
+    "@types/node": "^26.1.2",
     "typescript": "^5.9.2",
     "vite": "8.1.5",
     "vitest": "^4.1.10"
