@@ -90,9 +90,11 @@ describe("release world saves", () => {
     expect(migrated).toMatchObject({
       version: 12,
       activeRoom: "park",
-      selectedCharacter: "sister",
+      selectedCharacter: "khadija",
       release: { firstLaunchComplete: true },
     });
+    expect(migrated.characters.khadija.room).toBe("park");
+    expect(migrated.characters.sister.room).toBe("park");
     expect(localStorage.getItem("khadijas-world:world-2:pre-migration")).not.toBeNull();
   });
 
@@ -114,7 +116,8 @@ describe("release world saves", () => {
     const raw = JSON.stringify(imported);
     expect(previewWorldSaveImport(raw)).toMatchObject({ accepted: true, schemaVersion: 12 });
     expect(importWorldSave(raw).accepted).toBe(true);
-    expect(loadSave()).toMatchObject({ activeRoom: "grocery", selectedCharacter: "brother" });
+    expect(loadSave()).toMatchObject({ activeRoom: "grocery", selectedCharacter: "khadija" });
+    expect(loadSave().characters.brother.room).toBe("grocery");
     expect(localStorage.getItem("khadijas-world:world-2:backup")).not.toBeNull();
     const exported = exportWorldSave();
     expect(JSON.parse(exported)).toMatchObject({ version: 12, activeRoom: "grocery" });

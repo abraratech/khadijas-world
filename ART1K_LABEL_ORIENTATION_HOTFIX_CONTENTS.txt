@@ -1,0 +1,34 @@
+Khadija's World — ART.1K Label Orientation Hotfix
+
+Apply over: C:\Projects\khadijas-world
+Base expected: ART.1K readability foundation.
+Do not extract into the WAMP deployment directory.
+
+Fixes:
+- Physical play-set plaques no longer display mirrored text.
+- Plaques now face the fixed dollhouse camera.
+- Plaques use front-side geometry and back-face culling.
+- HTML hover/touch labels and all gameplay remain unchanged.
+
+Changed/new files: 10
+- CHANGELOG.md
+- README.md
+- RELEASE_NOTES.md
+- docs/ART1K_LABEL_ORIENTATION_HOTFIX.md
+- index.html
+- package-lock.json
+- package.json
+- src/game/readability/createWorldPlaque.test.ts
+- src/game/readability/createWorldPlaque.ts
+- src/game/release.ts
+
+Files to delete: 0
+
+Run locally:
+- npm install
+- npm run validate:assets
+- npm test
+- npm run build
+- npm run deploy:wamp
+
+See docs/ART1K_LABEL_ORIENTATION_HOTFIX.md.

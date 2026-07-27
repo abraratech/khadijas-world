@@ -1,0 +1,36 @@
+Khadija's World — ART.1C Mama Production NPC
+
+Apply over:
+C:\Projects\khadijas-world
+
+Do not extract into the WAMP deployment directory.
+
+Changed/new files: 17
+- ASSET_CREDITS.md
+- CHANGELOG.md
+- README.md
+- RELEASE_NOTES.md
+- THIRD_PARTY_NOTICES.md
+- art/ASSET_MANIFEST.json
+- docs/ART1C_APPLY.md
+- docs/ART1C_MAMA_NPC.md
+- package-lock.json
+- package.json
+- public/assets/characters/mama/mama-v1.glb
+- src/game/assets/characterAssets.test.ts
+- src/game/assets/characterAssets.ts
+- src/game/assets/productionCharacterVisual.ts
+- src/game/release.ts
+- src/game/world/createWorldRuntime.ts
+- docs/ART1C_GENERATION_REPORT.md
+
+Files to delete: 0
+
+Required local validation:
+- npm install
+- npm run validate:assets
+- npm test
+- npm run build
+- npm run deploy:wamp
+
+See docs/ART1C_APPLY.md and docs/ART1C_MAMA_NPC.md.

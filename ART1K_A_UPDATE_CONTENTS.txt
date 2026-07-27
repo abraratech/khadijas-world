@@ -1,0 +1,74 @@
+Khadija's World — ART.1K-A Selective Interior Furniture
+
+Apply over: C:\Projects\khadijas-world
+Base expected: latest ART.1K label-orientation hotfix.
+Do not extract into the WAMP deployment directory.
+
+Included:
+- 20 validated GLBs from the uploaded Ultimate House Interior Pack exports
+- 14 selected unique models used across 22 High-only room placements
+- Location-aware lazy loading and in-scene caching
+- Automatic bounds fitting and camera-facing kitchen-module orientation
+- Runtime material-name remapping for the legacy Blender palette
+- Existing procedural interaction, collision, seat, storage, placement, and save proxies
+- Low/load-failure procedural fallback
+- Six bundled review-only models that are never requested by the runtime
+- Corrected Blender export helpers for future color-preserving exports
+
+Changed/new files: 44
+- ASSET_CREDITS.md
+- CHANGELOG.md
+- README.md
+- RELEASE_NOTES.md
+- THIRD_PARTY_NOTICES.md
+- art/ASSET_MANIFEST.json
+- docs/ART1KA_APPLY.md
+- docs/ART1KA_GENERATION_REPORT.md
+- docs/ART1KA_SELECTIVE_INTERIORS.md
+- docs/INTERIOR_PACK_INVENTORY.md
+- docs/PRODUCTION_ROADMAP.md
+- index.html
+- package-lock.json
+- package.json
+- public/assets/interiors/ultimate-house-v1/bedroom/bed-single.glb
+- public/assets/interiors/ultimate-house-v1/bedroom/carpet-2.glb
+- public/assets/interiors/ultimate-house-v1/bedroom/curtains-double.glb
+- public/assets/interiors/ultimate-house-v1/bedroom/drawer-3.glb
+- public/assets/interiors/ultimate-house-v1/bedroom/houseplant-6.glb
+- public/assets/interiors/ultimate-house-v1/bedroom/light-desk.glb
+- public/assets/interiors/ultimate-house-v1/bedroom/nightstand-1.glb
+- public/assets/interiors/ultimate-house-v1/bedroom/shelf-small1.glb
+- public/assets/interiors/ultimate-house-v1/commercial/chair-2.glb
+- public/assets/interiors/ultimate-house-v1/commercial/kitchen-cabinet2.glb
+- public/assets/interiors/ultimate-house-v1/commercial/kitchen-fridge.glb
+- public/assets/interiors/ultimate-house-v1/commercial/kitchen-oven.glb
+- public/assets/interiors/ultimate-house-v1/commercial/kitchen-sink.glb
+- public/assets/interiors/ultimate-house-v1/commercial/light-ceilingsingle.glb
+- public/assets/interiors/ultimate-house-v1/commercial/plate-1.glb
+- public/assets/interiors/ultimate-house-v1/commercial/shelf-large.glb
+- public/assets/interiors/ultimate-house-v1/commercial/spoon.glb
+- public/assets/interiors/ultimate-house-v1/commercial/stool.glb
+- public/assets/interiors/ultimate-house-v1/commercial/table-roundsmall2.glb
+- public/assets/interiors/ultimate-house-v1/commercial/trashcan-small1.glb
+- scripts/export-interior-bedroom.ps1
+- scripts/export-interior-commercial.ps1
+- src/game/assets/interiorFurnitureAssets.test.ts
+- src/game/assets/interiorFurnitureAssets.ts
+- src/game/assets/interiorPackCatalog.test.ts
+- src/game/assets/interiorPackCatalog.ts
+- src/game/assets/productionFurnitureVisual.ts
+- src/game/release.ts
+- src/game/world/createWorldRuntime.ts
+- tools/blender/export_interior_candidate.py
+
+Files to delete: 0
+
+Run locally:
+- npm install
+- npm run validate:assets
+- npm test
+- npm run build
+- npm run deploy:wamp
+
+See docs/ART1KA_APPLY.md, docs/ART1KA_SELECTIVE_INTERIORS.md,
+docs/ART1KA_GENERATION_REPORT.md, and docs/PRODUCTION_ROADMAP.md.

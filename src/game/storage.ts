@@ -405,9 +405,10 @@ export function loadSave(): PrototypeSave {
     }
   }
 
-  const selectedCharacter = isCharacterId(parsed.selectedCharacter)
+  const previousSelectedCharacter = isCharacterId(parsed.selectedCharacter)
     ? parsed.selectedCharacter
     : "khadija";
+  const selectedCharacter: CharacterId = "khadija";
   const legacyPlayerSettings = readLegacyPlayerSettings();
   const sound = typeof parsed.sound === "boolean"
     ? parsed.sound
@@ -415,7 +416,15 @@ export function loadSave(): PrototypeSave {
   const music = typeof parsed.music === "boolean"
     ? parsed.music
     : legacyPlayerSettings.music ?? false;
-  const activeRoom = normalizeRoom(parsed.activeRoom, characters[selectedCharacter].room);
+  const activeRoom = normalizeRoom(parsed.activeRoom, characters[previousSelectedCharacter].room);
+  // ART.1A keeps older sibling/brother state but makes Khadija the only
+  // controllable character. Continue in the same visible location even when an
+  // older save had another family member selected.
+  characters.khadija.room = activeRoom;
+  characters.khadija.activity = "standing";
+  characters.khadija.sleeping = false;
+  characters.khadija.seatId = null;
+  characters.khadija.interaction = "idle";
   const npcs = normalizeNpcStates(parsed.npcs);
   const everyday = normalizeEverydayState(parsed.everyday);
   const release = normalizeReleaseSettings(parsed.release);
@@ -559,10 +568,10 @@ export function saveCharacterState(character: CharacterState): void {
   writeSave(save);
 }
 
-export function saveSelectedCharacter(characterId: CharacterId): void {
+export function saveSelectedCharacter(_characterId: CharacterId): void {
   const save = loadSave();
-  save.selectedCharacter = characterId;
-  save.activeRoom = save.characters[characterId].room;
+  save.selectedCharacter = "khadija";
+  save.activeRoom = save.characters.khadija.room;
   writeSave(save);
 }
 

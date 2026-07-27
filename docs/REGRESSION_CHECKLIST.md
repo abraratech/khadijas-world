@@ -26,12 +26,29 @@ Record browser, viewport, graphics preset, save origin, and console-error count.
 
 ## Characters and NPCs
 
-- [ ] Select, walk, keyboard-move, and drag all three family characters
-- [ ] Hand off an item and restore it after refresh
-- [ ] Change outfit and expression for each character
+- [ ] Confirm Khadija is the only player-selector option
+- [ ] Walk Khadija by floor click and keyboard; drag all three family characters
+- [ ] Confirm sister and brother remain companions and never become the player
+- [ ] Hand items between Khadija and each companion and restore after refresh
+- [ ] Change Khadija's outfit and expression; verify fallback where required
 - [ ] Sit, sleep, stand, and use a shared activity
-- [ ] Verify idle behavior and bounded little walks
+- [ ] Verify companion idle behavior and bounded little walks
 - [ ] Visit all seven NPCs; test gift, work pose, chat, memory, and friendship
+
+## ART.1A production character
+
+- [ ] Run `npm run validate:assets`
+- [ ] Adaptive/High loads the textured Meshy Khadija with no duplicate visual
+- [ ] Walking clip loops during movement and stops when movement ends
+- [ ] Low quality stays procedural and does not request the production GLB
+- [ ] Teal/yellow outfit, unsupported expression, sitting, sleeping, and item-use
+  actions switch safely to the procedural visual
+- [ ] Returning to pink + neutral/happy + standing restores production visual
+- [ ] Temporarily rename the GLB and verify a non-fatal procedural fallback
+- [ ] Existing sibling-selected save opens in the same location as Khadija
+- [ ] Sister/brother position, held item, outfit, and room state remain intact
+- [ ] Test Vite and hard-refresh WAMP asset paths
+- [ ] Record first load, GLB parse time, FPS, and memory on target hardware
 
 ## Everyday play
 
@@ -68,3 +85,16 @@ Record browser, viewport, graphics preset, save origin, and console-error count.
 - [ ] Hard refresh `http://localhost/khadijas-world/`
 - [ ] No missing assets, console errors, source maps, secrets, or normal-mode diagnostics
 - [ ] `?debug=1` diagnostics remain opt-in
+
+## ART.1B family-home and item checks
+
+- [ ] Rounded home furniture loads without black/inverted faces
+- [ ] Floor clicks still work around rug, sofa, table, fridge, island, and counter
+- [ ] Both sofa seat slots remain aligned
+- [ ] TV and cupboard interactions remain functional
+- [ ] Teddy, book, apple, and cup drag, snap, hold, use, drop, and reload correctly
+- [ ] Serving tray remains usable in Sunny Café
+- [ ] Recipes still recognize preparation plate and mixing bowl targets
+- [ ] Pink, teal, and yellow keep the Meshy Khadija visual
+- [ ] Low quality hides optional trim/shadows but preserves gameplay
+- [ ] Existing schema-12 save loads without item ownership duplication

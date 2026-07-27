@@ -14,6 +14,7 @@ import { createMaterial, WORLD_COLORS } from "../shared/createMaterials";
 import { addBlobShadow } from "../shared/meshHelpers";
 
 export type UseGesture = "hug" | "read" | "eat" | "drink";
+export type HeldItemPose = "one-hand" | "two-hand" | "hug" | "read" | "tray";
 
 export const CHARACTER_VISUAL_SEMANTIC_KEYS = [
   "root",
@@ -46,6 +47,7 @@ export interface CharacterVisualReferences {
 export interface CharacterRig {
   root: TransformNode;
   holdAnchor: TransformNode;
+  carryAnchor: TransformNode;
   semantic: CharacterVisualReferences;
   update(deltaSeconds: number): void;
   setTarget(target: Vector3, onArrive?: () => void): void;
@@ -60,6 +62,7 @@ export interface CharacterRig {
   setVisible(visible: boolean): void;
   setBounds(minX: number, maxX: number, minZ: number, maxZ: number): void;
   setLivingAnimation(enabled: boolean, hasHeldItem?: boolean): void;
+  setHeldItemPose(pose: HeldItemPose | null): void;
   lookAt(target: Vector3 | null): void;
   cancelMovement(): void;
   playUseGesture(gesture: UseGesture): void;
@@ -358,28 +361,19 @@ export function createCharacterVisual(
   holdAnchor.position.set(0, -0.53, -0.17);
   holdAnchor.parent = rightArm;
 
-  const selectionMaterial = createMaterial(
-    scene,
-    `${name}-selection-mat`,
-    WORLD_COLORS.yellow,
-    new Color3(.3, .18, .02),
-  );
-  const selectionRing = MeshBuilder.CreateTorus(
-    `${name}-selection-ring`,
-    { diameter: 1.18, thickness: .08, tessellation: 24 },
-    scene,
-  );
-  selectionRing.rotation.x = Math.PI / 2;
-  selectionRing.position.y = .035;
-  selectionRing.material = selectionMaterial;
-  selectionRing.parent = root;
-  selectionRing.isPickable = false;
-  selectionRing.setEnabled(false);
+  // Centered props such as books, teddy bears, baskets, and trays should not
+  // inherit a single wrist's rotation. This anchor stays in front of the torso
+  // while the two arms frame the item.
+  const carryAnchor = new TransformNode(`${name}-carry-anchor`, scene);
+  carryAnchor.position.set(0, .96, -.42);
+  carryAnchor.parent = visualRoot;
+
+  // Khadija is the sole playable character, so a permanent selection ring no
+  // longer communicates a meaningful choice. Character identity is conveyed by
+  // the HUD and direct interaction labels instead.
   if (characterId) {
     for (const childMesh of root.getChildMeshes()) {
-      if (childMesh !== selectionRing) {
-        childMesh.metadata = { ...childMesh.metadata, characterId };
-      }
+      childMesh.metadata = { ...childMesh.metadata, characterId };
     }
   }
 
@@ -391,6 +385,7 @@ export function createCharacterVisual(
   let gestureActive = false;
   let livingAnimation = true;
   let heldItemAnimation = false;
+  let heldItemPose: HeldItemPose | null = null;
   let lookTarget: Vector3 | null = null;
   let expression: CharacterExpression = "neutral";
   let idleClock = name.split("").reduce((total, letter) => total + letter.charCodeAt(0), 0) * .071;
@@ -406,6 +401,31 @@ export function createCharacterVisual(
     value.y = 0;
     value.z = Math.max(bounds.minZ, Math.min(bounds.maxZ, value.z));
     return value;
+  };
+
+  const applyHeldItemPose = (): void => {
+    if (!heldItemPose || gestureActive) return;
+
+    if (heldItemPose === "one-hand") {
+      leftArm.rotation.x *= .72;
+      leftArm.rotation.z *= .72;
+      rightArm.rotation.x = .24;
+      rightArm.rotation.z = -.10;
+      return;
+    }
+
+    const pose = heldItemPose === "hug"
+      ? { armX: .88, armZ: .44 }
+      : heldItemPose === "read"
+        ? { armX: .67, armZ: .24 }
+        : heldItemPose === "tray"
+          ? { armX: .72, armZ: .30 }
+          : { armX: .58, armZ: .27 };
+
+    leftArm.rotation.x = pose.armX;
+    rightArm.rotation.x = pose.armX;
+    leftArm.rotation.z = pose.armZ;
+    rightArm.rotation.z = -pose.armZ;
   };
 
   const animateWalk = (moving: boolean, deltaSeconds: number): void => {
@@ -429,10 +449,14 @@ export function createCharacterVisual(
     leftLeg.rotation.x = swing;
     rightLeg.rotation.x = -swing;
     if (!gestureActive) {
-      leftArm.rotation.x = -swing * 0.65;
-      rightArm.rotation.x = swing * 0.65;
-      leftArm.rotation.z *= 0.72;
-      rightArm.rotation.z *= 0.72;
+      if (heldItemPose) {
+        applyHeldItemPose();
+      } else {
+        leftArm.rotation.x = -swing * 0.65;
+        rightArm.rotation.x = swing * 0.65;
+        leftArm.rotation.z *= 0.72;
+        rightArm.rotation.z *= 0.72;
+      }
     }
     visualRoot.position.y = Math.abs(Math.sin(walkPhase * 2)) * 0.035;
   };
@@ -487,6 +511,7 @@ export function createCharacterVisual(
       headPivot.rotation.y *= .72;
       headPivot.rotation.z *= .72;
       holdAnchor.rotation.z *= .72;
+      carryAnchor.rotation.z *= .72;
       return;
     }
     idleClock += deltaSeconds;
@@ -531,9 +556,13 @@ export function createCharacterVisual(
       leftArm.rotation.z = .16;
       rightArm.rotation.z = -.16;
     }
-    holdAnchor.rotation.z = heldItemAnimation
+    if (heldItemPose) applyHeldItemPose();
+
+    const heldItemSway = heldItemAnimation
       ? Math.sin(idleClock * 1.35 + idleSeed) * .08
-      : holdAnchor.rotation.z * .72;
+      : 0;
+    holdAnchor.rotation.z += (heldItemSway - holdAnchor.rotation.z) * .28;
+    carryAnchor.rotation.z += (heldItemSway * .45 - carryAnchor.rotation.z) * .28;
   };
 
   const stand = (): void => {
@@ -544,6 +573,12 @@ export function createCharacterVisual(
     headPivot.rotation.setAll(0);
     leftLeg.rotation.x = 0;
     rightLeg.rotation.x = 0;
+    if (!heldItemPose) {
+      leftArm.rotation.setAll(0);
+      rightArm.rotation.setAll(0);
+    } else {
+      applyHeldItemPose();
+    }
     root.position.y = 0;
   };
 
@@ -552,6 +587,7 @@ export function createCharacterVisual(
   return {
     root,
     holdAnchor,
+    carryAnchor,
     semantic: {
       root: visualRoot,
       body,
@@ -629,8 +665,8 @@ export function createCharacterVisual(
       expression = nextExpression;
       applyExpression();
     },
-    setSelected(selected: boolean): void {
-      selectionRing.setEnabled(selected);
+    setSelected(_selected: boolean): void {
+      // Intentionally empty: Khadija is the only playable character.
     },
     setVisible(visible: boolean): void {
       root.setEnabled(visible);
@@ -649,7 +685,20 @@ export function createCharacterVisual(
         headPivot.rotation.y = 0;
         headPivot.rotation.z = 0;
         holdAnchor.rotation.z = 0;
+        carryAnchor.rotation.z = 0;
         applyExpression();
+      }
+    },
+    setHeldItemPose(pose: HeldItemPose | null): void {
+      heldItemPose = pose;
+      heldItemAnimation = pose !== null;
+      holdAnchor.rotation.setAll(0);
+      carryAnchor.rotation.setAll(0);
+      if (pose) {
+        applyHeldItemPose();
+      } else if (!seated && !gestureActive) {
+        leftArm.rotation.setAll(0);
+        rightArm.rotation.setAll(0);
       }
     },
     lookAt(nextTarget: Vector3 | null): void {

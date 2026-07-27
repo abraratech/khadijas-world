@@ -1,0 +1,42 @@
+Khadija's World — ART.1G Family Home High-Quality Benchmark
+
+Apply over: C:\Projects\khadijas-world
+Do not extract into the WAMP deployment directory.
+
+Included:
+- Dedicated High-quality procedural family-home art pass
+- Architectural moulding, wainscot, trim, and window depth
+- Layered living-room, media-wall, and kitchen detailing
+- Curated domestic props and restrained environmental motion
+- High/Low quality separation through existing decorative-detail controls
+- Ordered production roadmap through ART.1O
+- Stable gameplay, dialogue, interaction, and save IDs preserved
+
+Changed/new files: 15
+- CHANGELOG.md
+- README.md
+- RELEASE_NOTES.md
+- docs/ART1G_APPLY.md
+- docs/ART1G_GENERATION_REPORT.md
+- docs/ART1G_HOME_ART_DIRECTION.md
+- docs/PRODUCTION_ROADMAP.md
+- index.html
+- package-lock.json
+- package.json
+- src/game/gameSystems.test.ts
+- src/game/locations/familyHome/applyFamilyHomeHighPolish.ts
+- src/game/locations/shared/applyWorldArtPolish.ts
+- src/game/release.ts
+- src/game/world/createWorldRuntime.ts
+
+Files to delete: 0
+
+Required local validation:
+- npm install
+- npm run validate:assets
+- npm test
+- npm run build
+- npm run deploy:wamp
+
+See docs/ART1G_APPLY.md, docs/ART1G_HOME_ART_DIRECTION.md,
+docs/ART1G_GENERATION_REPORT.md, and docs/PRODUCTION_ROADMAP.md.

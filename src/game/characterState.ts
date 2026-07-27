@@ -1,8 +1,12 @@
 import type { OutfitId, RoomId } from "./storage";
 
 export const CHARACTER_IDS = ["khadija", "sister", "brother"] as const;
+export const PLAYABLE_CHARACTER_IDS = ["khadija"] as const;
+export const COMPANION_CHARACTER_IDS = ["sister", "brother"] as const;
 
 export type CharacterId = typeof CHARACTER_IDS[number];
+export type PlayableCharacterId = typeof PLAYABLE_CHARACTER_IDS[number];
+export type CompanionCharacterId = typeof COMPANION_CHARACTER_IDS[number];
 export type CharacterExpression = "happy" | "excited" | "sleepy" | "surprised" | "neutral";
 export type CharacterActivity = "standing" | "sitting" | "sleeping";
 export type CharacterInteraction =
@@ -123,4 +127,8 @@ export function isCharacterExpression(value: unknown): value is CharacterExpress
     || value === "sleepy"
     || value === "surprised"
     || value === "neutral";
+}
+
+export function isPlayableCharacterId(value: unknown): value is PlayableCharacterId {
+  return value === "khadija";
 }

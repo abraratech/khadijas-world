@@ -17,15 +17,77 @@ export const WORLD_COLORS = {
   sky: new Color3(0.48, 0.75, 0.91),
 } as const;
 
+export type MaterialFinish =
+  | "auto"
+  | "matte"
+  | "fabric"
+  | "skin"
+  | "hair"
+  | "wood"
+  | "soft-toy"
+  | "ceramic"
+  | "metal"
+  | "glass"
+  | "shadow";
+
+interface MaterialFinishSettings {
+  specular: number;
+  power: number;
+}
+
+const MATERIAL_FINISHES: Record<Exclude<MaterialFinish, "auto">, MaterialFinishSettings> = {
+  matte: { specular: .065, power: 48 },
+  fabric: { specular: .11, power: 30 },
+  skin: { specular: .13, power: 34 },
+  hair: { specular: .16, power: 34 },
+  wood: { specular: .14, power: 34 },
+  "soft-toy": { specular: .18, power: 30 },
+  ceramic: { specular: .24, power: 36 },
+  metal: { specular: .36, power: 48 },
+  glass: { specular: .48, power: 64 },
+  shadow: { specular: 0, power: 64 },
+};
+
+function inferMaterialFinish(name: string): Exclude<MaterialFinish, "auto"> {
+  const normalized = name.toLowerCase();
+  if (normalized.includes("shadow") || normalized.includes("hotspot")) return "shadow";
+  if (normalized.includes("glass") || normalized.includes("mirror") || normalized.includes("eye") || normalized.includes("iris")) return "glass";
+  if (normalized.includes("metal") || normalized.includes("handle") || normalized.includes("hinge")) return "metal";
+  if (normalized.includes("ceramic") || normalized.includes("plate") || normalized.includes("bowl") || normalized.includes("cup")) return "ceramic";
+  if (normalized.includes("fabric") || normalized.includes("hoodie") || normalized.includes("denim") || normalized.includes("dress") || normalized.includes("trouser") || normalized.includes("curtain") || normalized.includes("rug")) return "fabric";
+  if (normalized.includes("skin") || normalized.includes("cheek") || normalized.includes("nose") || normalized.includes("ear")) return "skin";
+  if (normalized.includes("hair") || normalized.includes("brow") || normalized.includes("lash")) return "hair";
+  if (normalized.includes("wood") || normalized.includes("floor")) return "wood";
+  if (normalized.includes("wall") || normalized.includes("road") || normalized.includes("sidewalk") || normalized.includes("grass") || normalized.includes("sky")) return "matte";
+  return "soft-toy";
+}
+
+export function applyMaterialFinish(
+  material: StandardMaterial,
+  finish: MaterialFinish = "auto",
+): StandardMaterial {
+  const resolved = finish === "auto" ? inferMaterialFinish(material.name) : finish;
+  const settings = MATERIAL_FINISHES[resolved];
+  material.specularColor = new Color3(settings.specular, settings.specular, settings.specular);
+  material.specularPower = settings.power;
+  if (resolved === "shadow") {
+    material.disableLighting = true;
+    material.backFaceCulling = false;
+  }
+  return material;
+}
+
 export function createMaterial(
   scene: Scene,
   name: string,
   diffuse: Color3,
   emissive?: Color3,
+  finish: MaterialFinish = "auto",
 ): StandardMaterial {
   const result = new StandardMaterial(name, scene);
   result.diffuseColor = diffuse;
-  result.specularColor = new Color3(0.06, 0.06, 0.06);
+  result.ambientColor = diffuse.scale(.10);
+  applyMaterialFinish(result, finish);
   if (emissive) result.emissiveColor = emissive;
   return result;
 }
@@ -81,6 +143,7 @@ export const WORLD_MATERIAL_KEYS = [
 export function createWorldMaterials(scene: Scene): WorldMaterialRegistry {
   const world3Hotspot = new StandardMaterial("world3-hotspot-material", scene);
   world3Hotspot.diffuseColor = new Color3(.98, .76, .24);
+  applyMaterialFinish(world3Hotspot, "shadow");
   world3Hotspot.alpha = .025;
   const registry: WorldMaterialRegistry = {
     floor: createMaterial(scene, "floor-mat", WORLD_COLORS.floor),

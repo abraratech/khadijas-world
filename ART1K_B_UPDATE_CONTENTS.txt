@@ -1,0 +1,13 @@
+ART.1K-B — Hero Procedural Cast Refinement
+
+REPLACE
+src/game/characters/heroCharacterProfiles.ts
+src/game/characters/heroCharacterProfiles.test.ts
+src/game/characters/applyHeroCharacterPolish.ts
+
+ADD
+docs/ART1KB_APPLY.md
+docs/ART1KB_HERO_PROCEDURAL_CAST_REFINEMENT.md
+docs/ART1KB_GENERATION_REPORT.md
+ART1K_B_PATCH.diff
+ART1K_B_UPDATE_CONTENTS.txt

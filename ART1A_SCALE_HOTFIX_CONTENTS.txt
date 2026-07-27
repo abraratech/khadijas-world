@@ -1,0 +1,7 @@
+ART.1A Character Scale Hotfix
+
+Files:
+- src/game/assets/characterAssets.ts
+- src/game/assets/characterAssets.test.ts
+- CHANGELOG.md
+- docs/ART1A_SCALE_HOTFIX.md

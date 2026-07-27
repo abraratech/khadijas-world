@@ -1,0 +1,50 @@
+Khadija's World — ART.1H Bedroom Quality Pass
+
+Apply over: C:\Projects\khadijas-world
+Base expected: latest ART.1G procedural Mama + viewport/camera fixes.
+Do not extract into the WAMP deployment directory.
+
+Included:
+- Dedicated High-quality bedroom visual pass
+- Layered bed suite, reading corner, desk, wardrobe, storage, and personal decor
+- Architectural trim, window depth, contact shadows, and restrained motion
+- Existing sleep, lamp, music-box, ball, movement, seat, and save behavior preserved
+- Curated source-only bedroom candidates from the uploaded Blend pack
+- Optional local Blender batch-export helper; no third-party furniture active
+- Production roadmap advanced to ART.1H
+
+Changed/new files: 22
+- ASSET_CREDITS.md
+- CHANGELOG.md
+- README.md
+- RELEASE_NOTES.md
+- THIRD_PARTY_NOTICES.md
+- art/ASSET_MANIFEST.json
+- docs/ART1H_APPLY.md
+- docs/ART1H_BEDROOM_ART_DIRECTION.md
+- docs/ART1H_GENERATION_REPORT.md
+- docs/ART1H_INTERIOR_PACK_WORKFLOW.md
+- docs/INTERIOR_PACK_INVENTORY.md
+- docs/PRODUCTION_ROADMAP.md
+- index.html
+- package-lock.json
+- package.json
+- scripts/export-interior-bedroom.ps1
+- src/game/assets/interiorPackCatalog.test.ts
+- src/game/assets/interiorPackCatalog.ts
+- src/game/locations/bedroom/applyBedroomHighPolish.ts
+- src/game/locations/shared/applyWorldArtPolish.ts
+- src/game/release.ts
+- tools/blender/export_interior_candidate.py
+
+Files to delete: 0
+
+Run locally:
+- npm install
+- npm run validate:assets
+- npm test
+- npm run build
+- npm run deploy:wamp
+
+See docs/ART1H_APPLY.md, docs/ART1H_BEDROOM_ART_DIRECTION.md,
+docs/ART1H_INTERIOR_PACK_WORKFLOW.md, and docs/PRODUCTION_ROADMAP.md.

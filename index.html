@@ -40,7 +40,7 @@
             <button id="grown-ups-button" type="button">Grown-Ups</button>
             <button id="title-credits-button" type="button">Credits</button>
           </div>
-          <small id="title-version">Version 0.1.0</small>
+          <small id="title-version">Version 0.1.18</small>
         </div>
       </section>
 
@@ -101,7 +101,7 @@
       <section id="credits-panel" class="release-modal" role="dialog" aria-modal="true" aria-labelledby="credits-heading" hidden>
         <div class="release-card release-card-wide">
           <h2 id="credits-heading">Credits</h2>
-          <p><strong>Khadija's World</strong> — Version <span data-release-version>0.1.0</span></p>
+          <p><strong>Khadija's World</strong> — Version <span data-release-version>0.1.18</span></p>
           <dl class="credits-list">
             <dt>Created by</dt><dd>Contributor details pending</dd>
             <dt>Design and development</dt><dd>Contributor details pending</dd>
@@ -136,6 +136,13 @@
         </div>
       </section>
       <canvas id="game-canvas" aria-label="Khadija's World play area"></canvas>
+      <output id="interaction-label" class="interaction-label" aria-live="polite" hidden>
+        <span id="interaction-label-icon" class="interaction-label-icon" aria-hidden="true">&#10022;</span>
+        <span class="interaction-label-copy">
+          <strong id="interaction-label-name">Object</strong>
+          <small id="interaction-label-hint">Tap to interact</small>
+        </span>
+      </output>
 
       <header class="top-bar">
         <div class="brand" aria-label="Khadija's World">
@@ -237,38 +244,18 @@
         </div>
       </nav>
 
-      <aside class="character-selector" aria-label="Choose a character">
-        <span class="character-selector-title"><span aria-hidden="true">&#10024;</span> Who will play?</span>
+      <aside class="character-selector" aria-label="Playable character">
+        <span class="character-selector-title"><span aria-hidden="true">&#10024;</span> Playing as</span>
         <div class="character-list">
           <button
-            class="character-button is-active"
+            class="character-button is-active single-character"
             data-character="khadija"
             type="button"
-            aria-label="Play as Khadija"
+            aria-label="Khadija is the playable character"
             aria-pressed="true"
           >
             <span class="character-portrait portrait-khadija" aria-hidden="true">&#128105;&#127997;</span>
             <span class="character-copy"><strong>Khadija</strong><small data-character-location="khadija">Home</small></span>
-          </button>
-          <button
-            class="character-button"
-            data-character="sister"
-            type="button"
-            aria-label="Play as Khadija's little sister"
-            aria-pressed="false"
-          >
-            <span class="character-portrait portrait-sister" aria-hidden="true">&#128103;&#127997;</span>
-            <span class="character-copy"><strong>Little sister</strong><small data-character-location="sister">Home</small></span>
-          </button>
-          <button
-            class="character-button"
-            data-character="brother"
-            type="button"
-            aria-label="Play as Khadija's brother"
-            aria-pressed="false"
-          >
-            <span class="character-portrait portrait-brother" aria-hidden="true">&#128102;&#127997;</span>
-            <span class="character-copy"><strong>Brother</strong><small data-character-location="brother">Home</small></span>
           </button>
         </div>
       </aside>
@@ -285,8 +272,8 @@
         </div>
         <div class="help-steps">
           <div><span aria-hidden="true">&#128070;</span><p>Tap the floor to walk around.</p></div>
-          <div><span aria-hidden="true">&#129309;</span><p>Drag family members to move and seat them.</p></div>
-          <div><span aria-hidden="true">&#129528;</span><p>Tap toys and treats to pick them up.</p></div>
+          <div><span aria-hidden="true">&#129309;</span><p>Drag family members to move or seat them; Khadija is the character you control.</p></div>
+          <div><span aria-hidden="true">&#129528;</span><p>Point at or tap things to see their name, then pick them up or play.</p></div>
           <div><span aria-hidden="true">&#10024;</span><p>Tap furniture and special things to play.</p></div>
           <div><span aria-hidden="true">&#129517;</span><p>Drag things onto glowing spots to decorate.</p></div>
         </div>

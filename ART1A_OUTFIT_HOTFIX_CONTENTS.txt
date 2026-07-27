@@ -1,0 +1,20 @@
+# ART.1A Outfit Persistence Hotfix
+
+- Keeps the Meshy Khadija production visual active for pink, teal, and yellow
+  outfit selections.
+- Adds optimized 1024×1024 WebP outfit texture variants generated from the
+  project-owner supplied Meshy texture.
+- Swaps PBR albedo and emissive textures without replacing the playable model.
+- Keeps the production model visible for all mood selections while facial
+  animation remains deferred.
+- Retains the corrected `1.23` production scale and existing procedural safety
+  fallbacks.
+
+Files:
+- docs/ART1A_OUTFIT_HOTFIX.md
+- public/assets/characters/khadija/outfits/khadija-pink.webp
+- public/assets/characters/khadija/outfits/khadija-teal.webp
+- public/assets/characters/khadija/outfits/khadija-yellow.webp
+- src/game/assets/characterAssets.test.ts
+- src/game/assets/characterAssets.ts
+- src/game/assets/productionCharacterVisual.ts

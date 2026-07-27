@@ -33,7 +33,12 @@ export const NPC_DIALOGUE_PROFILES: Record<NpcId, NpcDialogueProfile> = {
     speakingStyle: "warm and reassuring",
     homeLocation: "home",
     allowedIntents: commonIntents,
-    fallbackResponses: ["We can talk about family, stories, snacks, or something fun to do!"],
+    fallbackResponses: [
+      "We can talk about family, stories, snacks, or something fun to do!",
+      "Tell me more, or we could chat about {itemName} instead!",
+      "I love our chats. Want to talk about a story or a little snack?",
+      "Hmm, tell me in a different way, or ask me about {locationName}!",
+    ],
   },
   neighbor: {
     id: "neighbor",
@@ -45,7 +50,12 @@ export const NPC_DIALOGUE_PROFILES: Record<NpcId, NpcDialogueProfile> = {
     speakingStyle: "bright and neighborly",
     homeLocation: "street",
     allowedIntents: commonIntents,
-    fallbackResponses: ["Let's talk about our neighborhood, the park, or our friends!"],
+    fallbackResponses: [
+      "Let's talk about our neighborhood, the park, or our friends!",
+      "I didn't quite catch that! Ask me about {locationName} or {itemName}?",
+      "Tell me again in your own words, or we could talk about the mailbox!",
+      "I love neighborhood chats. Want to hear about the flowers nearby?",
+    ],
   },
   "cafe-worker": {
     id: "cafe-worker",
@@ -57,7 +67,12 @@ export const NPC_DIALOGUE_PROFILES: Record<NpcId, NpcDialogueProfile> = {
     speakingStyle: "bubbly and helpful",
     homeLocation: "cafe",
     allowedIntents: [...commonIntents, "ask-cafe-food"],
-    fallbackResponses: ["We can chat about treats, warm drinks, friends, or café fun!"],
+    fallbackResponses: [
+      "We can chat about treats, warm drinks, friends, or café fun!",
+      "Ooh, tell me more, or ask me about {itemName}!",
+      "I'm not sure about that, but I do know a lot about cupcakes!",
+      "Say that a different way, or ask what's on the café menu today?",
+    ],
   },
   "park-keeper": {
     id: "park-keeper",
@@ -69,7 +84,12 @@ export const NPC_DIALOGUE_PROFILES: Record<NpcId, NpcDialogueProfile> = {
     speakingStyle: "calm and encouraging",
     homeLocation: "park",
     allowedIntents: [...commonIntents, "ask-park-plants"],
-    fallbackResponses: ["We can talk about flowers, birds, picnics, or caring for the park!"],
+    fallbackResponses: [
+      "We can talk about flowers, birds, picnics, or caring for the park!",
+      "I didn't follow that, but ask me about the {itemName}!",
+      "Tell me in a different way, or shall we talk about the birds today?",
+      "Hmm, I'm not sure. The flowers here could use a chat about watering!",
+    ],
   },
   "park-parent": {
     id: "park-parent",
@@ -81,7 +101,12 @@ export const NPC_DIALOGUE_PROFILES: Record<NpcId, NpcDialogueProfile> = {
     speakingStyle: "soft and cheerful",
     homeLocation: "park",
     allowedIntents: commonIntents,
-    fallbackResponses: ["We can talk about books, picnics, friends, or the playground!"],
+    fallbackResponses: [
+      "We can talk about books, picnics, friends, or the playground!",
+      "Say that differently, or ask me about {itemName}?",
+      "I love a good story. Want to talk about a book instead?",
+      "Not sure about that one! How about the playground or a picnic?",
+    ],
   },
   shopkeeper: {
     id: "shopkeeper",
@@ -93,7 +118,12 @@ export const NPC_DIALOGUE_PROFILES: Record<NpcId, NpcDialogueProfile> = {
     speakingStyle: "clear and upbeat",
     homeLocation: "grocery",
     allowedIntents: [...commonIntents, "ask-shop-ingredient"],
-    fallbackResponses: ["We can talk about groceries, recipe ingredients, or packing a shopping bag!"],
+    fallbackResponses: [
+      "We can talk about groceries, recipe ingredients, or packing a shopping bag!",
+      "I'm not sure about that, but ask me where to find {itemName}!",
+      "Say it a different way, or ask me for a recipe idea?",
+      "Hmm, tell me again! I know this shop very well.",
+    ],
   },
   "grocery-shopper": {
     id: "grocery-shopper",
@@ -105,7 +135,11 @@ export const NPC_DIALOGUE_PROFILES: Record<NpcId, NpcDialogueProfile> = {
     speakingStyle: "friendly and conversational",
     homeLocation: "grocery",
     allowedIntents: commonIntents,
-    fallbackResponses: ["We can talk about fruit, shopping, recipes, or our neighborhood!"],
+    fallbackResponses: [
+      "We can talk about fruit, shopping, recipes, or our neighborhood!",
+      "I'm not sure about that, but tell me about {itemName}?",
+      "Say that a different way, or ask me what I'm shopping for today?",
+      "Hmm! I do love talking about fresh fruit, if you'd like.",
+    ],
   },
 };
-

@@ -1,0 +1,42 @@
+Khadija's World — ART.1F Toy Sheen, Lighting Contrast, and Contact Depth
+
+Apply over: C:\Projects\khadijas-world
+Do not extract into the WAMP deployment directory.
+
+Included:
+- Finish-aware StandardMaterial shading across all material creation paths
+- Soft toy-like sheen for colorful surfaces
+- Separate matte, fabric, skin, hair, wood, ceramic, metal, glass, and shadow finishes
+- Cool hemispheric fill and warm directional key light
+- Reduced ambient wash
+- Lightweight contact shadows for major static props
+- Material-finish unit tests
+
+Changed/new files: 15
+- CHANGELOG.md
+- README.md
+- RELEASE_NOTES.md
+- docs/ART1F_APPLY.md
+- docs/ART1F_GENERATION_REPORT.md
+- docs/ART1F_VISUAL_LIGHTING.md
+- index.html
+- package-lock.json
+- package.json
+- src/game/characters/applyHeroCharacterPolish.ts
+- src/game/locations/shared/applyWorldArtPolish.ts
+- src/game/release.ts
+- src/game/shared/createMaterials.test.ts
+- src/game/shared/createMaterials.ts
+- src/game/world/createWorldRuntime.ts
+
+Files to delete: 0
+
+Required local validation:
+- npm install
+- npm run validate:assets
+- npm test
+- npm run build
+- npm run deploy:wamp
+
+See docs/ART1F_APPLY.md, docs/ART1F_VISUAL_LIGHTING.md,
+and docs/ART1F_GENERATION_REPORT.md.

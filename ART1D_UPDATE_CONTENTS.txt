@@ -1,0 +1,52 @@
+Khadija's World — ART.1D Lightweight Family and World NPCs
+
+Apply over: C:\Projects\khadijas-world
+Do not extract into the WAMP deployment directory.
+
+Included:
+- Lightweight green-shirt Brother production GLB
+- Auntie Noor Neighborhood production GLB
+- Ms. Sana Sunny Café production GLB
+- Mr. Sami Park production GLB
+- Mr. Kareem Grocery production GLB
+- Idle, Walk, Run, Walk_Carry, PickUp, SitDown and StandUp mappings
+- Location-aware load-on-first-visit behavior with retained in-scene cache
+- Procedural fallbacks and stable save/dialogue IDs
+- Mama target height set to 2.80 world units
+
+Changed/new files: 23
+- ASSET_CREDITS.md
+- CHANGELOG.md
+- README.md
+- RELEASE_NOTES.md
+- THIRD_PARTY_NOTICES.md
+- art/ASSET_MANIFEST.json
+- docs/ARCHITECTURE.md
+- docs/ART1C_MAMA_FIT_HOTFIX.md
+- docs/ART1D_APPLY.md
+- docs/ART1D_GENERATION_REPORT.md
+- docs/ART1D_LIGHTWEIGHT_NPCS.md
+- package-lock.json
+- package.json
+- public/assets/characters/brother/brother-v1.glb
+- public/assets/characters/cafe-worker/cafe-worker-v1.glb
+- public/assets/characters/grocery-shopkeeper/grocery-shopkeeper-v1.glb
+- public/assets/characters/neighbor/neighbor-v1.glb
+- public/assets/characters/park-keeper/park-keeper-v1.glb
+- src/game/assets/characterAssets.test.ts
+- src/game/assets/characterAssets.ts
+- src/game/assets/productionCharacterVisual.ts
+- src/game/release.ts
+- src/game/world/createWorldRuntime.ts
+
+Files to delete: 0
+
+Required local validation:
+- npm install
+- npm run validate:assets
+- npm test
+- npm run build
+- npm run deploy:wamp
+
+See docs/ART1D_APPLY.md, docs/ART1D_LIGHTWEIGHT_NPCS.md,
+and docs/ART1D_GENERATION_REPORT.md.

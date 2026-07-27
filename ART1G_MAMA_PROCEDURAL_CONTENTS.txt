@@ -1,0 +1,42 @@
+Khadija's World — ART.1G Procedural Mama and Interior-Pack Intake
+
+Apply over: C:\Projects\khadijas-world
+Do not extract into the WAMP deployment directory.
+
+Included:
+- Mama uses the animated hero-procedural rig on every quality tier
+- Mama's Meshy GLB remains archived but is no longer requested
+- Procedural Mama scale increased from 1.02 to 1.08
+- Stable parent ID, dialogue, memory, gifts, seats, and saves preserved
+- Uploaded interior archive inventoried: 123 individual Blend files
+- Interior assets assigned to the existing ART.1G-ART.1I roadmap
+- No third-party furniture activated yet
+
+Changed/new files: 14
+- ASSET_CREDITS.md
+- CHANGELOG.md
+- README.md
+- RELEASE_NOTES.md
+- THIRD_PARTY_NOTICES.md
+- docs/ART1G_MAMA_PROCEDURAL_APPLY.md
+- docs/ART1G_MAMA_PROCEDURAL_HOTFIX.md
+- docs/INTERIOR_PACK_INVENTORY.md
+- package.json
+- src/game/assets/characterAssets.test.ts
+- src/game/assets/characterAssets.ts
+- src/game/livingCharacters.ts
+- src/game/release.ts
+- src/game/world/createWorldRuntime.ts
+
+Files to delete: 0
+
+Required local validation:
+- npm install
+- npm run validate:assets
+- npm test
+- npm run build
+- npm run deploy:wamp
+
+See docs/ART1G_MAMA_PROCEDURAL_HOTFIX.md,
+docs/ART1G_MAMA_PROCEDURAL_APPLY.md, and
+docs/INTERIOR_PACK_INVENTORY.md.

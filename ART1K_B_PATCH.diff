@@ -1,0 +1,707 @@
+--- a/src/game/characters/heroCharacterProfiles.ts
++++ b/src/game/characters/heroCharacterProfiles.ts
+@@ -42,10 +42,30 @@
+   hairStyle: HeroHairStyle;
+   clothingStyle: HeroClothingStyle;
+   accessory: HeroAccessory;
++
++  // Head and face controls scale the whole head rig, so hair, ears, eyes, and
++  // accessories stay registered to the face instead of floating independently.
+   headScale: number;
++  faceWidth: number;
++  headHeight: number;
++  headDepth: number;
++  eyeSpacing: number;
++  eyeScale: number;
++  earScale: number;
++  noseScale: number;
++  mouthWidth: number;
++  cheekScale: number;
++
++  // Body controls preserve the existing animation rig while changing silhouette.
++  neckWidth: number;
+   bodyWidth: number;
++  torsoHeight: number;
+   shoulderWidth: number;
++  armLength: number;
++  handScale: number;
+   legLength: number;
++  footScale: number;
++
+   nameBadge?: string;
+ }
+ 
+@@ -63,10 +83,24 @@
+     hairStyle: "double-buns",
+     clothingStyle: "dress",
+     accessory: "bow",
+-    headScale: 1.13,
+-    bodyWidth: .92,
+-    shoulderWidth: .91,
+-    legLength: .88,
++    headScale: 1.14,
++    faceWidth: 1.06,
++    headHeight: .96,
++    headDepth: 1.02,
++    eyeSpacing: .94,
++    eyeScale: 1.12,
++    earScale: .92,
++    noseScale: .80,
++    mouthWidth: .90,
++    cheekScale: 1.16,
++    neckWidth: .80,
++    bodyWidth: .90,
++    torsoHeight: .90,
++    shoulderWidth: .88,
++    armLength: .88,
++    handScale: .90,
++    legLength: .82,
++    footScale: .88,
+   },
+   brother: {
+     id: "brother",
+@@ -81,10 +115,24 @@
+     hairStyle: "fluffy-crop",
+     clothingStyle: "hoodie",
+     accessory: "none",
+-    headScale: 1.03,
++    headScale: 1.04,
++    faceWidth: 1.01,
++    headHeight: .99,
++    headDepth: 1.01,
++    eyeSpacing: .99,
++    eyeScale: 1.05,
++    earScale: .98,
++    noseScale: .91,
++    mouthWidth: 1.02,
++    cheekScale: 1.02,
++    neckWidth: .92,
+     bodyWidth: 1.04,
++    torsoHeight: 1.00,
+     shoulderWidth: 1.06,
++    armLength: 1.01,
++    handScale: 1.01,
+     legLength: 1.02,
++    footScale: 1.02,
+   },
+ };
+ 
+@@ -103,9 +151,23 @@
+     clothingStyle: "tunic",
+     accessory: "earrings",
+     headScale: .98,
+-    bodyWidth: 1.06,
++    faceWidth: 1.03,
++    headHeight: 1.03,
++    headDepth: 1.00,
++    eyeSpacing: 1.00,
++    eyeScale: .98,
++    earScale: 1.00,
++    noseScale: 1.03,
++    mouthWidth: 1.04,
++    cheekScale: 1.00,
++    neckWidth: 1.04,
++    bodyWidth: 1.08,
++    torsoHeight: 1.07,
+     shoulderWidth: 1.04,
+-    legLength: 1.06,
++    armLength: 1.05,
++    handScale: 1.00,
++    legLength: 1.05,
++    footScale: 1.00,
+   },
+   neighbor: {
+     id: "neighbor",
+@@ -120,10 +182,24 @@
+     hairStyle: "layered-bob",
+     clothingStyle: "tunic",
+     accessory: "scarf",
+-    headScale: 1,
+-    bodyWidth: 1.04,
+-    shoulderWidth: 1.02,
++    headScale: 1.00,
++    faceWidth: .98,
++    headHeight: 1.02,
++    headDepth: .99,
++    eyeSpacing: 1.02,
++    eyeScale: .99,
++    earScale: .98,
++    noseScale: 1.02,
++    mouthWidth: 1.08,
++    cheekScale: .96,
++    neckWidth: .98,
++    bodyWidth: 1.03,
++    torsoHeight: 1.04,
++    shoulderWidth: 1.01,
++    armLength: 1.03,
++    handScale: .99,
+     legLength: 1.03,
++    footScale: .98,
+   },
+   "cafe-worker": {
+     id: "cafe-worker",
+@@ -138,10 +214,24 @@
+     hairStyle: "low-bun",
+     clothingStyle: "apron",
+     accessory: "chef-cap",
+-    headScale: 1,
++    headScale: 1.01,
++    faceWidth: 1.04,
++    headHeight: .99,
++    headDepth: 1.01,
++    eyeSpacing: .98,
++    eyeScale: 1.05,
++    earScale: .98,
++    noseScale: .98,
++    mouthWidth: 1.12,
++    cheekScale: 1.08,
++    neckWidth: .98,
+     bodyWidth: 1.04,
++    torsoHeight: 1.03,
+     shoulderWidth: 1.03,
++    armLength: 1.02,
++    handScale: .98,
+     legLength: 1.04,
++    footScale: .98,
+     nameBadge: "S",
+   },
+   "park-keeper": {
+@@ -157,10 +247,24 @@
+     hairStyle: "garden-crop",
+     clothingStyle: "work-shirt",
+     accessory: "garden-hat",
+-    headScale: 1,
+-    bodyWidth: 1.08,
+-    shoulderWidth: 1.08,
++    headScale: .97,
++    faceWidth: 1.02,
++    headHeight: 1.01,
++    headDepth: 1.01,
++    eyeSpacing: 1.01,
++    eyeScale: .96,
++    earScale: 1.02,
++    noseScale: 1.07,
++    mouthWidth: 1.00,
++    cheekScale: .94,
++    neckWidth: 1.10,
++    bodyWidth: 1.10,
++    torsoHeight: 1.06,
++    shoulderWidth: 1.10,
++    armLength: 1.06,
++    handScale: 1.04,
+     legLength: 1.06,
++    footScale: 1.06,
+     nameBadge: "S",
+   },
+   "park-parent": {
+@@ -177,9 +281,23 @@
+     clothingStyle: "cardigan",
+     accessory: "earrings",
+     headScale: 1.01,
++    faceWidth: 1.04,
++    headHeight: 1.00,
++    headDepth: 1.02,
++    eyeSpacing: .98,
++    eyeScale: 1.02,
++    earScale: .96,
++    noseScale: .97,
++    mouthWidth: 1.04,
++    cheekScale: 1.08,
++    neckWidth: .96,
+     bodyWidth: 1.04,
+-    shoulderWidth: 1.01,
+-    legLength: 1.03,
++    torsoHeight: 1.02,
++    shoulderWidth: 1.00,
++    armLength: 1.01,
++    handScale: .98,
++    legLength: 1.02,
++    footScale: .98,
+   },
+   shopkeeper: {
+     id: "shopkeeper",
+@@ -194,10 +312,24 @@
+     hairStyle: "neat-crop",
+     clothingStyle: "work-shirt",
+     accessory: "name-badge",
+-    headScale: .99,
+-    bodyWidth: 1.08,
+-    shoulderWidth: 1.10,
++    headScale: .98,
++    faceWidth: .97,
++    headHeight: 1.03,
++    headDepth: .99,
++    eyeSpacing: 1.03,
++    eyeScale: .95,
++    earScale: 1.00,
++    noseScale: 1.08,
++    mouthWidth: .98,
++    cheekScale: .92,
++    neckWidth: 1.08,
++    bodyWidth: 1.10,
++    torsoHeight: 1.07,
++    shoulderWidth: 1.12,
++    armLength: 1.05,
++    handScale: 1.03,
+     legLength: 1.06,
++    footScale: 1.05,
+     nameBadge: "K",
+   },
+   "grocery-shopper": {
+@@ -213,9 +345,23 @@
+     hairStyle: "silver-bob",
+     clothingStyle: "cardigan",
+     accessory: "glasses",
+-    headScale: 1.02,
++    headScale: 1.03,
++    faceWidth: .99,
++    headHeight: 1.04,
++    headDepth: 1.00,
++    eyeSpacing: 1.01,
++    eyeScale: .97,
++    earScale: 1.02,
++    noseScale: 1.09,
++    mouthWidth: .94,
++    cheekScale: .95,
++    neckWidth: .94,
+     bodyWidth: 1.06,
+-    shoulderWidth: 1.00,
+-    legLength: .98,
++    torsoHeight: 1.01,
++    shoulderWidth: .98,
++    armLength: .96,
++    handScale: .98,
++    legLength: .94,
++    footScale: .98,
+   },
+ };
+--- a/src/game/characters/heroCharacterProfiles.test.ts
++++ b/src/game/characters/heroCharacterProfiles.test.ts
+@@ -1,8 +1,40 @@
+ import { describe, expect, it } from "vitest";
+ import { NPC_IDS } from "../livingCharacters";
+-import { COMPANION_HERO_PROFILES, NPC_HERO_PROFILES } from "./heroCharacterProfiles";
++import {
++  COMPANION_HERO_PROFILES,
++  NPC_HERO_PROFILES,
++  type HeroCharacterProfile,
++} from "./heroCharacterProfiles";
+ 
+-describe("ART.1E hero procedural profiles", () => {
++const NUMERIC_PROFILE_KEYS = [
++  "headScale",
++  "faceWidth",
++  "headHeight",
++  "headDepth",
++  "eyeSpacing",
++  "eyeScale",
++  "earScale",
++  "noseScale",
++  "mouthWidth",
++  "cheekScale",
++  "neckWidth",
++  "bodyWidth",
++  "torsoHeight",
++  "shoulderWidth",
++  "armLength",
++  "handScale",
++  "legLength",
++  "footScale",
++] as const satisfies readonly (keyof HeroCharacterProfile)[];
++
++const allProfiles = (): HeroCharacterProfile[] => [
++  ...Object.values(COMPANION_HERO_PROFILES).filter(
++    (profile): profile is HeroCharacterProfile => Boolean(profile),
++  ),
++  ...Object.values(NPC_HERO_PROFILES),
++];
++
++describe("ART.1K-B hero procedural profiles", () => {
+   it("defines distinct profiles for both family companions", () => {
+     expect(Object.keys(COMPANION_HERO_PROFILES).sort()).toEqual(["brother", "sister"]);
+     expect(COMPANION_HERO_PROFILES.sister?.age).toBe("toddler");
+@@ -13,10 +45,40 @@
+     expect(Object.keys(NPC_HERO_PROFILES).sort()).toEqual([...NPC_IDS].sort());
+   });
+ 
+-  it("gives the visible cast varied silhouettes rather than recolors", () => {
+-    const signatures = Object.values(NPC_HERO_PROFILES).map((profile) => (
+-      `${profile.hairStyle}:${profile.clothingStyle}:${profile.accessory}`
+-    ));
+-    expect(new Set(signatures).size).toBeGreaterThanOrEqual(6);
++  it("keeps every proportion finite and inside safe rig limits", () => {
++    for (const profile of allProfiles()) {
++      for (const key of NUMERIC_PROFILE_KEYS) {
++        const value = profile[key];
++        expect(Number.isFinite(value), `${profile.id}.${key}`).toBe(true);
++        expect(value, `${profile.id}.${key}`).toBeGreaterThanOrEqual(.75);
++        expect(value, `${profile.id}.${key}`).toBeLessThanOrEqual(1.25);
++      }
++    }
++  });
++
++  it("gives every visible cast member a unique full silhouette signature", () => {
++    const signatures = allProfiles().map((profile) => [
++      profile.age,
++      profile.hairStyle,
++      profile.clothingStyle,
++      profile.accessory,
++      profile.headScale.toFixed(2),
++      profile.faceWidth.toFixed(2),
++      profile.bodyWidth.toFixed(2),
++      profile.shoulderWidth.toFixed(2),
++      profile.legLength.toFixed(2),
++    ].join(":"));
++
++    expect(new Set(signatures).size).toBe(signatures.length);
++  });
++
++  it("keeps the toddler proportionally younger than the child and adults", () => {
++    const sister = COMPANION_HERO_PROFILES.sister;
++    const brother = COMPANION_HERO_PROFILES.brother;
++    expect(sister).toBeDefined();
++    expect(brother).toBeDefined();
++    expect(sister!.headScale).toBeGreaterThan(brother!.headScale);
++    expect(sister!.legLength).toBeLessThan(brother!.legLength);
++    expect(sister!.shoulderWidth).toBeLessThan(brother!.shoulderWidth);
+   });
+ });
+--- a/src/game/characters/applyHeroCharacterPolish.ts
++++ b/src/game/characters/applyHeroCharacterPolish.ts
+@@ -65,6 +65,28 @@
+   return mesh;
+ }
+ 
++function cylinder(
++  scene: Scene,
++  name: string,
++  diameter: number,
++  height: number,
++  position: Vector3,
++  material: StandardMaterial,
++  parent: TransformNode,
++  tessellation = 14,
++): Mesh {
++  const mesh = MeshBuilder.CreateCylinder(name, {
++    diameter,
++    height,
++    tessellation,
++  }, scene);
++  mesh.position.copyFrom(position);
++  mesh.material = material;
++  mesh.parent = parent;
++  mesh.isPickable = false;
++  return mesh;
++}
++
+ function torus(
+   scene: Scene,
+   name: string,
+@@ -113,6 +135,76 @@
+       mesh.setEnabled(false);
+     }
+   }
++}
++
++function applyProfileProportions(
++  scene: Scene,
++  rig: CharacterRig,
++  profile: HeroCharacterProfile,
++  bodyRoot: TransformNode,
++  headRoot: TransformNode,
++): void {
++  const torsoDelta = profile.torsoHeight - 1;
++
++  // Scale the complete head pivot rather than the head mesh alone. This keeps
++  // hair, eyes, ears, and accessories registered to the same facial volume.
++  headRoot.scaling.x *= profile.headScale * profile.faceWidth;
++  headRoot.scaling.y *= profile.headScale * profile.headHeight;
++  headRoot.scaling.z *= profile.headScale * profile.headDepth;
++  headRoot.position.y += torsoDelta * .44;
++
++  rig.semantic.body.scaling.x *= profile.bodyWidth;
++  rig.semantic.body.scaling.y *= profile.torsoHeight;
++
++  for (const [index, arm] of rig.semantic.arms.entries()) {
++    const side = index === 0 ? -1 : 1;
++    arm.position.x = side * .34 * profile.shoulderWidth;
++    arm.position.y += torsoDelta * .38;
++    arm.scaling.y *= profile.armLength;
++  }
++
++  for (const hand of rig.semantic.hands) {
++    hand.scaling.scaleInPlace(profile.handScale);
++  }
++
++  for (const mesh of rig.root.getChildMeshes(false)) {
++    const name = mesh.name.toLowerCase();
++    const side = mesh.position.x < 0 ? -1 : 1;
++
++    if (name.includes("-eye-white-") || name.includes("-pupil-")) {
++      mesh.position.x = side * .18 * profile.eyeSpacing;
++      mesh.scaling.x *= profile.eyeScale;
++    } else if (name.includes("-cheek-")) {
++      mesh.position.x = side * .285 * profile.faceWidth;
++      mesh.scaling.x *= profile.cheekScale;
++      mesh.scaling.y *= Math.sqrt(profile.cheekScale);
++    } else if (name.includes("-nose")) {
++      mesh.scaling.scaleInPlace(profile.noseScale);
++    } else if (name.includes("-mouth") || name.includes("smile-highlight")) {
++      mesh.scaling.x *= profile.mouthWidth;
++    }
++
++    if (name.includes("-shoe-")) {
++      mesh.scaling.x *= profile.footScale;
++      mesh.scaling.z *= profile.footScale;
++    }
++  }
++
++  const leftLeg = scene.getTransformNodeByName(`${rig.root.name}-left-leg-pivot`);
++  const rightLeg = scene.getTransformNodeByName(`${rig.root.name}-right-leg-pivot`);
++  for (const leg of [leftLeg, rightLeg]) {
++    if (!leg) continue;
++    leg.scaling.y *= profile.legLength;
++    // Keep the sole near the ground while changing leg length.
++    leg.position.y = .01 + .66 * profile.legLength;
++  }
++
++  // Torso-length changes should not alter the root transform or gameplay
++  // anchors. Only the visual rig is adjusted.
++  bodyRoot.metadata = {
++    ...bodyRoot.metadata,
++    heroTorsoHeight: profile.torsoHeight,
++  };
+ }
+ 
+ function addHair(
+@@ -258,31 +350,36 @@
+   iris: StandardMaterial,
+   white: StandardMaterial,
+   hair: StandardMaterial,
++  dark: StandardMaterial,
++  lip: StandardMaterial,
+ ): void {
+-  for (const x of [-.18, .18]) {
++  const eyeX = .18 * profile.eyeSpacing;
++
++  for (const x of [-eyeX, eyeX]) {
++    const side = x < 0 ? -1 : 1;
+     sphere(
+       scene,
+-      `${rootName}-hero-ear-${x}`,
++      `${rootName}-hero-ear-${side}`,
+       .15,
+-      new Vector3(x < 0 ? -.43 : .43, -.015, -.01),
+-      new Vector3(.72, 1.05, .56),
++      new Vector3(side * .43, -.015, -.01),
++      new Vector3(.72, 1.05, .56).scale(profile.earScale),
+       skin,
+       head,
+       9,
+     );
+     sphere(
+       scene,
+-      `${rootName}-hero-iris-${x}`,
++      `${rootName}-hero-iris-${side}`,
+       .070,
+       new Vector3(x, .025, -.466),
+-      new Vector3(1, 1, .34),
++      new Vector3(profile.eyeScale, 1, .34),
+       iris,
+       head,
+       9,
+     );
+     sphere(
+       scene,
+-      `${rootName}-hero-eye-shine-${x}`,
++      `${rootName}-hero-eye-shine-${side}`,
+       .024,
+       new Vector3(x - .014, .052, -.489),
+       new Vector3(1, 1, .30),
+@@ -294,14 +391,76 @@
+     if (profile.age !== "adult" || profile.accessory === "earrings") {
+       const lash = box(
+         scene,
+-        `${rootName}-hero-lash-${x}`,
+-        new Vector3(.10, .016, .018),
++        `${rootName}-hero-lash-${side}`,
++        new Vector3(.10 * profile.eyeScale, .016, .018),
+         new Vector3(x, .105, -.466),
+         hair,
+         head,
+       );
+-      lash.rotation.z = x < 0 ? -.10 : .10;
+-    }
++      lash.rotation.z = side * .10;
++    }
++  }
++
++  // Small nostrils and mouth corners stay readable at gameplay distance without
++  // turning the face into a high-detail or texture-dependent asset.
++  for (const x of [-.022, .022]) {
++    sphere(
++      scene,
++      `${rootName}-hero-nostril-${x}`,
++      .018 * profile.noseScale,
++      new Vector3(x, -.068, -.469),
++      new Vector3(.78, .55, .30),
++      dark,
++      head,
++      6,
++    );
++  }
++
++  for (const side of [-1, 1]) {
++    sphere(
++      scene,
++      `${rootName}-hero-mouth-corner-${side}`,
++      .028,
++      new Vector3(side * .11 * profile.mouthWidth, -.16, -.442),
++      new Vector3(.72, .62, .32),
++      lip,
++      head,
++      7,
++    );
++  }
++}
++
++function addBodyDetails(
++  scene: Scene,
++  rootName: string,
++  bodyRoot: TransformNode,
++  rig: CharacterRig,
++  profile: HeroCharacterProfile,
++  skin: StandardMaterial,
++): void {
++  const torsoDelta = profile.torsoHeight - 1;
++  cylinder(
++    scene,
++    `${rootName}-hero-neck`,
++    .22 * profile.neckWidth,
++    .18,
++    new Vector3(0, 1.49 + torsoDelta * .42, 0),
++    skin,
++    bodyRoot,
++  );
++
++  for (const [index, arm] of rig.semantic.arms.entries()) {
++    const inward = index === 0 ? .068 : -.068;
++    sphere(
++      scene,
++      `${rootName}-hero-thumb-${index}`,
++      .10,
++      new Vector3(inward, -.50, -.015),
++      new Vector3(.58, .82, .70).scale(profile.handScale),
++      skin,
++      arm,
++      8,
++    );
+   }
+ }
+ 
+@@ -330,7 +489,13 @@
+   if (profile.clothingStyle !== "hoodie") {
+     for (const mesh of bodyRoot.getChildMeshes(false)) {
+       const name = mesh.name.toLowerCase();
+-      if (name.includes("drawstring") || name.includes("-pocket") || name.includes("emblem")) {
++      if (
++        name.includes("drawstring")
++        || name.includes("-pocket")
++        || name.includes("-flower-")
++        || name.includes("-star-")
++        || name.includes("-heart-")
++      ) {
+         mesh.setEnabled(false);
+       }
+     }
+@@ -673,6 +838,7 @@
+   const secondaryColor = color(profile.secondary);
+   const accentColor = color(profile.accent);
+   const shoeColor = color(profile.shoe);
++  const blushColor = Color3.Lerp(skinColor, accentColor, .18);
+ 
+   setExistingMaterialColor(rig, (name) => (
+     name.includes("-head") || name.includes("-hand-") || name.includes("-nose")
+@@ -685,21 +851,17 @@
+   ), primaryColor);
+   setExistingMaterialColor(rig, (name) => name.includes("-leg-"), secondaryColor);
+   setExistingMaterialColor(rig, (name) => name.includes("-shoe-") && !name.includes("sole"), shoeColor);
++  setExistingMaterialColor(rig, (name) => name.includes("-cheek-"), blushColor);
+   setExistingMaterialColor(rig, (name) => (
+-    name.includes("emblem") || name.includes("headband") || name.includes("bow") || name.includes("bun-band")
++    name.includes("-flower-")
++    || name.includes("-star-")
++    || name.includes("-heart-")
++    || name.includes("headband")
++    || name.includes("bow")
++    || name.includes("bun-band")
+   ), accentColor);
+ 
+-  rig.semantic.head.scaling.scaleInPlace(profile.headScale);
+-  rig.semantic.body.scaling.x *= profile.bodyWidth;
+-  rig.semantic.arms[0].position.x = -.34 * profile.shoulderWidth;
+-  rig.semantic.arms[1].position.x = .34 * profile.shoulderWidth;
+-
+-  const leftLeg = scene.getTransformNodeByName(`${rootName}-left-leg-pivot`);
+-  const rightLeg = scene.getTransformNodeByName(`${rootName}-right-leg-pivot`);
+-  for (const leg of [leftLeg, rightLeg]) {
+-    if (leg) leg.scaling.y = profile.legLength;
+-  }
+-
++  applyProfileProportions(scene, rig, profile, bodyRoot, headRoot);
+   hideLegacyHair(rig);
+ 
+   const skin = heroMaterial(scene, `${rootName}-hero-skin`, profile.skin, "skin");
+@@ -708,15 +870,19 @@
+   const primary = heroMaterial(scene, `${rootName}-hero-primary`, profile.primary, "fabric");
+   const secondary = heroMaterial(scene, `${rootName}-hero-secondary`, profile.secondary, "fabric");
+   const accent = heroMaterial(scene, `${rootName}-hero-accent`, profile.accent, "soft-toy");
++  const shoe = heroMaterial(scene, `${rootName}-hero-shoe`, profile.shoe, "soft-toy");
+   const white = heroMaterial(scene, `${rootName}-hero-white`, [.98, .96, .91], "ceramic");
+   const dark = heroMaterial(scene, `${rootName}-hero-dark`, [.08, .055, .07], "soft-toy");
+-
+-  addFaceDetails(scene, rootName, headRoot, profile, skin, iris, white, hair);
++  const lip = heroMaterial(scene, `${rootName}-hero-lip`, [.48, .13, .17], "soft-toy");
++
++  addBodyDetails(scene, rootName, bodyRoot, rig, profile, skin);
++  addFaceDetails(scene, rootName, headRoot, profile, skin, iris, white, hair, dark, lip);
+   addHair(scene, rootName, headRoot, profile, hair, accent);
+   addClothing(scene, rootName, bodyRoot, profile, primary, secondary, accent, white);
+   addAccessory(scene, rootName, headRoot, bodyRoot, profile, accent, secondary, white, dark);
+ 
+-  // Rounded toe caps and laces soften the original box shoes.
++  // Rounded toe caps and shared shoe material soften the original box shoes
++  // without allocating a separate material for every foot.
+   for (const mesh of rig.root.getChildMeshes(false)) {
+     if (!mesh.name.includes("-shoe-") || mesh.name.includes("sole")) continue;
+     if (!(mesh.parent instanceof TransformNode)) continue;
+@@ -725,8 +891,8 @@
+       `${mesh.name}-hero-toe`,
+       .27,
+       new Vector3(0, -.58, -.20),
+-      new Vector3(1.05, .55, 1.32),
+-      heroMaterial(scene, `${mesh.name}-hero-toe-mat`, profile.shoe, "soft-toy"),
++      new Vector3(1.05 * profile.footScale, .55, 1.32 * profile.footScale),
++      shoe,
+       mesh.parent,
+       10,
+     );
+@@ -734,8 +900,8 @@
+       const lace = box(
+         scene,
+         `${mesh.name}-hero-lace-${x}`,
+-        new Vector3(.025, .015, .16),
+-        new Vector3(x, -.51, -.22),
++        new Vector3(.025, .015, .16 * profile.footScale),
++        new Vector3(x * profile.footScale, -.51, -.22),
+         white,
+         mesh.parent,
+       );
+@@ -749,6 +915,7 @@
+       ...mesh.metadata,
+       heroProcedural: true,
+       heroProfileId: profile.id,
++      heroRefinement: "ART.1K-B",
+     };
+   }
+ }

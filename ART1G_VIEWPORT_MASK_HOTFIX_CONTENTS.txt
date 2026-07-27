@@ -1,0 +1,38 @@
+Khadija's World — ART.1G Dollhouse Viewport Mask Hotfix
+
+Apply over: C:\Projects\khadijas-world
+Do not extract into the WAMP deployment directory.
+
+Included:
+- Responsive CSS inset mask around the visible dollhouse shell
+- Overflowing visual-only meshes hidden outside the playable room frame
+- Canvas kept full-screen internally for unchanged Babylon pointer math
+- Page background matched to the scene clear color
+- Widescreen, square, and portrait mask calculations covered by tests
+- Quaternius interior preview recorded; no model archive was present
+
+Changed/new files: 13
+- CHANGELOG.md
+- README.md
+- RELEASE_NOTES.md
+- docs/ART1G_VIEWPORT_MASK_HOTFIX.md
+- docs/PRODUCTION_ROADMAP.md
+- index.html
+- package-lock.json
+- package.json
+- src/game/release.ts
+- src/game/world/cameraFraming.test.ts
+- src/game/world/cameraFraming.ts
+- src/game/world/createWorldRuntime.ts
+- src/styles.css
+
+Files to delete: 0
+
+Required local validation:
+- npm install
+- npm run validate:assets
+- npm test
+- npm run build
+- npm run deploy:wamp
+
+See docs/ART1G_VIEWPORT_MASK_HOTFIX.md.

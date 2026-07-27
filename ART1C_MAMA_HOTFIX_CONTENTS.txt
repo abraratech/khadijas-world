@@ -1,0 +1,32 @@
+Khadija's World — ART.1C Mama Interaction and Idle-Pose Hotfix
+
+Apply over: C:\Projects\khadijas-world
+Do not extract into the WAMP deployment directory.
+
+Fixes:
+- Clicking Mama opens offline NPC chat unless Khadija is actively gifting an item.
+- Mama freezes a natural frame from her walking clip while idle instead of returning to A-pose.
+- Mama's configured scale is restored to 1.24; use verticalOffset for floor alignment.
+
+Changed/new files: 11
+- CHANGELOG.md
+- README.md
+- RELEASE_NOTES.md
+- docs/ART1C_MAMA_HOTFIX.md
+- package-lock.json
+- package.json
+- src/game/assets/characterAssets.test.ts
+- src/game/assets/characterAssets.ts
+- src/game/assets/productionCharacterVisual.ts
+- src/game/release.ts
+- src/game/world/createWorldRuntime.ts
+
+Files to delete: 0
+
+Run locally:
+- npm run validate:assets
+- npm test
+- npm run build
+- npm run deploy:wamp
+
+See docs/ART1C_MAMA_HOTFIX.md.
