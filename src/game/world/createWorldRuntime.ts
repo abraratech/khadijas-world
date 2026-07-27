@@ -23,6 +23,7 @@ import {
   Vector3,
 } from "@babylonjs/core";
 import type { QualitySettings } from "../quality";
+import { isTextEntryElement } from "../ui/focusManagement";
 import {
   CHARACTER_DEFINITIONS,
   CHARACTER_IDS,
@@ -2961,12 +2962,21 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
 
   const pressedKeys = new Set<string>();
   scene.onKeyboardObservable.add((keyboardInfo: KeyboardInfo) => {
+    if (options.isKeyboardInputEnabled?.() === false) {
+      pressedKeys.clear();
+      return;
+    }
+
     const eventTarget = keyboardInfo.event.target;
     if (
-      eventTarget instanceof HTMLInputElement
-      || eventTarget instanceof HTMLTextAreaElement
-      || eventTarget instanceof HTMLButtonElement
+      eventTarget instanceof HTMLElement
+      && (
+        isTextEntryElement(eventTarget.tagName, eventTarget.isContentEditable)
+        || eventTarget instanceof HTMLButtonElement
+        || eventTarget instanceof HTMLAnchorElement
+      )
     ) return;
+
     const key = keyboardInfo.event.key.toLowerCase();
     if (!["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) return;
     keyboardInfo.event.preventDefault();
@@ -3581,6 +3591,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
   const movementInput = new Vector3();
   scene.onBeforeRenderObservable.add(() => {
     const deltaSeconds = Math.min(engine.getDeltaTime() / 1000, 0.05);
+    if (options.isKeyboardInputEnabled?.() === false) pressedKeys.clear();
     movementInput.set(
       (pressedKeys.has("d") || pressedKeys.has("arrowright") ? 1 : 0)
         - (pressedKeys.has("a") || pressedKeys.has("arrowleft") ? 1 : 0),
