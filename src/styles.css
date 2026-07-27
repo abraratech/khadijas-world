@@ -2582,6 +2582,63 @@ label {
   }
 }
 
+
+
+/* UX.3 accessibility, focus management, and keyboard navigation */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a[href]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 4px solid #ffd45f;
+  outline-offset: 3px;
+}
+
+#game-canvas:focus-visible {
+  outline: 4px solid #ffd45f;
+  outline-offset: -7px;
+}
+
+.popover:focus-within,
+.chat-panel:focus-within,
+.release-card:focus-within,
+.title-card:focus-within {
+  box-shadow:
+    0 0 0 4px rgba(255, 212, 95, .76),
+    var(--panel-shadow);
+}
+
+.is-high-contrast :focus-visible {
+  outline-color: #111;
+  box-shadow: 0 0 0 3px white;
+}
+
+.is-high-contrast .popover:focus-within,
+.is-high-contrast .chat-panel:focus-within,
+.is-high-contrast .release-card:focus-within,
+.is-high-contrast .title-card:focus-within {
+  box-shadow:
+    0 0 0 4px white,
+    0 0 0 8px #111,
+    0 12px 30px rgba(0, 0, 0, .34);
+}
+
+[role="dialog"] {
+  scroll-margin: 1rem;
+}
+
+[inert] {
+  user-select: none;
+}
+
+@media (prefers-contrast: more) {
+  :focus-visible {
+    outline-color: #111 !important;
+    outline-width: 5px !important;
+  }
+}
+
 @media (pointer: coarse) {
   .round-button,
   .close-button,

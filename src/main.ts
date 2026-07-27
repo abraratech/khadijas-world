@@ -54,6 +54,10 @@ import {
   measureViewportLayout,
   type ViewportLayout,
 } from "./game/ui/viewportLayout";
+import {
+  FOCUSABLE_SELECTOR,
+  nextFocusIndex,
+} from "./game/ui/focusManagement";
 
 type PlayerQuality = "low" | "medium" | "high";
 
@@ -62,6 +66,7 @@ const isDebugMode = new URLSearchParams(window.location.search).get("debug") ===
 const app = document.querySelector<HTMLElement>("#app");
 const canvas = document.querySelector<HTMLCanvasElement>("#game-canvas");
 const actionValue = document.querySelector<HTMLOutputElement>("#action-value");
+const screenReaderStatus = document.querySelector<HTMLOutputElement>("#screen-reader-status");
 const heldItemValue = document.querySelector<HTMLOutputElement>("#held-item-value");
 const heldItemOwnerLabel = document.querySelector<HTMLElement>("#held-item-owner-label");
 const roomValue = document.querySelector<HTMLOutputElement>("#room-value");
@@ -186,7 +191,8 @@ const chatPrivacyReminder = document.querySelector<HTMLElement>("#chat-privacy-r
 const chatPrivacyAcknowledge = document.querySelector<HTMLButtonElement>("#chat-privacy-acknowledge");
 
 if (
-  !app || !canvas || !actionValue || !heldItemValue || !heldItemOwnerLabel || !roomValue
+  !app || !canvas || !actionValue || !screenReaderStatus
+  || !heldItemValue || !heldItemOwnerLabel || !roomValue
   || !useItemButton || !useItemLabel || !dropItemButton || !togetherButton || !resetButton
   || !helpButton || !settingsButton || !helpCard || !settingsPanel
   || !soundToggle || !musicToggle || !idleAnimationToggle || !smallMovementToggle
@@ -222,6 +228,122 @@ if (
   throw new Error("Required game UI elements are missing.");
 }
 
+const releasePanels = [
+  firstLaunchPanel,
+  parentGatePanel,
+  parentPanel,
+  creditsPanel,
+  privacyPanel,
+  noticesPanel,
+] as const;
+
+interface ReleaseLayerEntry {
+  panel: HTMLElement;
+  returnFocus: HTMLElement | null;
+  returnLayer: HTMLElement | null;
+}
+
+const releaseStack: ReleaseLayerEntry[] = [];
+let announcementTimer = 0;
+
+const activeElement = (): HTMLElement | null => (
+  document.activeElement instanceof HTMLElement ? document.activeElement : null
+);
+
+const isFocusableNow = (element: HTMLElement | null): element is HTMLElement => {
+  if (!element || !element.isConnected) return false;
+  if (element.closest("[hidden], [inert]")) return false;
+  if (
+    element instanceof HTMLButtonElement
+    || element instanceof HTMLInputElement
+    || element instanceof HTMLSelectElement
+    || element instanceof HTMLTextAreaElement
+  ) {
+    if (element.disabled) return false;
+  }
+  const style = window.getComputedStyle(element);
+  return style.display !== "none" && style.visibility !== "hidden";
+};
+
+const focusableWithin = (container: HTMLElement): HTMLElement[] => (
+  Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+    .filter(isFocusableNow)
+);
+
+const focusFirstWithin = (
+  container: HTMLElement,
+  preferred: HTMLElement | null = null,
+): void => {
+  const target = preferred && container.contains(preferred) && isFocusableNow(preferred)
+    ? preferred
+    : focusableWithin(container)[0] ?? (isFocusableNow(container) ? container : null);
+  target?.focus();
+};
+
+const restoreFocus = (
+  preferred: HTMLElement | null,
+  fallback: HTMLElement,
+): void => {
+  window.requestAnimationFrame(() => {
+    if (isFocusableNow(preferred)) {
+      preferred.focus();
+      return;
+    }
+    focusFirstWithin(fallback);
+  });
+};
+
+const activeReleasePanel = (): HTMLElement | null => {
+  const active = releaseStack[releaseStack.length - 1]?.panel ?? null;
+  return active && !active.hidden ? active : null;
+};
+
+const activeModalLayer = (): HTMLElement | null => {
+  if (!startupError.hidden) return startupError;
+  if (!displayRecovery.hidden) return displayRecovery;
+  const releasePanel = activeReleasePanel();
+  if (releasePanel) return releasePanel;
+  if (!pausePanel.hidden) return pausePanel;
+  if (!chatPanel.hidden) return chatPanel;
+  if (!titleScreen.hidden) return titleScreen;
+  return null;
+};
+
+const syncFocusIsolation = (): void => {
+  const activeLayer = activeModalLayer();
+  for (const child of Array.from(app.children)) {
+    if (!(child instanceof HTMLElement)) continue;
+    child.inert = Boolean(activeLayer && child !== activeLayer);
+  }
+};
+
+const trapTabWithin = (event: KeyboardEvent, container: HTMLElement): void => {
+  const focusable = focusableWithin(container);
+  if (focusable.length === 0) {
+    event.preventDefault();
+    return;
+  }
+
+  const currentIndex = focusable.indexOf(activeElement() as HTMLElement);
+  const direction = event.shiftKey ? -1 : 1;
+  const shouldWrap = currentIndex < 0
+    || (direction === -1 && currentIndex === 0)
+    || (direction === 1 && currentIndex === focusable.length - 1);
+
+  if (!shouldWrap) return;
+  event.preventDefault();
+  const nextIndex = nextFocusIndex(focusable.length, currentIndex, direction);
+  focusable[nextIndex]?.focus();
+};
+
+const announceStatus = (message: string): void => {
+  window.clearTimeout(announcementTimer);
+  screenReaderStatus.textContent = "";
+  announcementTimer = window.setTimeout(() => {
+    screenReaderStatus.textContent = message;
+  }, 20);
+};
+
 const readViewportLayout = (): ViewportLayout => measureViewportLayout(
   window.innerWidth,
   window.innerHeight,
@@ -254,6 +376,8 @@ const showPublicStartupError = (): void => {
   loadingScreen.hidden = true;
   titleScreen.hidden = true;
   startupError.hidden = false;
+  syncFocusIsolation();
+  focusFirstWithin(startupError);
 };
 window.addEventListener("error", showPublicStartupError);
 window.addEventListener("unhandledrejection", showPublicStartupError);
@@ -465,34 +589,92 @@ const worldExistsAtStartup = hasExistingWorld();
 continueButton.disabled = !worldExistsAtStartup;
 continueButton.title = continueButton.disabled ? "Start a new world first" : "";
 newWorldButton.textContent = worldExistsAtStartup ? "New World" : "Play";
+syncFocusIsolation();
 
 const closeReleasePanels = (): void => {
-  for (const panel of [
-    firstLaunchPanel,
-    parentGatePanel,
-    parentPanel,
-    creditsPanel,
-    privacyPanel,
-    noticesPanel,
-  ]) panel.hidden = true;
+  for (const panel of releasePanels) panel.hidden = true;
+  releaseStack.length = 0;
+  syncFocusIsolation();
+};
+
+const openReleasePanel = (
+  panel: HTMLElement,
+  options: {
+    returnFocus?: HTMLElement | null;
+    returnLayer?: HTMLElement | null;
+    replace?: boolean;
+  } = {},
+): void => {
+  let returnFocus = options.returnFocus ?? activeElement();
+  let returnLayer = options.returnLayer ?? null;
+
+  if (options.replace && releaseStack.length > 0) {
+    const current = releaseStack.pop();
+    if (current) {
+      current.panel.hidden = true;
+      returnFocus = current.returnFocus;
+      returnLayer = current.returnLayer;
+    }
+  } else {
+    const current = releaseStack[releaseStack.length - 1];
+    if (current) current.panel.hidden = true;
+  }
+
+  for (const candidate of releasePanels) {
+    if (candidate !== panel && !releaseStack.some((entry) => entry.panel === candidate)) {
+      candidate.hidden = true;
+    }
+  }
+
+  panel.hidden = false;
+  releaseStack.push({ panel, returnFocus, returnLayer });
+  syncFocusIsolation();
+  focusFirstWithin(panel);
+};
+
+const closeActiveReleasePanel = (): void => {
+  const current = releaseStack.pop();
+  if (!current) return;
+
+  current.panel.hidden = true;
+  const previous = releaseStack[releaseStack.length - 1];
+  if (previous) {
+    previous.panel.hidden = false;
+    syncFocusIsolation();
+    restoreFocus(current.returnFocus, previous.panel);
+    return;
+  }
+
+  if (current.returnLayer) {
+    current.returnLayer.hidden = false;
+    syncFocusIsolation();
+    restoreFocus(current.returnFocus, current.returnLayer);
+    return;
+  }
+
+  syncFocusIsolation();
+  restoreFocus(current.returnFocus, titleScreen.hidden ? canvas : titleScreen);
 };
 
 const enterGame = (): void => {
   closeReleasePanels();
+  closeChat(false);
+  closePopovers(false);
   titleScreen.hidden = true;
   pausePanel.hidden = true;
   atTitleScreen = false;
   gamePaused = false;
   gameAudio.setPageVisible(true);
   gameAudio.resume();
+  syncFocusIsolation();
   canvas.focus();
   renderOnboarding();
 };
 
 const showTitle = (): void => {
   closeReleasePanels();
-  closeChat();
-  closePopovers();
+  closeChat(false);
+  closePopovers(false);
   pausePanel.hidden = true;
   titleScreen.hidden = false;
   onboardingCard.hidden = true;
@@ -500,30 +682,34 @@ const showTitle = (): void => {
   gamePaused = true;
   continueButton.disabled = !hasExistingWorld();
   gameAudio.setPageVisible(false);
-  continueButton.focus();
+  syncFocusIsolation();
+  restoreFocus(continueButton.disabled ? newWorldButton : continueButton, titleScreen);
 };
 
-const openReleasePanel = (panel: HTMLElement): void => {
-  closeReleasePanels();
-  panel.hidden = false;
-  panel.querySelector<HTMLElement>("button, input")?.focus();
-};
-
-const openParentGate = (): void => {
+const openParentGate = (
+  options: {
+    returnFocus?: HTMLElement | null;
+    returnLayer?: HTMLElement | null;
+  } = {},
+): void => {
   parentGateAnswer.value = "";
   parentGateMessage.textContent = "";
-  openReleasePanel(parentGatePanel);
+  openReleasePanel(parentGatePanel, options);
 };
 
 const openNewWorldSetup = (): void => {
+  const shouldReturnToPause = !atTitleScreen && releaseStack.length === 0;
   if (!atTitleScreen) {
     gamePaused = true;
     gameAudio.setPageVisible(false);
+    closePopovers(false);
   }
   setupSound.checked = uiPreferences.sound;
   setupMusic.checked = uiPreferences.music;
   setupReducedMotion.checked = accessibilityPreferences.reducedMotion;
-  openReleasePanel(firstLaunchPanel);
+  openReleasePanel(firstLaunchPanel, shouldReturnToPause
+    ? { returnFocus: resumeButton, returnLayer: pausePanel }
+    : {});
 };
 
 function updateSwitch(button: HTMLButtonElement, enabled: boolean): void {
@@ -586,6 +772,7 @@ let feedbackTimer = 0;
 const showAction = (message: string, sound: InteractionSound = "success"): void => {
   actionValue.value = message;
   actionValue.classList.add("is-visible");
+  announceStatus(message);
   gameAudio.playEffect(sound);
   const sparkles = Array.from(
     { length: accessibilityPreferences.reducedMotion ? 0 : 7 },
@@ -643,6 +830,7 @@ let room: PrototypeRoom;
 let activeChatNpc: NpcId | null = null;
 let activeChatCharacter: CharacterId | null = null;
 let chatReplyTimer = 0;
+let chatReturnFocus: HTMLElement | null = null;
 
 const dialogueContext = (npcId: NpcId): DialogueContext | null => {
   const worldContext = room?.getDialogueContext(npcId);
@@ -679,7 +867,7 @@ const renderTopics = (topics: readonly DialogueTopic[]): void => {
   }));
 };
 
-const closeChat = (): void => {
+const closeChat = (shouldRestoreFocus = true): void => {
   window.clearTimeout(chatReplyTimer);
   activeChatNpc = null;
   activeChatCharacter = null;
@@ -687,6 +875,11 @@ const closeChat = (): void => {
   chatThinking.hidden = true;
   app.classList.remove("is-chat-open", "is-chat-input-active");
   scheduleViewportSync();
+  syncFocusIsolation();
+
+  const returnFocus = chatReturnFocus;
+  chatReturnFocus = null;
+  if (shouldRestoreFocus) restoreFocus(returnFocus, canvas);
 };
 
 const submitChat = (message: string, forcedIntent?: DialogueIntent): void => {
@@ -729,6 +922,8 @@ const openNpcChat = (npcId: NpcId): void => {
     showAction("That friend is waiting in another place.", "invalid");
     return;
   }
+
+  if (chatPanel.hidden) chatReturnFocus = activeElement() ?? canvas;
   const state = dialogueController.open(context);
   activeChatNpc = npcId;
   activeChatCharacter = context.activeCharacterId;
@@ -741,8 +936,17 @@ const openNpcChat = (npcId: NpcId): void => {
   scheduleViewportSync();
   renderTopics(state.suggestions);
   renderConversation(npcId);
-  if (state.conversation.length === 0) submitChat("Hello!", "greeting");
-  else if (dialoguePreferences.typedMessages) chatInput.focus();
+  syncFocusIsolation();
+
+  if (state.conversation.length === 0) {
+    submitChat("Hello!", "greeting");
+    chatCloseButton.focus();
+  } else if (dialoguePreferences.typedMessages) {
+    chatInput.focus();
+  } else {
+    focusFirstWithin(chatTopics, chatTopics.querySelector<HTMLElement>("button"));
+    if (!chatTopics.contains(activeElement())) chatCloseButton.focus();
+  }
 };
 
 let lastRoom: RoomId | null = null;
@@ -799,6 +1003,7 @@ const updatePlayState = (state: PlayState): void => {
     recordOnboardingStep("travel");
     transitionIcon.textContent = roomIcons[state.activeRoom];
     transitionTitle.textContent = roomLabels[state.activeRoom];
+    announceStatus(`Now at ${roomLabels[state.activeRoom]}.`);
     app.classList.add("is-room-changing");
     locationTransition.classList.add("is-visible");
     window.clearTimeout(roomTransitionTimer);
@@ -862,6 +1067,14 @@ room = createPrototypeRoom(engine, {
     showAction(message, sound);
   },
   onPlayerMovement: () => recordOnboardingStep("move"),
+  isKeyboardInputEnabled: () => (
+    !atTitleScreen
+    && !gamePaused
+    && chatPanel.hidden
+    && helpCard.hidden
+    && settingsPanel.hidden
+    && releasePanels.every((panel) => panel.hidden)
+  ),
   onPlayStateChange: updatePlayState,
   onNpcChat: openNpcChat,
   isNpcChatEnabled: () => dialoguePreferences.npcChat,
@@ -908,21 +1121,37 @@ function setQuality(playerQuality: PlayerQuality, announce = true): void {
 
 setQuality(presetToPlayerQuality[activePreset], false);
 
-function closePopovers(): void {
-  helpCard!.hidden = true;
-  settingsPanel!.hidden = true;
-  helpButton!.setAttribute("aria-expanded", "false");
-  settingsButton!.setAttribute("aria-expanded", "false");
+let activePopover: {
+  panel: HTMLElement;
+  opener: HTMLButtonElement;
+} | null = null;
+
+function closePopovers(shouldRestoreFocus = true): void {
+  helpCard.hidden = true;
+  settingsPanel.hidden = true;
+  helpButton.setAttribute("aria-expanded", "false");
+  settingsButton.setAttribute("aria-expanded", "false");
+
+  const opener = activePopover?.opener ?? null;
+  activePopover = null;
+  if (shouldRestoreFocus && opener) restoreFocus(opener, canvas);
+}
+
+function openPopover(target: HTMLElement, button: HTMLButtonElement): void {
+  closePopovers(false);
+  target.hidden = false;
+  button.setAttribute("aria-expanded", "true");
+  activePopover = { panel: target, opener: button };
+  focusFirstWithin(target);
 }
 
 function togglePopover(target: HTMLElement, button: HTMLButtonElement): void {
-  const shouldOpen = target.hidden;
-  closePopovers();
-  target.hidden = !shouldOpen;
-  button.setAttribute("aria-expanded", String(shouldOpen));
+  const shouldOpen = target.hidden || activePopover?.panel !== target;
+  if (shouldOpen) openPopover(target, button);
+  else closePopovers();
 }
 
-continueButton.addEventListener("click", enterGame);
+continueButton.addEventListener("click", () => enterGame());
 newWorldButton.addEventListener("click", () => {
   if (
     hasExistingWorld()
@@ -930,12 +1159,11 @@ newWorldButton.addEventListener("click", () => {
   ) return;
   openNewWorldSetup();
 });
-grownUpsButton.addEventListener("click", openParentGate);
+grownUpsButton.addEventListener("click", () => openParentGate());
 titleCreditsButton.addEventListener("click", () => openReleasePanel(creditsPanel));
 titleSettingsButton.addEventListener("click", () => {
   enterGame();
-  settingsPanel.hidden = false;
-  settingsButton.setAttribute("aria-expanded", "true");
+  openPopover(settingsPanel, settingsButton);
 });
 
 startWorldButton.addEventListener("click", () => {
@@ -964,7 +1192,7 @@ parentGateSubmit.addEventListener("click", () => {
     parentGateAnswer.select();
     return;
   }
-  openReleasePanel(parentPanel);
+  openReleasePanel(parentPanel, { replace: true });
 });
 parentGateAnswer.addEventListener("keydown", (event) => {
   if (event.key === "Enter") parentGateSubmit.click();
@@ -972,9 +1200,7 @@ parentGateAnswer.addEventListener("keydown", (event) => {
 
 parentSettingsButton.addEventListener("click", () => {
   enterGame();
-  settingsPanel.hidden = false;
-  settingsButton.setAttribute("aria-expanded", "true");
-  settingsPanel.querySelector<HTMLElement>("button")?.focus();
+  openPopover(settingsPanel, settingsButton);
 });
 exportSaveButton.addEventListener("click", () => {
   const blob = new Blob([exportWorldSave()], { type: "application/json" });
@@ -1019,38 +1245,41 @@ parentResetButton.addEventListener("click", () => {
   openNewWorldSetup();
 });
 for (const button of closeReleaseButtons) {
-  button.addEventListener("click", () => {
-    const panel = button.closest<HTMLElement>(".release-modal");
-    if (panel) panel.hidden = true;
-    if (gamePaused && !atTitleScreen) {
-      pausePanel.hidden = false;
-      resumeButton.focus();
-    }
-  });
+  button.addEventListener("click", closeActiveReleasePanel);
 }
 
-menuButton.addEventListener("click", () => {
-  closeChat();
-  closePopovers();
+const openPause = (): void => {
+  closeChat(false);
+  closePopovers(false);
   gamePaused = true;
   gameAudio.setPageVisible(false);
   pausePanel.hidden = false;
+  syncFocusIsolation();
   resumeButton.focus();
-});
-resumeButton.addEventListener("click", enterGame);
+};
+
+menuButton.addEventListener("click", openPause);
+resumeButton.addEventListener("click", () => enterGame());
 pauseSettingsButton.addEventListener("click", () => {
   enterGame();
-  settingsPanel.hidden = false;
-  settingsButton.setAttribute("aria-expanded", "true");
+  openPopover(settingsPanel, settingsButton);
 });
 returnTitleButton.addEventListener("click", showTitle);
 pauseGrownUpsButton.addEventListener("click", () => {
   pausePanel.hidden = true;
-  openParentGate();
+  syncFocusIsolation();
+  openParentGate({
+    returnFocus: pauseGrownUpsButton,
+    returnLayer: pausePanel,
+  });
 });
 pauseCreditsButton.addEventListener("click", () => {
   pausePanel.hidden = true;
-  openReleasePanel(creditsPanel);
+  syncFocusIsolation();
+  openReleasePanel(creditsPanel, {
+    returnFocus: pauseCreditsButton,
+    returnLayer: pausePanel,
+  });
 });
 exitFullscreenButton.addEventListener("click", () => {
   if (document.fullscreenElement) void document.exitFullscreen();
@@ -1064,7 +1293,9 @@ helpButton.addEventListener("click", () => {
 });
 onboardingSkipButton.addEventListener("click", skipOnboarding);
 settingsButton.addEventListener("click", () => togglePopover(settingsPanel, settingsButton));
-for (const button of closePopoverButtons) button.addEventListener("click", closePopovers);
+for (const button of closePopoverButtons) {
+  button.addEventListener("click", () => closePopovers());
+}
 
 soundToggle.addEventListener("click", () => {
   uiPreferences.sound = !uiPreferences.sound;
@@ -1122,7 +1353,7 @@ clearAllMemoriesButton.addEventListener("click", () => {
   showAction("Conversation memories cleared. Your world is unchanged.", "toggle");
 });
 
-chatCloseButton.addEventListener("click", closeChat);
+chatCloseButton.addEventListener("click", () => closeChat());
 chatInput.addEventListener("focus", () => {
   chatPrivacyReminder.hidden = releasePreferences.chatPrivacyAcknowledged;
   app.classList.add("is-chat-input-active");
@@ -1273,23 +1504,24 @@ for (const button of expressionButtons) {
 }
 
 canvas.addEventListener("pointerdown", () => {
-  closePopovers();
+  closePopovers(false);
   gameAudio.resume();
 }, { passive: true });
 
 window.addEventListener("pointerdown", () => gameAudio.resume(), { once: true, passive: true });
 window.addEventListener("keydown", (event) => {
+  const modalLayer = activeModalLayer();
+  if (event.key === "Tab" && modalLayer) {
+    trapTabWithin(event, modalLayer);
+    return;
+  }
+
   if (event.key !== "Escape") return;
-  const openRelease = [
-    firstLaunchPanel,
-    parentGatePanel,
-    parentPanel,
-    creditsPanel,
-    privacyPanel,
-    noticesPanel,
-  ].find((panel) => !panel.hidden);
-  if (openRelease) {
-    openRelease.hidden = true;
+  if (!startupError.hidden || !displayRecovery.hidden || !titleScreen.hidden) return;
+
+  event.preventDefault();
+  if (activeReleasePanel()) {
+    closeActiveReleasePanel();
     return;
   }
   if (!pausePanel.hidden) {
@@ -1304,7 +1536,7 @@ window.addEventListener("keydown", (event) => {
     closePopovers();
     return;
   }
-  if (!atTitleScreen) menuButton.click();
+  if (!atTitleScreen) openPause();
 });
 
 let displayPaused = false;
@@ -1319,7 +1551,13 @@ engine.runRenderLoop(() => {
   if (!firstFrameShown) {
     firstFrameShown = true;
     loadingScreen.classList.add("is-ready");
-    window.setTimeout(() => { loadingScreen.hidden = true; }, accessibilityPreferences.reducedMotion ? 0 : 400);
+    window.setTimeout(() => {
+      loadingScreen.hidden = true;
+      syncFocusIsolation();
+      if (atTitleScreen && (!activeElement() || activeElement() === document.body)) {
+        focusFirstWithin(titleScreen, continueButton.disabled ? newWorldButton : continueButton);
+      }
+    }, accessibilityPreferences.reducedMotion ? 0 : 400);
   }
 });
 
@@ -1327,18 +1565,24 @@ canvas.addEventListener("webglcontextlost", (event) => {
   event.preventDefault();
   displayPaused = true;
   displayRecovery.hidden = false;
+  syncFocusIsolation();
+  focusFirstWithin(displayRecovery);
 });
 
 canvas.addEventListener("webglcontextrestored", () => {
   displayPaused = false;
   displayRecovery.hidden = true;
+  syncFocusIsolation();
   engine.resize();
+  restoreFocus(canvas, canvas);
 });
 
 restoreDisplayButton.addEventListener("click", () => {
   displayPaused = false;
   displayRecovery.hidden = true;
+  syncFocusIsolation();
   engine.resize();
+  restoreFocus(canvas, canvas);
 });
 reloadDisplayButton.addEventListener("click", () => window.location.reload());
 
@@ -1423,6 +1667,7 @@ window.addEventListener("beforeunload", () => {
   visualViewport?.removeEventListener("resize", scheduleViewportSync);
   visualViewport?.removeEventListener("scroll", scheduleViewportSync);
   if (viewportSyncFrame !== 0) window.cancelAnimationFrame(viewportSyncFrame);
+  window.clearTimeout(announcementTimer);
   room.dispose();
   gameAudio.dispose();
   engine.dispose();

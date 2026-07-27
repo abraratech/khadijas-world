@@ -26,7 +26,7 @@
         <p>Getting your world ready…</p>
       </section>
 
-      <section id="title-screen" class="title-screen" aria-labelledby="title-heading">
+      <section id="title-screen" class="title-screen" role="dialog" aria-modal="true" aria-labelledby="title-heading">
         <div class="title-card">
           <div class="title-logo" aria-hidden="true">
             <strong>Khadija's</strong><span>World ★</span>
@@ -136,7 +136,15 @@
           <div class="release-actions"><button data-close-release type="button">Close</button></div>
         </div>
       </section>
-      <canvas id="game-canvas" aria-label="Khadija's World play area"></canvas>
+      <canvas
+        id="game-canvas"
+        aria-label="Khadija's World play area"
+        aria-describedby="canvas-keyboard-help"
+        tabindex="0"
+      ></canvas>
+      <p id="canvas-keyboard-help" class="visually-hidden">
+        Use the arrow keys or W, A, S, and D to move Khadija. Press Tab to reach game controls.
+      </p>
       <output id="interaction-label" class="interaction-label" aria-live="polite" hidden>
         <span id="interaction-label-icon" class="interaction-label-icon" aria-hidden="true">&#10022;</span>
         <span class="interaction-label-copy">
@@ -166,12 +174,19 @@
         </div>
 
         <div class="top-actions">
-          <button id="menu-button" class="round-button menu-button" type="button" aria-label="Open main menu"><span aria-hidden="true">&#9776;</span></button>
+          <button
+            id="menu-button"
+            class="round-button menu-button"
+            type="button"
+            aria-label="Open main menu"
+            aria-controls="pause-panel"
+          ><span aria-hidden="true">&#9776;</span></button>
           <button
             id="help-button"
             class="round-button help-button"
             type="button"
             aria-label="How to play"
+            aria-controls="help-card"
             aria-expanded="false"
           >
             <span aria-hidden="true">?</span>
@@ -181,6 +196,7 @@
             class="round-button settings-button"
             type="button"
             aria-label="Open settings"
+            aria-controls="settings-panel"
             aria-expanded="false"
           >
             <span aria-hidden="true">&#9881;</span>
@@ -275,11 +291,18 @@
         </div>
       </aside>
 
-      <section id="help-card" class="popover help-card" aria-label="How to play" hidden>
+      <section
+        id="help-card"
+        class="popover help-card"
+        role="dialog"
+        aria-modal="false"
+        aria-labelledby="help-heading"
+        hidden
+      >
         <div class="popover-heading">
           <div>
             <span class="eyebrow">Make your own story</span>
-            <h2>Come play!</h2>
+            <h2 id="help-heading">Come play!</h2>
           </div>
           <button class="close-button" data-close-popover type="button" aria-label="Close how to play">
             <span aria-hidden="true">&times;</span>
@@ -295,11 +318,18 @@
         <p class="keyboard-hint">You can also move with the arrow keys.</p>
       </section>
 
-      <section id="settings-panel" class="popover settings-panel" aria-label="Settings" hidden>
+      <section
+        id="settings-panel"
+        class="popover settings-panel"
+        role="dialog"
+        aria-modal="false"
+        aria-labelledby="settings-heading"
+        hidden
+      >
         <div class="popover-heading">
           <div>
             <span class="eyebrow">Make it yours</span>
-            <h2>Settings</h2>
+            <h2 id="settings-heading">Settings</h2>
           </div>
           <button class="close-button" data-close-popover type="button" aria-label="Close settings">
             <span aria-hidden="true">&times;</span>
@@ -505,8 +535,15 @@
         </div>
       </section>
 
-      <output id="action-value" class="action-message" aria-live="polite"></output>
+      <output id="action-value" class="action-message"></output>
       <output id="room-value" class="visually-hidden">Family home</output>
+      <output
+        id="screen-reader-status"
+        class="visually-hidden"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      ></output>
       <div id="feedback-sparkles" class="feedback-sparkles" aria-hidden="true"></div>
 
       <section
@@ -527,7 +564,13 @@
             <span aria-hidden="true">&times;</span>
           </button>
         </header>
-        <div id="chat-messages" class="chat-messages" aria-live="polite"></div>
+        <div
+          id="chat-messages"
+          class="chat-messages"
+          aria-live="polite"
+          aria-relevant="additions text"
+          aria-atomic="false"
+        ></div>
         <div id="chat-thinking" class="chat-thinking" aria-label="Thinking" hidden>
           <span></span><span></span><span></span>
         </div>
