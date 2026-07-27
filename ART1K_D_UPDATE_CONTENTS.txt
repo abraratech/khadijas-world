@@ -1,0 +1,18 @@
+ART.1K-D — Test Reliability and Visual Regression Foundation
+
+ADDED
+- vitest.config.ts
+- src/test/setupOffscreenCanvas.ts
+- docs/ART1KD_APPLY.md
+- docs/ART1KD_TEST_RELIABILITY.md
+- ART1K_D_UPDATE_CONTENTS.txt
+
+UPDATED
+- src/game/readability/createWorldPlaque.test.ts
+
+UNCHANGED
+- src/game/readability/createWorldPlaque.ts
+- browser canvas behavior
+- runtime rendering
+- save schema
+- gameplay systems
