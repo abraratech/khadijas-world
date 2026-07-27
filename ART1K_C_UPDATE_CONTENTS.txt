@@ -1,0 +1,21 @@
+ART.1K-C — Production Prop and Interaction Alignment
+
+ADDED
+- src/game/items/holdablePresentation.ts
+- docs/ART1KC_APPLY.md
+- docs/ART1KC_PROP_INTERACTION_ALIGNMENT.md
+- ART1K_C_UPDATE_CONTENTS.txt
+
+REPLACED
+- src/game/items/productionItemVisuals.ts
+- src/game/items/productionItemVisuals.test.ts
+- src/game/characters/createCharacterVisual.ts
+- src/game/everydayControllers.ts
+- src/game/gameSystems.test.ts
+
+PATCHED
+- src/game/world/createWorldRuntime.ts
+
+NO SAVE MIGRATION
+- Save schema remains version 12.
+- Stable IDs and ownership fields are unchanged.

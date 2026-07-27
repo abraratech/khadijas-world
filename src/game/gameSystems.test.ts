@@ -14,6 +14,16 @@ describe("everyday systems", () => {
     expect(containers.put("backpack", "cup").accepted).toBe(false);
   });
 
+  it("prevents nested portable containers and keeps tray contents plausible", () => {
+    const state = createDefaultEverydayState();
+    const containers = new ContainerController(state);
+
+    expect(containers.put("backpack", "basket").accepted).toBe(false);
+    expect(containers.put("serving-tray", "cup").accepted).toBe(true);
+    expect(containers.put("serving-tray", "sandwich").accepted).toBe(true);
+    expect(containers.put("serving-tray", "teddy").accepted).toBe(false);
+  });
+
   it("completes recipes only with the correct station inputs", () => {
     const state = createDefaultEverydayState();
     const recipes = new RecipeSystem(state);

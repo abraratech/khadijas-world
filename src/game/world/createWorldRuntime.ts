@@ -139,6 +139,7 @@ import {
   type HoldablePresentation,
   type ItemMaterialPalette,
 } from "../items/productionItemVisuals";
+import { resolvePresentationForHolder } from "../items/holdablePresentation";
 import {
   calculateDollhouseOrthoFrame,
   calculateDollhouseViewportMask,
@@ -1514,6 +1515,12 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     NPC_IDS.includes(owner as NpcId)
   );
 
+  const holderClassForCharacter = (
+    characterId: CharacterId,
+  ): "toddler" | "child" => (
+    characterId === "sister" ? "toddler" : "child"
+  );
+
   const removeFromEverydaySlots = (itemId: string): void => {
     for (const contents of Object.values(everydayState.storageContents)) {
       const index = contents.indexOf(itemId);
@@ -1548,35 +1555,61 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     return null;
   };
 
-  const attachItemToCharacter = (item: HoldableItem, characterId: CharacterId): void => {
-    item.mesh.parent = characterRigs[characterId].holdAnchor;
-    item.mesh.position.copyFrom(item.holdOffset ?? Vector3.Zero());
-    item.mesh.rotation.copyFrom(
-      item.holdRotation
-        ?? new Vector3(0, 0, item.id === "book" ? Math.PI / 2 : 0),
+  const attachItemToRig = (
+    item: HoldableItem,
+    rig: CharacterRig,
+    holderClass: "toddler" | "child" | "adult",
+  ): void => {
+    const resolved = resolvePresentationForHolder(item.id, holderClass);
+    const holdType = resolved?.holdType
+      ?? (item.gesture === "hug" ? "hug" : item.gesture === "read" ? "read" : "one-hand");
+
+    item.mesh.parent = resolved?.anchor === "center" || (!resolved && holdType !== "one-hand")
+      ? rig.carryAnchor
+      : rig.holdAnchor;
+
+    item.mesh.position.copyFrom(
+      resolved
+        ? new Vector3(...resolved.holdOffset)
+        : item.holdOffset ?? Vector3.Zero(),
     );
-    item.mesh.scaling.copyFrom(item.holdScale);
+    item.mesh.rotation.copyFrom(
+      resolved
+        ? new Vector3(...resolved.holdRotation)
+        : item.holdRotation
+          ?? new Vector3(0, 0, item.id === "book" ? Math.PI / 2 : 0),
+    );
+    item.mesh.scaling.copyFrom(
+      resolved
+        ? new Vector3(...resolved.holdScale)
+        : item.holdScale,
+    );
     item.mesh.isPickable = false;
     item.mesh.setEnabled(true);
+    rig.setHeldItemPose(holdType);
+  };
+
+  const attachItemToCharacter = (item: HoldableItem, characterId: CharacterId): void => {
+    attachItemToRig(
+      item,
+      characterRigs[characterId],
+      holderClassForCharacter(characterId),
+    );
   };
 
   const attachItemToNpc = (item: HoldableItem, npcId: NpcId): void => {
-    item.mesh.parent = npcRigs[npcId].holdAnchor;
-    item.mesh.position.copyFrom(item.holdOffset ?? Vector3.Zero());
-    item.mesh.rotation.copyFrom(
-      item.holdRotation
-        ?? new Vector3(0, 0, item.id === "book" ? Math.PI / 2 : 0),
-    );
-    item.mesh.scaling.copyFrom(item.holdScale);
-    item.mesh.isPickable = false;
-    item.mesh.setEnabled(true);
+    attachItemToRig(item, npcRigs[npcId], "adult");
   };
 
   const clearNpcItem = (npcId: NpcId): HoldableItem | null => {
     const state = npcStates[npcId];
-    if (!state.heldItem) return null;
+    if (!state.heldItem) {
+      npcRigs[npcId].setHeldItemPose(null);
+      return null;
+    }
     const item = holdables.get(state.heldItem) ?? null;
     state.heldItem = null;
+    npcRigs[npcId].setHeldItemPose(null);
     if (item) {
       item.mesh.parent = null;
       item.mesh.scaling.setAll(1);
@@ -1591,10 +1624,18 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     placeOnFloor: boolean,
   ): HoldableItem | null => {
     const characterState = characters[characterId];
-    if (!characterState.heldItem) return null;
+    const rig = characterRigs[characterId];
+
+    if (!characterState.heldItem) {
+      rig.setHeldItemPose(null);
+      return null;
+    }
+
     const item = holdables.get(characterState.heldItem) ?? null;
     if (!item) {
       characterState.heldItem = null;
+      rig.setHeldItemPose(null);
+      persistCharacter(characterId);
       return null;
     }
 
@@ -1603,9 +1644,9 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     item.mesh.scaling.setAll(1);
     item.mesh.rotation.setAll(0);
     item.mesh.isPickable = true;
+    rig.setHeldItemPose(null);
 
     if (placeOnFloor) {
-      const rig = characterRigs[characterId];
       const forward = new Vector3(-Math.sin(rig.root.rotation.y), 0, -Math.cos(rig.root.rotation.y));
       const dropPosition = rig.root.position.add(forward.scale(.78));
       item.mesh.position.set(dropPosition.x, item.floorY, dropPosition.z);
@@ -2320,9 +2361,9 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
 
   syncEverydayVisuals();
 
-  // ART.1B applies data-driven scale, orientation, offsets and footprints after
-  // all locations have registered their holdables. Items without a production
-  // override keep their existing prototype values.
+  // ART.1K-C applies data-driven scale, orientation, offsets, anchor choice,
+  // and placement footprints after every location has registered its holdables.
+  // Items without a production override keep their existing prototype values.
   for (const [itemId, item] of holdables) {
     const presentation = presentationFor(itemId);
     if (!presentation) continue;
@@ -2334,6 +2375,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     item.mesh.metadata = {
       ...item.mesh.metadata,
       holdType: presentation.holdType,
+      holdAnchor: presentation.holdType === "one-hand" ? "hand" : "center",
       placementFootprint: {
         width: presentation.footprint[0],
         depth: presentation.footprint[1],
@@ -2649,6 +2691,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
 
     detachHeldItem(toId, true);
     fromState.heldItem = null;
+    characterRigs[fromId].setHeldItemPose(null);
     toState.heldItem = item.id;
     toState.expression = "excited";
     characterRigs[toId].setExpression("excited");

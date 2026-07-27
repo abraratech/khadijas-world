@@ -18,85 +18,19 @@ export interface ItemMaterialPalette {
   green: StandardMaterial;
 }
 
-export interface HoldablePresentation {
-  floorY: number;
-  holdScale: readonly [number, number, number];
-  holdOffset: readonly [number, number, number];
-  holdRotation: readonly [number, number, number];
-  footprint: readonly [number, number];
-  holdType: "one-hand" | "two-hand" | "hug" | "read" | "tray";
-}
-
-export const HOLDABLE_PRESENTATIONS: Readonly<Record<string, HoldablePresentation>> = {
-  teddy: {
-    floorY: .42,
-    holdScale: [.62, .62, .62],
-    holdOffset: [.02, -.12, -.24],
-    holdRotation: [0, .15, 0],
-    footprint: [.62, .42],
-    holdType: "hug",
-  },
-  book: {
-    floorY: .09,
-    holdScale: [.66, .66, .66],
-    holdOffset: [.01, -.04, -.18],
-    holdRotation: [0, 0, Math.PI / 2],
-    footprint: [.85, .62],
-    holdType: "read",
-  },
-  apple: {
-    floorY: .2,
-    holdScale: [.78, .78, .78],
-    holdOffset: [0, -.02, -.08],
-    holdRotation: [0, 0, 0],
-    footprint: [.36, .36],
-    holdType: "one-hand",
-  },
-  cup: {
-    floorY: .25,
-    holdScale: [.70, .70, .70],
-    holdOffset: [.03, -.02, -.09],
-    holdRotation: [0, -.22, 0],
-    footprint: [.44, .38],
-    holdType: "one-hand",
-  },
-  "serving-tray": {
-    floorY: .12,
-    holdScale: [.72, .72, .72],
-    holdOffset: [0, -.2, -.32],
-    holdRotation: [0, 0, 0],
-    footprint: [.82, .52],
-    holdType: "tray",
-  },
-  "shopping-basket": {
-    floorY: .28,
-    holdScale: [.74, .74, .74],
-    holdOffset: [.04, -.16, -.26],
-    holdRotation: [0, -.15, 0],
-    footprint: [.75, .5],
-    holdType: "hug",
-  },
-  "shopping-bag": {
-    floorY: .28,
-    holdScale: [.74, .74, .74],
-    holdOffset: [.05, -.15, -.24],
-    holdRotation: [0, -.12, 0],
-    footprint: [.6, .42],
-    holdType: "one-hand",
-  },
-  "picnic-basket": {
-    floorY: .28,
-    holdScale: [.70, .70, .70],
-    holdOffset: [0, -.16, -.28],
-    holdRotation: [0, 0, 0],
-    footprint: [.8, .5],
-    holdType: "hug",
-  },
-};
-
-export function presentationFor(itemId: string): HoldablePresentation | null {
-  return HOLDABLE_PRESENTATIONS[itemId] ?? null;
-}
+export {
+  HOLDABLE_PRESENTATIONS,
+  containerCompatibilityIssue,
+  presentationFor,
+  resolvePresentationForHolder,
+} from "./holdablePresentation";
+export type {
+  HoldablePresentation,
+  HoldAnchorKind,
+  HolderClass,
+  HoldType,
+  ResolvedHoldablePresentation,
+} from "./holdablePresentation";
 
 export function createProductionTeddy(
   scene: Scene,

@@ -11,6 +11,7 @@ import {
   type StationId,
   type StorageId,
 } from "./everydayState";
+import { containerCompatibilityIssue } from "./items/holdablePresentation";
 
 const CONTAINER_CAPACITY: Record<ContainerId, number> = {
   backpack: 3,
@@ -78,14 +79,14 @@ export class ContainerController {
   }
 
   put(id: ContainerId, itemId: string): PutResult {
-    if (id === itemId) return { accepted: false, message: "That cannot go inside itself." };
+    const compatibilityIssue = containerCompatibilityIssue(id, itemId);
+    if (compatibilityIssue) return { accepted: false, message: compatibilityIssue };
+
     const contents = this.state.containerContents[id];
     if (contents.length >= CONTAINER_CAPACITY[id]) {
       return { accepted: false, message: "This is full. Take something out first!" };
     }
-    if (id === "toy-box" && !["teddy", "toy-block"].includes(itemId)) {
-      return { accepted: false, message: "The toy box is saving room for toys." };
-    }
+
     contents.push(itemId);
     return { accepted: true, message: `Placed in the ${friendlyName(id)}.` };
   }
