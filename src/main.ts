@@ -41,6 +41,15 @@ import {
 } from "./game/storage";
 import { RELEASE } from "./game/release";
 import type { InteractionHint } from "./game/readability/interactionReadability";
+import {
+  ONBOARDING_STEP_IDS,
+  completeOnboardingStep,
+  dismissOnboarding,
+  isOnboardingComplete,
+  nextOnboardingStep,
+  onboardingStepCopy,
+  type OnboardingStepId,
+} from "./game/onboarding";
 
 type PlayerQuality = "low" | "medium" | "high";
 
@@ -111,6 +120,12 @@ const interactionLabel = document.querySelector<HTMLOutputElement>("#interaction
 const interactionLabelIcon = document.querySelector<HTMLElement>("#interaction-label-icon");
 const interactionLabelName = document.querySelector<HTMLElement>("#interaction-label-name");
 const interactionLabelHint = document.querySelector<HTMLElement>("#interaction-label-hint");
+const onboardingCard = document.querySelector<HTMLElement>("#onboarding-card");
+const onboardingProgress = document.querySelector<HTMLElement>("#onboarding-progress");
+const onboardingIcon = document.querySelector<HTMLElement>("#onboarding-icon");
+const onboardingTitle = document.querySelector<HTMLElement>("#onboarding-title");
+const onboardingMessage = document.querySelector<HTMLElement>("#onboarding-message");
+const onboardingSkipButton = document.querySelector<HTMLButtonElement>("#onboarding-skip-button");
 const outfitControls = document.querySelector<HTMLElement>("#outfit-controls");
 const outfitButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-outfit]"));
 const roomButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-room]"));
@@ -182,6 +197,8 @@ if (
   || !debugPanel || !status || !fpsValue || !frameValue || !meshValue
   || !resolutionValue || !livingValue || !dialogueIntentValue || !dialogueEntitiesValue
   || !dialogueTemplateValue || !dialogueMemoryValue || !outfitControls
+  || !onboardingCard || !onboardingProgress || !onboardingIcon || !onboardingTitle
+  || !onboardingMessage || !onboardingSkipButton
   || !locationTransition || !transitionIcon || !transitionTitle || !feedbackSparkles
   || outfitButtons.length === 0 || roomButtons.length === 0 || qualityButtons.length === 0
   || characterButtons.length === 0 || expressionButtons.length === 0
@@ -375,6 +392,40 @@ const gameAudio = new GameAudio(uiPreferences.sound, uiPreferences.music);
 let atTitleScreen = true;
 let gamePaused = false;
 
+const onboardingInputMode = window.matchMedia("(pointer: coarse)").matches ? "touch" : "pointer";
+
+const renderOnboarding = (): void => {
+  const step = nextOnboardingStep(releasePreferences.onboarding);
+  if (!step || atTitleScreen || gamePaused) {
+    onboardingCard.hidden = true;
+    return;
+  }
+
+  const copy = onboardingStepCopy(step, onboardingInputMode);
+  const stepIndex = ONBOARDING_STEP_IDS.indexOf(step);
+  onboardingProgress.textContent = `Tip ${stepIndex + 1} of ${ONBOARDING_STEP_IDS.length}`;
+  onboardingIcon.textContent = copy.icon;
+  onboardingTitle.textContent = copy.title;
+  onboardingMessage.textContent = copy.message;
+  onboardingCard.hidden = false;
+};
+
+const recordOnboardingStep = (step: OnboardingStepId): void => {
+  const next = completeOnboardingStep(releasePreferences.onboarding, step);
+  if (next === releasePreferences.onboarding) return;
+  releasePreferences.onboarding = next;
+  saveReleaseSettings(releasePreferences);
+  renderOnboarding();
+};
+
+const skipOnboarding = (): void => {
+  const next = dismissOnboarding(releasePreferences.onboarding);
+  if (next === releasePreferences.onboarding) return;
+  releasePreferences.onboarding = next;
+  saveReleaseSettings(releasePreferences);
+  renderOnboarding();
+};
+
 titleVersion.textContent = `Version ${RELEASE.version}`;
 creditsCopyright.textContent = RELEASE.copyright;
 for (const label of releaseVersionLabels) label.textContent = RELEASE.version;
@@ -403,6 +454,7 @@ const enterGame = (): void => {
   gameAudio.setPageVisible(true);
   gameAudio.resume();
   canvas.focus();
+  renderOnboarding();
 };
 
 const showTitle = (): void => {
@@ -411,6 +463,7 @@ const showTitle = (): void => {
   closePopovers();
   pausePanel.hidden = true;
   titleScreen.hidden = false;
+  onboardingCard.hidden = true;
   atTitleScreen = true;
   gamePaused = true;
   continueButton.disabled = !hasExistingWorld();
@@ -681,6 +734,7 @@ const updatePlayState = (state: PlayState): void => {
   ) closeChat();
 
   if (lastRoom && lastRoom !== state.activeRoom) {
+    recordOnboardingStep("travel");
     transitionIcon.textContent = roomIcons[state.activeRoom];
     transitionTitle.textContent = roomLabels[state.activeRoom];
     app.classList.add("is-room-changing");
@@ -737,7 +791,15 @@ const updatePlayState = (state: PlayState): void => {
 };
 
 room = createPrototypeRoom(engine, {
-  onAction: showAction,
+  onAction: (message, sound) => {
+    const isMovementOrTravel = sound === "travel"
+      || message === "Off we go!"
+      || message.startsWith("We're already at ");
+
+    if (!isMovementOrTravel) recordOnboardingStep("interact");
+    showAction(message, sound);
+  },
+  onPlayerMovement: () => recordOnboardingStep("move"),
   onPlayStateChange: updatePlayState,
   onNpcChat: openNpcChat,
   isNpcChatEnabled: () => dialoguePreferences.npcChat,
@@ -933,7 +995,12 @@ exitFullscreenButton.addEventListener("click", () => {
   else showAction("Full screen is already off.", "toggle");
 });
 
-helpButton.addEventListener("click", () => togglePopover(helpCard, helpButton));
+helpButton.addEventListener("click", () => {
+  const opening = helpCard.hidden;
+  togglePopover(helpCard, helpButton);
+  if (opening) recordOnboardingStep("help");
+});
+onboardingSkipButton.addEventListener("click", skipOnboarding);
 settingsButton.addEventListener("click", () => togglePopover(settingsPanel, settingsButton));
 for (const button of closePopoverButtons) button.addEventListener("click", closePopovers);
 
@@ -1272,7 +1339,10 @@ room.scene.onAfterRenderObservable.add(() => {
 
 window.setTimeout(() => {
   const recoveryNotice = consumeSaveRecoveryNotice();
-  showAction(recoveryNotice ?? "Tap around and make your own story!", recoveryNotice ? "invalid" : "success");
+  if (recoveryNotice) showAction(recoveryNotice, "invalid");
+  else if (isOnboardingComplete(releasePreferences.onboarding)) {
+    showAction("Tap around and make your own story!", "success");
+  }
   if (isDebugMode) {
     const saveDebug = getSaveDebugState();
     dialogueMemoryValue.textContent = saveDebug.validationFailures.length > 0

@@ -1898,3 +1898,121 @@ button:disabled {
     transition-duration: .01ms !important;
   }
 }
+
+/* UX.1 first-play onboarding */
+.onboarding-card {
+  position: absolute;
+  z-index: 19;
+  left: 18px;
+  bottom: 112px;
+  width: min(322px, calc(100vw - 36px));
+  padding: 12px;
+  border: 3px solid rgba(255, 255, 255, .96);
+  border-radius: 20px;
+  color: #4d355c;
+  background: linear-gradient(145deg, rgba(255, 252, 240, .98), rgba(240, 232, 255, .98));
+  box-shadow: var(--panel-shadow);
+  backdrop-filter: blur(10px);
+  animation: onboarding-card-in .2s ease-out;
+}
+
+.onboarding-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.onboarding-heading small {
+  color: #876d9c;
+  font-size: .66rem;
+  font-weight: 1000;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.onboarding-heading button {
+  min-height: 32px;
+  padding: .3rem .58rem;
+  border-radius: 999px;
+  color: #684587;
+  background: #eee4f5;
+  font-size: .66rem;
+  font-weight: 1000;
+}
+
+.onboarding-copy {
+  display: grid;
+  grid-template-columns: 45px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.onboarding-copy > span:last-child {
+  display: grid;
+  gap: 3px;
+}
+
+.onboarding-copy strong {
+  font-size: .92rem;
+  font-weight: 1000;
+}
+
+.onboarding-copy > span:last-child > span {
+  color: #75647f;
+  font-size: .73rem;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+.onboarding-icon {
+  display: grid;
+  place-items: center;
+  width: 45px;
+  height: 45px;
+  border-radius: 15px;
+  background: linear-gradient(145deg, #ffe17d, #ffbd69);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .82);
+  font-size: 1.35rem;
+  font-weight: 1000;
+}
+
+.is-high-contrast .onboarding-card {
+  border-color: #2b174a;
+  color: #241135;
+  background: #fffdf4;
+  box-shadow: 0 0 0 4px white, 0 10px 28px rgba(0, 0, 0, .32);
+}
+
+.save-status.is-error {
+  color: #8b2448;
+  background: #fff0f3;
+}
+
+@keyframes onboarding-card-in {
+  from { opacity: 0; transform: translateY(10px) scale(.97); }
+}
+
+@media (max-width: 720px) {
+  .onboarding-card {
+    bottom: 176px;
+    left: 10px;
+    width: min(300px, calc(100vw - 82px));
+  }
+}
+
+@media (max-width: 480px) {
+  .onboarding-card {
+    right: 58px;
+    bottom: 194px;
+    left: 8px;
+    width: auto;
+    padding: 10px;
+    border-width: 2px;
+  }
+
+  .onboarding-copy { grid-template-columns: 40px minmax(0, 1fr); }
+  .onboarding-icon { width: 40px; height: 40px; }
+  .onboarding-copy > span:last-child > span { font-size: .68rem; }
+}

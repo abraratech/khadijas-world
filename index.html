@@ -48,6 +48,7 @@
         <div class="release-card">
           <h2 id="first-launch-heading">Welcome to Khadija's World!</h2>
           <p>Choose a few things, then your world will be ready.</p>
+          <p class="privacy-short">Four quick play tips will appear inside your new world and disappear as you learn them.</p>
           <p class="privacy-short">Starting a new world replaces current rooms, characters, memories, and activities. Your comfort settings can stay the same.</p>
           <label class="release-choice"><input id="setup-sound" type="checkbox" checked /> Sound effects</label>
           <label class="release-choice"><input id="setup-music" type="checkbox" /> Gentle music</label>
@@ -143,6 +144,20 @@
           <small id="interaction-label-hint">Tap to interact</small>
         </span>
       </output>
+
+      <aside id="onboarding-card" class="onboarding-card" aria-live="polite" aria-atomic="true" hidden>
+        <div class="onboarding-heading">
+          <small id="onboarding-progress">Tip 1 of 4</small>
+          <button id="onboarding-skip-button" type="button">Skip tips</button>
+        </div>
+        <div class="onboarding-copy">
+          <span id="onboarding-icon" class="onboarding-icon" aria-hidden="true">&#128070;</span>
+          <span>
+            <strong id="onboarding-title">Walk around</strong>
+            <span id="onboarding-message">Tap an open place on the floor to move Khadija.</span>
+          </span>
+        </div>
+      </aside>
 
       <header class="top-bar">
         <div class="brand" aria-label="Khadija's World">
@@ -543,7 +558,7 @@
         </span>
       </div>
 
-      <output id="save-status" class="save-status" aria-live="polite"></output>
+      <output id="save-status" class="save-status" role="status" aria-live="polite" aria-atomic="true"></output>
 
       <section id="pause-panel" class="release-modal" role="dialog" aria-modal="true" aria-labelledby="pause-heading" hidden>
         <div class="release-card">

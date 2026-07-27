@@ -1,5 +1,11 @@
 import type { AbstractMesh, Vector3 } from "@babylonjs/core";
 import {
+  createCompletedOnboardingProgress,
+  createDefaultOnboardingProgress,
+  normalizeOnboardingProgress,
+  type OnboardingProgress,
+} from "./onboarding";
+import {
   CHARACTER_IDS,
   createDefaultCharacterStates,
   isCharacterExpression,
@@ -81,6 +87,7 @@ export interface AccessibilitySettings {
 export interface ReleaseSettings {
   firstLaunchComplete: boolean;
   chatPrivacyAcknowledged: boolean;
+  onboarding: OnboardingProgress;
 }
 
 export interface PrototypeSave {
@@ -147,6 +154,7 @@ const DEFAULT_ACCESSIBILITY: AccessibilitySettings = {
 const DEFAULT_RELEASE_SETTINGS: ReleaseSettings = {
   firstLaunchComplete: false,
   chatPrivacyAcknowledged: false,
+  onboarding: createDefaultOnboardingProgress(),
 };
 
 let saveRecoveryNotice: string | null = null;
@@ -174,7 +182,7 @@ export function createDefaultWorldSave(): PrototypeSave {
     world3: createDefaultWorld3State(),
     dialogue: createDefaultDialogueState(),
     accessibility: { ...DEFAULT_ACCESSIBILITY },
-    release: { ...DEFAULT_RELEASE_SETTINGS },
+    release: { ...DEFAULT_RELEASE_SETTINGS, onboarding: createDefaultOnboardingProgress() },
     khadijaPosition: { ...characters.khadija.position },
     outfit: characters.khadija.outfit,
     heldItem: null,
@@ -203,11 +211,18 @@ function normalizeAccessibility(value: unknown): AccessibilitySettings {
 }
 
 function normalizeReleaseSettings(value: unknown): ReleaseSettings {
-  if (!value || typeof value !== "object") return { ...DEFAULT_RELEASE_SETTINGS };
+  if (!value || typeof value !== "object") {
+    return { ...DEFAULT_RELEASE_SETTINGS, onboarding: createDefaultOnboardingProgress() };
+  }
   const candidate = value as Partial<ReleaseSettings>;
+  const onboardingWasStored = Object.prototype.hasOwnProperty.call(candidate, "onboarding");
   return {
     firstLaunchComplete: candidate.firstLaunchComplete === true,
     chatPrivacyAcknowledged: candidate.chatPrivacyAcknowledged === true,
+    onboarding: normalizeOnboardingProgress(
+      candidate.onboarding,
+      candidate.firstLaunchComplete === true && !onboardingWasStored,
+    ),
   };
 }
 
@@ -428,7 +443,10 @@ export function loadSave(): PrototypeSave {
   const npcs = normalizeNpcStates(parsed.npcs);
   const everyday = normalizeEverydayState(parsed.everyday);
   const release = normalizeReleaseSettings(parsed.release);
-  if (parsed.version !== 12) release.firstLaunchComplete = true;
+  if (parsed.version !== 12) {
+    release.firstLaunchComplete = true;
+    release.onboarding = createCompletedOnboardingProgress();
+  }
   reconcileExclusiveState(characters, npcs, everyday);
 
   if (typeof parsed.version === "number" && parsed.version < 12) {
