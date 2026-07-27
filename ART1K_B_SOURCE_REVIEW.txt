@@ -1,0 +1,2058 @@
+
+============================================================
+FILE: src/game/characters/heroCharacterProfiles.ts
+============================================================
+    1: import type { CharacterId } from "../characterState";
+    2: import type { NpcId } from "../livingCharacters";
+    3: 
+    4: export type HeroHairStyle =
+    5:   | "double-buns"
+    6:   | "fluffy-crop"
+    7:   | "layered-bob"
+    8:   | "low-bun"
+    9:   | "garden-crop"
+   10:   | "wrapped-scarf"
+   11:   | "silver-bob"
+   12:   | "neat-crop";
+   13: 
+   14: export type HeroClothingStyle =
+   15:   | "hoodie"
+   16:   | "dress"
+   17:   | "tunic"
+   18:   | "apron"
+   19:   | "work-shirt"
+   20:   | "cardigan";
+   21: 
+   22: export type HeroAccessory =
+   23:   | "none"
+   24:   | "bow"
+   25:   | "earrings"
+   26:   | "chef-cap"
+   27:   | "garden-hat"
+   28:   | "scarf"
+   29:   | "glasses"
+   30:   | "name-badge";
+   31: 
+   32: export interface HeroCharacterProfile {
+   33:   id: string;
+   34:   age: "toddler" | "child" | "adult" | "elder";
+   35:   skin: readonly [number, number, number];
+   36:   hair: readonly [number, number, number];
+   37:   eye: readonly [number, number, number];
+   38:   primary: readonly [number, number, number];
+   39:   secondary: readonly [number, number, number];
+   40:   accent: readonly [number, number, number];
+   41:   shoe: readonly [number, number, number];
+   42:   hairStyle: HeroHairStyle;
+   43:   clothingStyle: HeroClothingStyle;
+   44:   accessory: HeroAccessory;
+   45:   headScale: number;
+   46:   bodyWidth: number;
+   47:   shoulderWidth: number;
+   48:   legLength: number;
+   49:   nameBadge?: string;
+   50: }
+   51: 
+   52: export const COMPANION_HERO_PROFILES: Partial<Record<CharacterId, HeroCharacterProfile>> = {
+   53:   sister: {
+   54:     id: "sister",
+   55:     age: "toddler",
+   56:     skin: [.67, .42, .27],
+   57:     hair: [.055, .032, .042],
+   58:     eye: [.29, .15, .08],
+   59:     primary: [.97, .70, .22],
+   60:     secondary: [.98, .47, .67],
+   61:     accent: [.74, .43, .88],
+   62:     shoe: [.76, .44, .89],
+   63:     hairStyle: "double-buns",
+   64:     clothingStyle: "dress",
+   65:     accessory: "bow",
+   66:     headScale: 1.13,
+   67:     bodyWidth: .92,
+   68:     shoulderWidth: .91,
+   69:     legLength: .88,
+   70:   },
+   71:   brother: {
+   72:     id: "brother",
+   73:     age: "child",
+   74:     skin: [.59, .35, .23],
+   75:     hair: [.045, .028, .035],
+   76:     eye: [.23, .12, .07],
+   77:     primary: [.23, .62, .43],
+   78:     secondary: [.15, .35, .57],
+   79:     accent: [.84, .66, .17],
+   80:     shoe: [.16, .40, .61],
+   81:     hairStyle: "fluffy-crop",
+   82:     clothingStyle: "hoodie",
+   83:     accessory: "none",
+   84:     headScale: 1.03,
+   85:     bodyWidth: 1.04,
+   86:     shoulderWidth: 1.06,
+   87:     legLength: 1.02,
+   88:   },
+   89: };
+   90: 
+   91: export const NPC_HERO_PROFILES: Record<NpcId, HeroCharacterProfile> = {
+   92:   parent: {
+   93:     id: "parent",
+   94:     age: "adult",
+   95:     skin: [.61, .37, .24],
+   96:     hair: [.06, .035, .043],
+   97:     eye: [.27, .14, .08],
+   98:     primary: [.26, .61, .58],
+   99:     secondary: [.88, .63, .45],
+  100:     accent: [.93, .46, .61],
+  101:     shoe: [.25, .21, .23],
+  102:     hairStyle: "low-bun",
+  103:     clothingStyle: "tunic",
+  104:     accessory: "earrings",
+  105:     headScale: .98,
+  106:     bodyWidth: 1.06,
+  107:     shoulderWidth: 1.04,
+  108:     legLength: 1.06,
+  109:   },
+  110:   neighbor: {
+  111:     id: "neighbor",
+  112:     age: "adult",
+  113:     skin: [.47, .27, .18],
+  114:     hair: [.09, .045, .042],
+  115:     eye: [.22, .11, .06],
+  116:     primary: [.85, .35, .44],
+  117:     secondary: [.27, .62, .59],
+  118:     accent: [.96, .72, .23],
+  119:     shoe: [.34, .20, .23],
+  120:     hairStyle: "layered-bob",
+  121:     clothingStyle: "tunic",
+  122:     accessory: "scarf",
+  123:     headScale: 1,
+  124:     bodyWidth: 1.04,
+  125:     shoulderWidth: 1.02,
+  126:     legLength: 1.03,
+  127:   },
+  128:   "cafe-worker": {
+  129:     id: "cafe-worker",
+  130:     age: "adult",
+  131:     skin: [.63, .39, .25],
+  132:     hair: [.055, .03, .038],
+  133:     eye: [.30, .16, .08],
+  134:     primary: [.91, .40, .50],
+  135:     secondary: [.98, .92, .81],
+  136:     accent: [.98, .72, .22],
+  137:     shoe: [.24, .18, .19],
+  138:     hairStyle: "low-bun",
+  139:     clothingStyle: "apron",
+  140:     accessory: "chef-cap",
+  141:     headScale: 1,
+  142:     bodyWidth: 1.04,
+  143:     shoulderWidth: 1.03,
+  144:     legLength: 1.04,
+  145:     nameBadge: "S",
+  146:   },
+  147:   "park-keeper": {
+  148:     id: "park-keeper",
+  149:     age: "adult",
+  150:     skin: [.55, .32, .20],
+  151:     hair: [.075, .045, .035],
+  152:     eye: [.26, .14, .07],
+  153:     primary: [.26, .55, .28],
+  154:     secondary: [.61, .42, .21],
+  155:     accent: [.94, .68, .19],
+  156:     shoe: [.30, .22, .14],
+  157:     hairStyle: "garden-crop",
+  158:     clothingStyle: "work-shirt",
+  159:     accessory: "garden-hat",
+  160:     headScale: 1,
+  161:     bodyWidth: 1.08,
+  162:     shoulderWidth: 1.08,
+  163:     legLength: 1.06,
+  164:     nameBadge: "S",
+  165:   },
+  166:   "park-parent": {
+  167:     id: "park-parent",
+  168:     age: "adult",
+  169:     skin: [.48, .28, .18],
+  170:     hair: [.06, .035, .045],
+  171:     eye: [.25, .12, .07],
+  172:     primary: [.67, .45, .78],
+  173:     secondary: [.96, .68, .50],
+  174:     accent: [.28, .65, .60],
+  175:     shoe: [.34, .21, .28],
+  176:     hairStyle: "wrapped-scarf",
+  177:     clothingStyle: "cardigan",
+  178:     accessory: "earrings",
+  179:     headScale: 1.01,
+  180:     bodyWidth: 1.04,
+  181:     shoulderWidth: 1.01,
+  182:     legLength: 1.03,
+  183:   },
+  184:   shopkeeper: {
+  185:     id: "shopkeeper",
+  186:     age: "adult",
+  187:     skin: [.45, .25, .16],
+  188:     hair: [.05, .035, .035],
+  189:     eye: [.21, .11, .06],
+  190:     primary: [.18, .53, .54],
+  191:     secondary: [.16, .28, .43],
+  192:     accent: [.94, .66, .18],
+  193:     shoe: [.20, .17, .18],
+  194:     hairStyle: "neat-crop",
+  195:     clothingStyle: "work-shirt",
+  196:     accessory: "name-badge",
+  197:     headScale: .99,
+  198:     bodyWidth: 1.08,
+  199:     shoulderWidth: 1.10,
+  200:     legLength: 1.06,
+  201:     nameBadge: "K",
+  202:   },
+  203:   "grocery-shopper": {
+  204:     id: "grocery-shopper",
+  205:     age: "elder",
+  206:     skin: [.61, .38, .25],
+  207:     hair: [.66, .65, .68],
+  208:     eye: [.29, .15, .08],
+  209:     primary: [.64, .30, .48],
+  210:     secondary: [.94, .82, .68],
+  211:     accent: [.28, .62, .59],
+  212:     shoe: [.30, .21, .25],
+  213:     hairStyle: "silver-bob",
+  214:     clothingStyle: "cardigan",
+  215:     accessory: "glasses",
+  216:     headScale: 1.02,
+  217:     bodyWidth: 1.06,
+  218:     shoulderWidth: 1.00,
+  219:     legLength: .98,
+  220:   },
+  221: };
+
+============================================================
+FILE: src/game/characters/heroCharacterProfiles.test.ts
+============================================================
+    1: import { describe, expect, it } from "vitest";
+    2: import { NPC_IDS } from "../livingCharacters";
+    3: import { COMPANION_HERO_PROFILES, NPC_HERO_PROFILES } from "./heroCharacterProfiles";
+    4: 
+    5: describe("ART.1E hero procedural profiles", () => {
+    6:   it("defines distinct profiles for both family companions", () => {
+    7:     expect(Object.keys(COMPANION_HERO_PROFILES).sort()).toEqual(["brother", "sister"]);
+    8:     expect(COMPANION_HERO_PROFILES.sister?.age).toBe("toddler");
+    9:     expect(COMPANION_HERO_PROFILES.brother?.clothingStyle).toBe("hoodie");
+   10:   });
+   11: 
+   12:   it("covers every stable NPC id", () => {
+   13:     expect(Object.keys(NPC_HERO_PROFILES).sort()).toEqual([...NPC_IDS].sort());
+   14:   });
+   15: 
+   16:   it("gives the visible cast varied silhouettes rather than recolors", () => {
+   17:     const signatures = Object.values(NPC_HERO_PROFILES).map((profile) => (
+   18:       `${profile.hairStyle}:${profile.clothingStyle}:${profile.accessory}`
+   19:     ));
+   20:     expect(new Set(signatures).size).toBeGreaterThanOrEqual(6);
+   21:   });
+   22: });
+
+============================================================
+FILE: src/game/characters/applyHeroCharacterPolish.ts
+============================================================
+    1: import {
+    2:   Color3,
+    3:   Mesh,
+    4:   MeshBuilder,
+    5:   type Scene,
+    6:   StandardMaterial,
+    7:   TransformNode,
+    8:   Vector3,
+    9: } from "@babylonjs/core";
+   10: import { applyMaterialFinish, type MaterialFinish } from "../shared/createMaterials";
+   11: import type { CharacterRig } from "./createCharacterVisual";
+   12: import type { HeroCharacterProfile } from "./heroCharacterProfiles";
+   13: 
+   14: const color = (value: readonly [number, number, number]): Color3 => new Color3(...value);
+   15: 
+   16: function heroMaterial(
+   17:   scene: Scene,
+   18:   name: string,
+   19:   diffuse: readonly [number, number, number],
+   20:   finish: MaterialFinish = "soft-toy",
+   21: ): StandardMaterial {
+   22:   const material = new StandardMaterial(name, scene);
+   23:   material.diffuseColor = color(diffuse);
+   24:   material.ambientColor = color(diffuse).scale(.10);
+   25:   applyMaterialFinish(material, finish);
+   26:   return material;
+   27: }
+   28: 
+   29: function sphere(
+   30:   scene: Scene,
+   31:   name: string,
+   32:   diameter: number,
+   33:   position: Vector3,
+   34:   scale: Vector3,
+   35:   material: StandardMaterial,
+   36:   parent: TransformNode,
+   37:   segments = 10,
+   38: ): Mesh {
+   39:   const mesh = MeshBuilder.CreateSphere(name, { diameter, segments }, scene);
+   40:   mesh.position.copyFrom(position);
+   41:   mesh.scaling.copyFrom(scale);
+   42:   mesh.material = material;
+   43:   mesh.parent = parent;
+   44:   mesh.isPickable = false;
+   45:   return mesh;
+   46: }
+   47: 
+   48: function box(
+   49:   scene: Scene,
+   50:   name: string,
+   51:   size: Vector3,
+   52:   position: Vector3,
+   53:   material: StandardMaterial,
+   54:   parent: TransformNode,
+   55: ): Mesh {
+   56:   const mesh = MeshBuilder.CreateBox(name, {
+   57:     width: size.x,
+   58:     height: size.y,
+   59:     depth: size.z,
+   60:   }, scene);
+   61:   mesh.position.copyFrom(position);
+   62:   mesh.material = material;
+   63:   mesh.parent = parent;
+   64:   mesh.isPickable = false;
+   65:   return mesh;
+   66: }
+   67: 
+   68: function torus(
+   69:   scene: Scene,
+   70:   name: string,
+   71:   diameter: number,
+   72:   thickness: number,
+   73:   position: Vector3,
+   74:   material: StandardMaterial,
+   75:   parent: TransformNode,
+   76: ): Mesh {
+   77:   const mesh = MeshBuilder.CreateTorus(name, { diameter, thickness, tessellation: 18 }, scene);
+   78:   mesh.position.copyFrom(position);
+   79:   mesh.material = material;
+   80:   mesh.parent = parent;
+   81:   mesh.isPickable = false;
+   82:   return mesh;
+   83: }
+   84: 
+   85: function setExistingMaterialColor(
+   86:   rig: CharacterRig,
+   87:   matcher: (name: string) => boolean,
+   88:   next: Color3,
+   89: ): void {
+   90:   const seen = new Set<StandardMaterial>();
+   91:   for (const mesh of rig.root.getChildMeshes(false)) {
+   92:     if (!matcher(mesh.name)) continue;
+   93:     if (!(mesh.material instanceof StandardMaterial) || seen.has(mesh.material)) continue;
+   94:     seen.add(mesh.material);
+   95:     mesh.material.diffuseColor.copyFrom(next);
+   96:     mesh.material.ambientColor.copyFrom(next.scale(.10));
+   97:     applyMaterialFinish(mesh.material, "auto");
+   98:   }
+   99: }
+  100: 
+  101: function hideLegacyHair(rig: CharacterRig): void {
+  102:   for (const mesh of rig.root.getChildMeshes(false)) {
+  103:     const name = mesh.name.toLowerCase();
+  104:     if (
+  105:       name.includes("hair-cap")
+  106:       || name.includes("front-curl")
+  107:       || name.includes("-curl-")
+  108:       || name.includes("-bun-")
+  109:       || name.includes("bun-band")
+  110:       || name.includes("headband")
+  111:       || name.includes("-bow-")
+  112:     ) {
+  113:       mesh.setEnabled(false);
+  114:     }
+  115:   }
+  116: }
+  117: 
+  118: function addHair(
+  119:   scene: Scene,
+  120:   rootName: string,
+  121:   head: TransformNode,
+  122:   profile: HeroCharacterProfile,
+  123:   hair: StandardMaterial,
+  124:   accent: StandardMaterial,
+  125: ): void {
+  126:   const cap = MeshBuilder.CreateSphere(
+  127:     `${rootName}-hero-hair-cap`,
+  128:     { diameter: .92, segments: 16, slice: .60 },
+  129:     scene,
+  130:   );
+  131:   cap.position.set(0, .18, .025);
+  132:   cap.rotation.x = Math.PI;
+  133:   cap.material = hair;
+  134:   cap.parent = head;
+  135:   cap.isPickable = false;
+  136: 
+  137:   const addLock = (
+  138:     suffix: string,
+  139:     x: number,
+  140:     y: number,
+  141:     z: number,
+  142:     sx: number,
+  143:     sy: number,
+  144:     sz: number,
+  145:   ): void => {
+  146:     sphere(
+  147:       scene,
+  148:       `${rootName}-hero-hair-${suffix}`,
+  149:       .32,
+  150:       new Vector3(x, y, z),
+  151:       new Vector3(sx, sy, sz),
+  152:       hair,
+  153:       head,
+  154:       10,
+  155:     );
+  156:   };
+  157: 
+  158:   switch (profile.hairStyle) {
+  159:     case "double-buns":
+  160:       for (const x of [-.36, .36]) {
+  161:         sphere(
+  162:           scene,
+  163:           `${rootName}-hero-bun-${x}`,
+  164:           .39,
+  165:           new Vector3(x, .31, .04),
+  166:           new Vector3(1, 1.05, .9),
+  167:           hair,
+  168:           head,
+  169:           12,
+  170:         );
+  171:         const band = torus(
+  172:           scene,
+  173:           `${rootName}-hero-bun-band-${x}`,
+  174:           .27,
+  175:           .045,
+  176:           new Vector3(x, .24, .015),
+  177:           accent,
+  178:           head,
+  179:         );
+  180:         band.rotation.x = Math.PI / 2;
+  181:       }
+  182:       addLock("fringe-left", -.13, .32, -.22, 1.15, .72, .55);
+  183:       addLock("fringe-right", .13, .32, -.22, 1.15, .72, .55);
+  184:       break;
+  185:     case "fluffy-crop":
+  186:       for (const [index, x] of [-.32, -.20, -.07, .07, .20, .32].entries()) {
+  187:         addLock(`fluff-${index}`, x, .31 - Math.abs(x) * .18, -.16, 1.05, .95, .72);
+  188:       }
+  189:       addLock("side-left", -.39, .10, .02, .66, 1.20, .70);
+  190:       addLock("side-right", .39, .10, .02, .66, 1.20, .70);
+  191:       break;
+  192:     case "layered-bob":
+  193:     case "silver-bob":
+  194:       for (const [index, values] of [
+  195:         [-.39, .02, .02, .68, 1.55, .72],
+  196:         [.39, .02, .02, .68, 1.55, .72],
+  197:         [-.29, -.27, .12, .84, 1.28, .80],
+  198:         [.29, -.27, .12, .84, 1.28, .80],
+  199:       ].entries()) {
+  200:         addLock(`bob-${index}`, ...values as [number, number, number, number, number, number]);
+  201:       }
+  202:       addLock("side-fringe", -.19, .31, -.20, 1.10, .68, .56);
+  203:       break;
+  204:     case "low-bun":
+  205:       sphere(
+  206:         scene,
+  207:         `${rootName}-hero-low-bun`,
+  208:         .36,
+  209:         new Vector3(0, -.12, .38),
+  210:         new Vector3(1.12, 1.06, .86),
+  211:         hair,
+  212:         head,
+  213:         12,
+  214:       );
+  215:       addLock("temple-left", -.36, .03, -.05, .62, 1.38, .58);
+  216:       addLock("temple-right", .36, .03, -.05, .62, 1.38, .58);
+  217:       break;
+  218:     case "wrapped-scarf": {
+  219:       cap.scaling.set(1.04, .95, 1.04);
+  220:       cap.material = accent;
+  221:       const band = torus(
+  222:         scene,
+  223:         `${rootName}-hero-scarf-band`,
+  224:         .78,
+  225:         .075,
+  226:         new Vector3(0, .17, -.02),
+  227:         accent,
+  228:         head,
+  229:       );
+  230:       band.rotation.x = Math.PI / 2;
+  231:       const tail = box(
+  232:         scene,
+  233:         `${rootName}-hero-scarf-tail`,
+  234:         new Vector3(.19, .55, .08),
+  235:         new Vector3(.30, -.23, .25),
+  236:         accent,
+  237:         head,
+  238:       );
+  239:       tail.rotation.z = -.18;
+  240:       break;
+  241:     }
+  242:     case "garden-crop":
+  243:     case "neat-crop":
+  244:       cap.scaling.y = profile.hairStyle === "neat-crop" ? .76 : .84;
+  245:       addLock("crop-left", -.22, .32, -.18, 1.12, .72, .58);
+  246:       addLock("crop-center", 0, .36, -.19, 1.18, .76, .58);
+  247:       addLock("crop-right", .22, .32, -.18, 1.12, .72, .58);
+  248:       break;
+  249:   }
+  250: }
+  251: 
+  252: function addFaceDetails(
+  253:   scene: Scene,
+  254:   rootName: string,
+  255:   head: TransformNode,
+  256:   profile: HeroCharacterProfile,
+  257:   skin: StandardMaterial,
+  258:   iris: StandardMaterial,
+  259:   white: StandardMaterial,
+  260:   hair: StandardMaterial,
+  261: ): void {
+  262:   for (const x of [-.18, .18]) {
+  263:     sphere(
+  264:       scene,
+  265:       `${rootName}-hero-ear-${x}`,
+  266:       .15,
+  267:       new Vector3(x < 0 ? -.43 : .43, -.015, -.01),
+  268:       new Vector3(.72, 1.05, .56),
+  269:       skin,
+  270:       head,
+  271:       9,
+  272:     );
+  273:     sphere(
+  274:       scene,
+  275:       `${rootName}-hero-iris-${x}`,
+  276:       .070,
+  277:       new Vector3(x, .025, -.466),
+  278:       new Vector3(1, 1, .34),
+  279:       iris,
+  280:       head,
+  281:       9,
+  282:     );
+  283:     sphere(
+  284:       scene,
+  285:       `${rootName}-hero-eye-shine-${x}`,
+  286:       .024,
+  287:       new Vector3(x - .014, .052, -.489),
+  288:       new Vector3(1, 1, .30),
+  289:       white,
+  290:       head,
+  291:       7,
+  292:     );
+  293: 
+  294:     if (profile.age !== "adult" || profile.accessory === "earrings") {
+  295:       const lash = box(
+  296:         scene,
+  297:         `${rootName}-hero-lash-${x}`,
+  298:         new Vector3(.10, .016, .018),
+  299:         new Vector3(x, .105, -.466),
+  300:         hair,
+  301:         head,
+  302:       );
+  303:       lash.rotation.z = x < 0 ? -.10 : .10;
+  304:     }
+  305:   }
+  306: }
+  307: 
+  308: function addClothing(
+  309:   scene: Scene,
+  310:   rootName: string,
+  311:   bodyRoot: TransformNode,
+  312:   profile: HeroCharacterProfile,
+  313:   primary: StandardMaterial,
+  314:   secondary: StandardMaterial,
+  315:   accent: StandardMaterial,
+  316:   white: StandardMaterial,
+  317: ): void {
+  318:   const collar = torus(
+  319:     scene,
+  320:     `${rootName}-hero-collar`,
+  321:     .49,
+  322:     .045,
+  323:     new Vector3(0, 1.34, -.01),
+  324:     secondary,
+  325:     bodyRoot,
+  326:   );
+  327:   collar.rotation.x = Math.PI / 2;
+  328:   collar.scaling.z = .68;
+  329: 
+  330:   if (profile.clothingStyle !== "hoodie") {
+  331:     for (const mesh of bodyRoot.getChildMeshes(false)) {
+  332:       const name = mesh.name.toLowerCase();
+  333:       if (name.includes("drawstring") || name.includes("-pocket") || name.includes("emblem")) {
+  334:         mesh.setEnabled(false);
+  335:       }
+  336:     }
+  337:   }
+  338: 
+  339:   if (profile.clothingStyle === "dress" || profile.clothingStyle === "tunic") {
+  340:     const hem = MeshBuilder.CreateCylinder(
+  341:       `${rootName}-hero-${profile.clothingStyle}-hem`,
+  342:       {
+  343:         diameterTop: profile.clothingStyle === "dress" ? .58 : .62,
+  344:         diameterBottom: profile.clothingStyle === "dress" ? .88 : .76,
+  345:         height: profile.clothingStyle === "dress" ? .56 : .42,
+  346:         tessellation: 18,
+  347:       },
+  348:       scene,
+  349:     );
+  350:     hem.position.set(0, .55, 0);
+  351:     hem.material = primary;
+  352:     hem.parent = bodyRoot;
+  353:     hem.isPickable = false;
+  354: 
+  355:     const hemBand = torus(
+  356:       scene,
+  357:       `${rootName}-hero-hem-band`,
+  358:       profile.clothingStyle === "dress" ? .80 : .69,
+  359:       .035,
+  360:       new Vector3(0, .29, 0),
+  361:       accent,
+  362:       bodyRoot,
+  363:     );
+  364:     hemBand.rotation.x = Math.PI / 2;
+  365:   }
+  366: 
+  367:   if (profile.clothingStyle === "apron") {
+  368:     const bib = box(
+  369:       scene,
+  370:       `${rootName}-hero-apron-bib`,
+  371:       new Vector3(.47, .58, .045),
+  372:       new Vector3(0, .98, -.325),
+  373:       secondary,
+  374:       bodyRoot,
+  375:     );
+  376:     bib.rotation.x = -.03;
+  377:     box(
+  378:       scene,
+  379:       `${rootName}-hero-apron-pocket`,
+  380:       new Vector3(.31, .18, .025),
+  381:       new Vector3(0, .78, -.355),
+  382:       accent,
+  383:       bodyRoot,
+  384:     );
+  385:     for (const x of [-.20, .20]) {
+  386:       const strap = box(
+  387:         scene,
+  388:         `${rootName}-hero-apron-strap-${x}`,
+  389:         new Vector3(.045, .45, .025),
+  390:         new Vector3(x, 1.25, -.30),
+  391:         secondary,
+  392:         bodyRoot,
+  393:       );
+  394:       strap.rotation.z = x < 0 ? -.08 : .08;
+  395:     }
+  396:   }
+  397: 
+  398:   if (profile.clothingStyle === "cardigan") {
+  399:     for (const x of [-.14, .14]) {
+  400:       const panel = box(
+  401:         scene,
+  402:         `${rootName}-hero-cardigan-${x}`,
+  403:         new Vector3(.22, .68, .035),
+  404:         new Vector3(x, .98, -.326),
+  405:         primary,
+  406:         bodyRoot,
+  407:       );
+  408:       panel.rotation.z = x < 0 ? -.035 : .035;
+  409:     }
+  410:     for (const y of [.77, .94, 1.11]) {
+  411:       sphere(
+  412:         scene,
+  413:         `${rootName}-hero-cardigan-button-${y}`,
+  414:         .055,
+  415:         new Vector3(0, y, -.36),
+  416:         new Vector3(1, 1, .32),
+  417:         accent,
+  418:         bodyRoot,
+  419:         7,
+  420:       );
+  421:     }
+  422:   }
+  423: 
+  424:   if (profile.clothingStyle === "work-shirt") {
+  425:     for (const x of [-.12, .12]) {
+  426:       const lapel = box(
+  427:         scene,
+  428:         `${rootName}-hero-shirt-lapel-${x}`,
+  429:         new Vector3(.17, .25, .032),
+  430:         new Vector3(x, 1.24, -.326),
+  431:         secondary,
+  432:         bodyRoot,
+  433:       );
+  434:       lapel.rotation.z = x < 0 ? -.32 : .32;
+  435:     }
+  436:     box(
+  437:       scene,
+  438:       `${rootName}-hero-shirt-pocket`,
+  439:       new Vector3(.20, .17, .028),
+  440:       new Vector3(.15, 1.02, -.355),
+  441:       secondary,
+  442:       bodyRoot,
+  443:     );
+  444:   }
+  445: 
+  446:   if (profile.clothingStyle === "hoodie") {
+  447:     const hood = torus(
+  448:       scene,
+  449:       `${rootName}-hero-hood`,
+  450:       .62,
+  451:       .085,
+  452:       new Vector3(0, 1.36, .06),
+  453:       primary,
+  454:       bodyRoot,
+  455:     );
+  456:     hood.rotation.x = Math.PI / 2;
+  457:     hood.scaling.z = .76;
+  458:   }
+  459: 
+  460:   // Soft shoulder caps and cuffs make the segmented rig feel intentional.
+  461:   for (const [index, arm] of bodyRoot.getChildren().filter((node: { name: string }) => node.name.includes("arm-pivot")).entries()) {
+  462:     if (!(arm instanceof TransformNode)) continue;
+  463:     sphere(
+  464:       scene,
+  465:       `${rootName}-hero-shoulder-${index}`,
+  466:       .24,
+  467:       Vector3.Zero(),
+  468:       new Vector3(1.08, .90, .95),
+  469:       primary,
+  470:       arm,
+  471:       9,
+  472:     );
+  473:     torus(
+  474:       scene,
+  475:       `${rootName}-hero-cuff-${index}`,
+  476:       .18,
+  477:       .028,
+  478:       new Vector3(0, -.44, 0),
+  479:       secondary,
+  480:       arm,
+  481:     );
+  482:   }
+  483: 
+  484:   // Thin stitch line for depth at normal gameplay zoom.
+  485:   box(
+  486:     scene,
+  487:     `${rootName}-hero-outfit-stitch`,
+  488:     new Vector3(.015, .48, .018),
+  489:     new Vector3(0, .98, -.352),
+  490:     white,
+  491:     bodyRoot,
+  492:   );
+  493: }
+  494: 
+  495: function addAccessory(
+  496:   scene: Scene,
+  497:   rootName: string,
+  498:   head: TransformNode,
+  499:   body: TransformNode,
+  500:   profile: HeroCharacterProfile,
+  501:   accent: StandardMaterial,
+  502:   secondary: StandardMaterial,
+  503:   white: StandardMaterial,
+  504:   dark: StandardMaterial,
+  505: ): void {
+  506:   switch (profile.accessory) {
+  507:     case "bow":
+  508:       for (const x of [-.07, .07]) {
+  509:         sphere(
+  510:           scene,
+  511:           `${rootName}-hero-bow-${x}`,
+  512:           .17,
+  513:           new Vector3(.27 + x, .43, -.22),
+  514:           new Vector3(1.28, .72, .40),
+  515:           accent,
+  516:           head,
+  517:           8,
+  518:         );
+  519:       }
+  520:       break;
+  521:     case "earrings":
+  522:       for (const x of [-.44, .44]) {
+  523:         sphere(
+  524:           scene,
+  525:           `${rootName}-hero-earring-${x}`,
+  526:           .065,
+  527:           new Vector3(x, -.09, -.04),
+  528:           new Vector3(1, 1.15, .65),
+  529:           accent,
+  530:           head,
+  531:           8,
+  532:         );
+  533:       }
+  534:       break;
+  535:     case "chef-cap": {
+  536:       const band = MeshBuilder.CreateCylinder(
+  537:         `${rootName}-hero-chef-band`,
+  538:         { diameter: .61, height: .14, tessellation: 16 },
+  539:         scene,
+  540:       );
+  541:       band.position.set(0, .48, .01);
+  542:       band.material = white;
+  543:       band.parent = head;
+  544:       band.isPickable = false;
+  545:       for (const x of [-.18, 0, .18]) {
+  546:         sphere(
+  547:           scene,
+  548:           `${rootName}-hero-chef-puff-${x}`,
+  549:           .31,
+  550:           new Vector3(x, .63 + (x === 0 ? .04 : 0), .02),
+  551:           new Vector3(1.02, .92, .90),
+  552:           white,
+  553:           head,
+  554:           10,
+  555:         );
+  556:       }
+  557:       break;
+  558:     }
+  559:     case "garden-hat": {
+  560:       const brim = torus(
+  561:         scene,
+  562:         `${rootName}-hero-hat-brim`,
+  563:         .90,
+  564:         .12,
+  565:         new Vector3(0, .44, .02),
+  566:         secondary,
+  567:         head,
+  568:       );
+  569:       brim.scaling.y = .70;
+  570:       const crown = MeshBuilder.CreateCylinder(
+  571:         `${rootName}-hero-hat-crown`,
+  572:         { diameterTop: .48, diameterBottom: .59, height: .30, tessellation: 16 },
+  573:         scene,
+  574:       );
+  575:       crown.position.set(0, .58, .03);
+  576:       crown.material = secondary;
+  577:       crown.parent = head;
+  578:       crown.isPickable = false;
+  579:       const ribbon = torus(
+  580:         scene,
+  581:         `${rootName}-hero-hat-ribbon`,
+  582:         .54,
+  583:         .035,
+  584:         new Vector3(0, .49, .03),
+  585:         accent,
+  586:         head,
+  587:       );
+  588:       ribbon.rotation.x = Math.PI / 2;
+  589:       break;
+  590:     }
+  591:     case "scarf": {
+  592:       const scarf = torus(
+  593:         scene,
+  594:         `${rootName}-hero-neck-scarf`,
+  595:         .52,
+  596:         .075,
+  597:         new Vector3(0, 1.35, 0),
+  598:         accent,
+  599:         body,
+  600:       );
+  601:       scarf.rotation.x = Math.PI / 2;
+  602:       const tail = box(
+  603:         scene,
+  604:         `${rootName}-hero-neck-scarf-tail`,
+  605:         new Vector3(.18, .48, .045),
+  606:         new Vector3(.17, 1.09, -.34),
+  607:         accent,
+  608:         body,
+  609:       );
+  610:       tail.rotation.z = -.16;
+  611:       break;
+  612:     }
+  613:     case "glasses":
+  614:       for (const x of [-.18, .18]) {
+  615:         const lens = torus(
+  616:           scene,
+  617:           `${rootName}-hero-glasses-${x}`,
+  618:           .21,
+  619:           .025,
+  620:           new Vector3(x, .04, -.47),
+  621:           dark,
+  622:           head,
+  623:         );
+  624:         lens.rotation.x = Math.PI / 2;
+  625:       }
+  626:       box(
+  627:         scene,
+  628:         `${rootName}-hero-glasses-bridge`,
+  629:         new Vector3(.15, .025, .02),
+  630:         new Vector3(0, .04, -.47),
+  631:         dark,
+  632:         head,
+  633:       );
+  634:       break;
+  635:     case "name-badge":
+  636:       box(
+  637:         scene,
+  638:         `${rootName}-hero-name-badge`,
+  639:         new Vector3(.22, .12, .03),
+  640:         new Vector3(.18, 1.12, -.36),
+  641:         white,
+  642:         body,
+  643:       );
+  644:       sphere(
+  645:         scene,
+  646:         `${rootName}-hero-name-badge-dot`,
+  647:         .055,
+  648:         new Vector3(.18, 1.12, -.385),
+  649:         new Vector3(1, 1, .30),
+  650:         accent,
+  651:         body,
+  652:         7,
+  653:       );
+  654:       break;
+  655:     case "none":
+  656:       break;
+  657:   }
+  658: }
+  659: 
+  660: export function applyHeroCharacterPolish(
+  661:   scene: Scene,
+  662:   rig: CharacterRig,
+  663:   profile: HeroCharacterProfile,
+  664: ): void {
+  665:   const bodyRoot = rig.semantic.body.parent;
+  666:   const headRoot = rig.semantic.head.parent;
+  667:   if (!(bodyRoot instanceof TransformNode) || !(headRoot instanceof TransformNode)) return;
+  668: 
+  669:   const rootName = rig.root.name;
+  670:   const skinColor = color(profile.skin);
+  671:   const hairColor = color(profile.hair);
+  672:   const primaryColor = color(profile.primary);
+  673:   const secondaryColor = color(profile.secondary);
+  674:   const accentColor = color(profile.accent);
+  675:   const shoeColor = color(profile.shoe);
+  676: 
+  677:   setExistingMaterialColor(rig, (name) => (
+  678:     name.includes("-head") || name.includes("-hand-") || name.includes("-nose")
+  679:   ), skinColor);
+  680:   setExistingMaterialColor(rig, (name) => (
+  681:     name.includes("hair") || name.includes("curl") || name.includes("bun")
+  682:   ), hairColor);
+  683:   setExistingMaterialColor(rig, (name) => (
+  684:     name.includes("-body") || name.includes("-arm-") || name.includes("-pocket")
+  685:   ), primaryColor);
+  686:   setExistingMaterialColor(rig, (name) => name.includes("-leg-"), secondaryColor);
+  687:   setExistingMaterialColor(rig, (name) => name.includes("-shoe-") && !name.includes("sole"), shoeColor);
+  688:   setExistingMaterialColor(rig, (name) => (
+  689:     name.includes("emblem") || name.includes("headband") || name.includes("bow") || name.includes("bun-band")
+  690:   ), accentColor);
+  691: 
+  692:   rig.semantic.head.scaling.scaleInPlace(profile.headScale);
+  693:   rig.semantic.body.scaling.x *= profile.bodyWidth;
+  694:   rig.semantic.arms[0].position.x = -.34 * profile.shoulderWidth;
+  695:   rig.semantic.arms[1].position.x = .34 * profile.shoulderWidth;
+  696: 
+  697:   const leftLeg = scene.getTransformNodeByName(`${rootName}-left-leg-pivot`);
+  698:   const rightLeg = scene.getTransformNodeByName(`${rootName}-right-leg-pivot`);
+  699:   for (const leg of [leftLeg, rightLeg]) {
+  700:     if (leg) leg.scaling.y = profile.legLength;
+  701:   }
+  702: 
+  703:   hideLegacyHair(rig);
+  704: 
+  705:   const skin = heroMaterial(scene, `${rootName}-hero-skin`, profile.skin, "skin");
+  706:   const hair = heroMaterial(scene, `${rootName}-hero-hair`, profile.hair, "hair");
+  707:   const iris = heroMaterial(scene, `${rootName}-hero-eye`, profile.eye, "glass");
+  708:   const primary = heroMaterial(scene, `${rootName}-hero-primary`, profile.primary, "fabric");
+  709:   const secondary = heroMaterial(scene, `${rootName}-hero-secondary`, profile.secondary, "fabric");
+  710:   const accent = heroMaterial(scene, `${rootName}-hero-accent`, profile.accent, "soft-toy");
+  711:   const white = heroMaterial(scene, `${rootName}-hero-white`, [.98, .96, .91], "ceramic");
+  712:   const dark = heroMaterial(scene, `${rootName}-hero-dark`, [.08, .055, .07], "soft-toy");
+  713: 
+  714:   addFaceDetails(scene, rootName, headRoot, profile, skin, iris, white, hair);
+  715:   addHair(scene, rootName, headRoot, profile, hair, accent);
+  716:   addClothing(scene, rootName, bodyRoot, profile, primary, secondary, accent, white);
+  717:   addAccessory(scene, rootName, headRoot, bodyRoot, profile, accent, secondary, white, dark);
+  718: 
+  719:   // Rounded toe caps and laces soften the original box shoes.
+  720:   for (const mesh of rig.root.getChildMeshes(false)) {
+  721:     if (!mesh.name.includes("-shoe-") || mesh.name.includes("sole")) continue;
+  722:     if (!(mesh.parent instanceof TransformNode)) continue;
+  723:     sphere(
+  724:       scene,
+  725:       `${mesh.name}-hero-toe`,
+  726:       .27,
+  727:       new Vector3(0, -.58, -.20),
+  728:       new Vector3(1.05, .55, 1.32),
+  729:       heroMaterial(scene, `${mesh.name}-hero-toe-mat`, profile.shoe, "soft-toy"),
+  730:       mesh.parent,
+  731:       10,
+  732:     );
+  733:     for (const x of [-.055, .055]) {
+  734:       const lace = box(
+  735:         scene,
+  736:         `${mesh.name}-hero-lace-${x}`,
+  737:         new Vector3(.025, .015, .16),
+  738:         new Vector3(x, -.51, -.22),
+  739:         white,
+  740:         mesh.parent,
+  741:       );
+  742:       lace.rotation.x = -.18;
+  743:     }
+  744:   }
+  745: 
+  746:   for (const mesh of rig.root.getChildMeshes(false)) {
+  747:     mesh.receiveShadows = true;
+  748:     mesh.metadata = {
+  749:       ...mesh.metadata,
+  750:       heroProcedural: true,
+  751:       heroProfileId: profile.id,
+  752:     };
+  753:   }
+  754: }
+
+============================================================
+FILE: src/game/characters/createCharacterVisual.ts � lines 1-420
+============================================================
+    1: import {
+    2:   type AbstractMesh,
+    3:   Animation,
+    4:   Color3,
+    5:   type Mesh,
+    6:   MeshBuilder,
+    7:   type Scene,
+    8:   TransformNode,
+    9:   Vector3,
+   10: } from "@babylonjs/core";
+   11: import type { CharacterExpression, CharacterId } from "../characterState";
+   12: import { CHARACTER_VISUALS, DEFAULT_CHARACTER_VISUAL } from "../characterVisuals";
+   13: import { createMaterial, WORLD_COLORS } from "../shared/createMaterials";
+   14: import { addBlobShadow } from "../shared/meshHelpers";
+   15: 
+   16: export type UseGesture = "hug" | "read" | "eat" | "drink";
+   17: 
+   18: export const CHARACTER_VISUAL_SEMANTIC_KEYS = [
+   19:   "root",
+   20:   "body",
+   21:   "head",
+   22:   "eyes",
+   23:   "mouth",
+   24:   "arms",
+   25:   "hands",
+   26:   "outfitMeshes",
+   27:   "heldItemAnchor",
+   28:   "seatAnchor",
+   29:   "sleepAnchor",
+   30: ] as const;
+   31: 
+   32: export interface CharacterVisualReferences {
+   33:   root: TransformNode;
+   34:   body: Mesh;
+   35:   head: Mesh;
+   36:   eyes: readonly Mesh[];
+   37:   mouth: Mesh;
+   38:   arms: readonly [TransformNode, TransformNode];
+   39:   hands: readonly Mesh[];
+   40:   outfitMeshes: readonly AbstractMesh[];
+   41:   heldItemAnchor: TransformNode;
+   42:   seatAnchor: TransformNode;
+   43:   sleepAnchor: TransformNode;
+   44: }
+   45: 
+   46: export interface CharacterRig {
+   47:   root: TransformNode;
+   48:   holdAnchor: TransformNode;
+   49:   semantic: CharacterVisualReferences;
+   50:   update(deltaSeconds: number): void;
+   51:   setTarget(target: Vector3, onArrive?: () => void): void;
+   52:   moveBy(direction: Vector3, deltaSeconds: number): void;
+   53:   sitAt(position: Vector3, rotationY: number): void;
+   54:   sleepAt(position: Vector3, rotationY: number): void;
+   55:   stand(): void;
+   56:   placeAt(position: Vector3): void;
+   57:   setOutfitColor(color: Color3): void;
+   58:   setExpression(expression: CharacterExpression): void;
+   59:   setSelected(selected: boolean): void;
+   60:   setVisible(visible: boolean): void;
+   61:   setBounds(minX: number, maxX: number, minZ: number, maxZ: number): void;
+   62:   setLivingAnimation(enabled: boolean, hasHeldItem?: boolean): void;
+   63:   lookAt(target: Vector3 | null): void;
+   64:   cancelMovement(): void;
+   65:   playUseGesture(gesture: UseGesture): void;
+   66:   isSeated(): boolean;
+   67:   isSleeping(): boolean;
+   68:   isMoving(): boolean;
+   69: }
+   70: 
+   71: 
+   72: export function createCharacterVisual(
+   73:   scene: Scene,
+   74:   name: string,
+   75:   position: Vector3,
+   76:   hoodieColor: Color3,
+   77:   scale = 1,
+   78:   movable = false,
+   79:   characterId?: CharacterId,
+   80:   onPositionChanged?: (position: Vector3, rotationY: number) => void,
+   81: ): CharacterRig {
+   82:   const root = new TransformNode(name, scene);
+   83:   root.position.copyFrom(position);
+   84:   root.scaling.setAll(scale);
+   85:   addBlobShadow(scene, root, 0.52);
+   86: 
+   87:   const visualRoot = new TransformNode(`${name}-visual`, scene);
+   88:   visualRoot.parent = root;
+   89:   const headPivot = new TransformNode(`${name}-head-pivot`, scene);
+   90:   headPivot.position.y = 1.73;
+   91:   headPivot.parent = visualRoot;
+   92: 
+   93:   const visualStyle = characterId
+   94:     ? CHARACTER_VISUALS[characterId]
+   95:     : DEFAULT_CHARACTER_VISUAL;
+   96:   const skin = createMaterial(scene, `${name}-skin`, new Color3(...visualStyle.skin));
+   97:   const hair = createMaterial(scene, `${name}-hair`, new Color3(...visualStyle.hair));
+   98:   const accent = createMaterial(scene, `${name}-accent`, new Color3(...visualStyle.accent));
+   99:   const hoodie = createMaterial(scene, `${name}-hoodie`, hoodieColor);
+  100:   const denim = createMaterial(scene, `${name}-denim`, new Color3(0.12, 0.31, 0.52));
+  101:   const white = createMaterial(scene, `${name}-white`, new Color3(0.96, 0.95, 0.91));
+  102:   const eye = createMaterial(scene, `${name}-eye`, WORLD_COLORS.dark);
+  103:   const smile = createMaterial(scene, `${name}-smile`, new Color3(0.35, 0.08, 0.10));
+  104:   const shoeMaterial = createMaterial(scene, `${name}-shoe-mat`, new Color3(...visualStyle.shoe));
+  105:   const cheekMaterial = createMaterial(scene, `${name}-cheek-mat`, new Color3(.94, .43, .50));
+  106: 
+  107:   const body = MeshBuilder.CreateCapsule(`${name}-body`, { radius: 0.32, height: 1.1, tessellation: 14 }, scene);
+  108:   body.position.y = 0.95;
+  109:   body.scaling.x = visualStyle.bodyWidth;
+  110:   body.material = hoodie;
+  111:   body.parent = visualRoot;
+  112: 
+  113:   const head = MeshBuilder.CreateSphere(`${name}-head`, { diameter: 0.88, segments: 18 }, scene);
+  114:   head.scaling.set(visualStyle.faceWidth, 1, .9);
+  115:   head.material = skin;
+  116:   head.parent = headPivot;
+  117: 
+  118:   const hairCap = MeshBuilder.CreateSphere(`${name}-hair-cap`, { diameter: 0.91, segments: 14, slice: 0.58 }, scene);
+  119:   hairCap.position.set(0, .18, .02);
+  120:   hairCap.rotation.x = Math.PI;
+  121:   if (visualStyle.hairStyle === "soft-crop") hairCap.scaling.y = .78;
+  122:   hairCap.material = hair;
+  123:   hairCap.parent = headPivot;
+  124: 
+  125:   if (visualStyle.hairStyle === "long-curls") {
+  126:     for (const [x, y, diameter] of [
+  127:       [-.36, -.08, .34],
+  128:       [.36, -.08, .34],
+  129:       [-.37, -.36, .31],
+  130:       [.37, -.36, .31],
+  131:       [-.25, -.57, .29],
+  132:       [.25, -.57, .29],
+  133:     ] as const) {
+  134:       const curl = MeshBuilder.CreateSphere(
+  135:         `${name}-curl-${x}-${y}`,
+  136:         { diameter, segments: 10 },
+  137:         scene,
+  138:       );
+  139:       curl.position.set(x, y, .12);
+  140:       curl.material = hair;
+  141:       curl.parent = headPivot;
+  142:       curl.isPickable = false;
+  143:     }
+  144:     const headband = MeshBuilder.CreateTorus(`${name}-headband`, { diameter: 0.76, thickness: 0.07, tessellation: 20 }, scene);
+  145:     headband.position.set(0, .19, -.03);
+  146:     headband.rotation.x = Math.PI / 2;
+  147:     headband.material = accent;
+  148:     headband.parent = headPivot;
+  149: 
+  150:     for (const x of [-.075, .075]) {
+  151:       const bowLoop = MeshBuilder.CreateSphere(`${name}-bow-${x}`, { diameter: .15, segments: 8 }, scene);
+  152:       bowLoop.scaling.set(1.25, .72, .42);
+  153:       bowLoop.position.set(.26 + x, .43, -.25);
+  154:       bowLoop.material = accent;
+  155:       bowLoop.parent = headPivot;
+  156:       bowLoop.isPickable = false;
+  157:     }
+  158:   } else if (visualStyle.hairStyle === "double-buns") {
+  159:     for (const x of [-.36, .36]) {
+  160:       const bun = MeshBuilder.CreateSphere(`${name}-bun-${x}`, { diameter: .38, segments: 11 }, scene);
+  161:       bun.position.set(x, .28, .05);
+  162:       bun.material = hair;
+  163:       bun.parent = headPivot;
+  164:       bun.isPickable = false;
+  165:       const band = MeshBuilder.CreateTorus(
+  166:         `${name}-bun-band-${x}`,
+  167:         { diameter: .27, thickness: .045, tessellation: 14 },
+  168:         scene,
+  169:       );
+  170:       band.position.set(x, .24, .01);
+  171:       band.rotation.x = Math.PI / 2;
+  172:       band.material = accent;
+  173:       band.parent = headPivot;
+  174:       band.isPickable = false;
+  175:     }
+  176:   } else {
+  177:     for (const x of [-.25, -.08, .09, .26]) {
+  178:       const curl = MeshBuilder.CreateSphere(`${name}-front-curl-${x}`, { diameter: .18, segments: 8 }, scene);
+  179:       curl.position.set(x, .35 - Math.abs(x) * .18, -.16);
+  180:       curl.material = hair;
+  181:       curl.parent = headPivot;
+  182:       curl.isPickable = false;
+  183:     }
+  184:   }
+  185: 
+  186:   const eyes: Mesh[] = [];
+  187:   const pupils: Mesh[] = [];
+  188:   const brows: Mesh[] = [];
+  189:   const cheeks: Mesh[] = [];
+  190:   for (const x of [-0.18, 0.18]) {
+  191:     const eyeMesh = MeshBuilder.CreateSphere(`${name}-eye-white-${x}`, { diameter: .17, segments: 10 }, scene);
+  192:     eyeMesh.scaling.set(1.12, .86, .36);
+  193:     eyeMesh.position.set(x, .035, -.397);
+  194:     eyeMesh.material = white;
+  195:     eyeMesh.parent = headPivot;
+  196:     eyeMesh.isPickable = false;
+  197:     eyes.push(eyeMesh);
+  198: 
+  199:     const pupil = MeshBuilder.CreateSphere(`${name}-pupil-${x}`, { diameter: .082, segments: 9 }, scene);
+  200:     pupil.scaling.z = .42;
+  201:     pupil.position.set(x, .025, -.455);
+  202:     pupil.material = eye;
+  203:     pupil.parent = headPivot;
+  204:     pupil.isPickable = false;
+  205:     pupils.push(pupil);
+  206: 
+  207:     const brow = MeshBuilder.CreateBox(
+  208:       `${name}-brow-${x}`,
+  209:       { width: .19, height: .026, depth: .025 },
+  210:       scene,
+  211:     );
+  212:     brow.position.set(x, .17, -.425);
+  213:     brow.material = hair;
+  214:     brow.parent = headPivot;
+  215:     brow.isPickable = false;
+  216:     brows.push(brow);
+  217: 
+  218:     const cheek = MeshBuilder.CreateSphere(`${name}-cheek-${x}`, { diameter: .12, segments: 8 }, scene);
+  219:     cheek.scaling.set(1.3, .52, .28);
+  220:     cheek.position.set(x < 0 ? -.285 : .285, -.095, -.405);
+  221:     cheek.material = cheekMaterial;
+  222:     cheek.parent = headPivot;
+  223:     cheek.isPickable = false;
+  224:     cheeks.push(cheek);
+  225:   }
+  226: 
+  227:   const mouth = MeshBuilder.CreateBox(`${name}-mouth`, { width: 0.22, height: 0.035, depth: 0.035 }, scene);
+  228:   mouth.position.set(0, -.16, -.414);
+  229:   mouth.rotation.z = -0.08;
+  230:   mouth.material = smile;
+  231:   mouth.parent = headPivot;
+  232:   mouth.isPickable = false;
+  233: 
+  234:   const mouthHighlight = MeshBuilder.CreateBox(
+  235:     `${name}-smile-highlight`,
+  236:     { width: .12, height: .025, depth: .02 },
+  237:     scene,
+  238:   );
+  239:   mouthHighlight.position.set(0, -.145, -.438);
+  240:   mouthHighlight.material = white;
+  241:   mouthHighlight.parent = headPivot;
+  242:   mouthHighlight.isPickable = false;
+  243: 
+  244:   const nose = MeshBuilder.CreateSphere(`${name}-nose`, { diameter: .07, segments: 8 }, scene);
+  245:   nose.scaling.set(.72, .88, .6);
+  246:   nose.position.set(0, -.055, -.445);
+  247:   nose.material = skin;
+  248:   nose.parent = headPivot;
+  249:   nose.isPickable = false;
+  250: 
+  251:   const leftLeg = new TransformNode(`${name}-left-leg-pivot`, scene);
+  252:   const rightLeg = new TransformNode(`${name}-right-leg-pivot`, scene);
+  253:   leftLeg.position.set(-0.17, 0.67, 0);
+  254:   rightLeg.position.set(0.17, 0.67, 0);
+  255:   leftLeg.parent = visualRoot;
+  256:   rightLeg.parent = visualRoot;
+  257: 
+  258:   for (const [legRoot, suffix] of [[leftLeg, "left"], [rightLeg, "right"]] as const) {
+  259:     const leg = MeshBuilder.CreateCapsule(`${name}-leg-${suffix}`, { radius: 0.12, height: 0.65, tessellation: 10 }, scene);
+  260:     leg.position.y = -0.25;
+  261:     leg.material = denim;
+  262:     leg.parent = legRoot;
+  263: 
+  264:     const shoe = MeshBuilder.CreateBox(`${name}-shoe-${suffix}`, { width: 0.27, height: 0.16, depth: 0.42 }, scene);
+  265:     shoe.position.set(0, -0.58, -0.08);
+  266:     shoe.material = shoeMaterial;
+  267:     shoe.parent = legRoot;
+  268: 
+  269:     const sole = MeshBuilder.CreateBox(
+  270:       `${name}-shoe-sole-${suffix}`,
+  271:       { width: .29, height: .045, depth: .44 },
+  272:       scene,
+  273:     );
+  274:     sole.position.set(0, -.66, -.08);
+  275:     sole.material = white;
+  276:     sole.parent = legRoot;
+  277:     sole.isPickable = false;
+  278:   }
+  279: 
+  280:   const leftArm = new TransformNode(`${name}-left-arm-pivot`, scene);
+  281:   const rightArm = new TransformNode(`${name}-right-arm-pivot`, scene);
+  282:   leftArm.position.set(-0.34, 1.18, 0);
+  283:   rightArm.position.set(0.34, 1.18, 0);
+  284:   leftArm.parent = visualRoot;
+  285:   rightArm.parent = visualRoot;
+  286: 
+  287:   const hands: Mesh[] = [];
+  288:   for (const [armRoot, suffix] of [[leftArm, "left"], [rightArm, "right"]] as const) {
+  289:     const arm = MeshBuilder.CreateCapsule(`${name}-arm-${suffix}`, { radius: 0.105, height: 0.62, tessellation: 10 }, scene);
+  290:     arm.position.y = -0.23;
+  291:     arm.material = hoodie;
+  292:     arm.parent = armRoot;
+  293: 
+  294:     const hand = MeshBuilder.CreateSphere(`${name}-hand-${suffix}`, { diameter: .19, segments: 9 }, scene);
+  295:     hand.position.y = -.53;
+  296:     hand.material = skin;
+  297:     hand.parent = armRoot;
+  298:     hand.isPickable = false;
+  299:     hands.push(hand);
+  300:   }
+  301: 
+  302:   for (const x of [-.09, .09]) {
+  303:     const drawstring = MeshBuilder.CreateCylinder(
+  304:       `${name}-drawstring-${x}`,
+  305:       { diameter: .018, height: .25, tessellation: 8 },
+  306:       scene,
+  307:     );
+  308:     drawstring.position.set(x, 1.18, -.29);
+  309:     drawstring.material = white;
+  310:     drawstring.parent = visualRoot;
+  311:     drawstring.isPickable = false;
+  312:   }
+  313: 
+  314:   const pocket = MeshBuilder.CreateBox(
+  315:     `${name}-pocket`,
+  316:     { width: .38, height: .2, depth: .035 },
+  317:     scene,
+  318:   );
+  319:   pocket.position.set(0, .78, -.31);
+  320:   pocket.material = hoodie;
+  321:   pocket.parent = visualRoot;
+  322:   pocket.isPickable = false;
+  323: 
+  324:   const emblemCenter = MeshBuilder.CreateSphere(
+  325:     `${name}-${visualStyle.emblem}-center`,
+  326:     { diameter: .11, segments: 8 },
+  327:     scene,
+  328:   );
+  329:   emblemCenter.scaling.z = .28;
+  330:   emblemCenter.position.set(0, 1.03, -.337);
+  331:   emblemCenter.material = accent;
+  332:   emblemCenter.parent = visualRoot;
+  333:   emblemCenter.isPickable = false;
+  334:   const emblemPoints = visualStyle.emblem === "flower" ? 5 : visualStyle.emblem === "star" ? 4 : 2;
+  335:   for (let index = 0; index < emblemPoints; index += 1) {
+  336:     const angle = emblemPoints === 2 ? (index === 0 ? -.65 : .65) : (index / emblemPoints) * Math.PI * 2;
+  337:     const detail = MeshBuilder.CreateSphere(
+  338:       `${name}-${visualStyle.emblem}-detail-${index}`,
+  339:       { diameter: visualStyle.emblem === "heart" ? .10 : .085, segments: 7 },
+  340:       scene,
+  341:     );
+  342:     detail.scaling.set(
+  343:       visualStyle.emblem === "heart" ? .9 : 1,
+  344:       visualStyle.emblem === "heart" ? 1.2 : 1,
+  345:       .25,
+  346:     );
+  347:     detail.position.set(
+  348:       Math.cos(angle) * (visualStyle.emblem === "heart" ? .055 : .09),
+  349:       1.03 + Math.sin(angle) * (visualStyle.emblem === "heart" ? .045 : .09),
+  350:       -.342,
+  351:     );
+  352:     detail.material = accent;
+  353:     detail.parent = visualRoot;
+  354:     detail.isPickable = false;
+  355:   }
+  356: 
+  357:   const holdAnchor = new TransformNode(`${name}-hold-anchor`, scene);
+  358:   holdAnchor.position.set(0, -0.53, -0.17);
+  359:   holdAnchor.parent = rightArm;
+  360: 
+  361:   // Khadija is the sole playable character, so a permanent selection ring no
+  362:   // longer communicates a meaningful choice. Character identity is conveyed by
+  363:   // the HUD and direct interaction labels instead.
+  364:   if (characterId) {
+  365:     for (const childMesh of root.getChildMeshes()) {
+  366:       childMesh.metadata = { ...childMesh.metadata, characterId };
+  367:     }
+  368:   }
+  369: 
+  370:   let target: Vector3 | null = null;
+  371:   let arrivalAction: (() => void) | null = null;
+  372:   let seated = false;
+  373:   let sleeping = false;
+  374:   let walkPhase = 0;
+  375:   let gestureActive = false;
+  376:   let livingAnimation = true;
+  377:   let heldItemAnimation = false;
+  378:   let lookTarget: Vector3 | null = null;
+  379:   let expression: CharacterExpression = "neutral";
+  380:   let idleClock = name.split("").reduce((total, letter) => total + letter.charCodeAt(0), 0) * .071;
+  381:   const idleSeed = idleClock;
+  382:   const speed = movable ? 2.15 : 0;
+  383:   const movementScratch = new Vector3();
+  384:   const directionScratch = new Vector3();
+  385: 
+  386:   let bounds = { minX: -5.25, maxX: 5.15, minZ: -3.35, maxZ: 3.45 };
+  387: 
+  388:   const clampPositionInPlace = (value: Vector3): Vector3 => {
+  389:     value.x = Math.max(bounds.minX, Math.min(bounds.maxX, value.x));
+  390:     value.y = 0;
+  391:     value.z = Math.max(bounds.minZ, Math.min(bounds.maxZ, value.z));
+  392:     return value;
+  393:   };
+  394: 
+  395:   const animateWalk = (moving: boolean, deltaSeconds: number): void => {
+  396:     if (!moving) {
+  397:       if (!seated) {
+  398:         leftLeg.rotation.x *= 0.72;
+  399:         rightLeg.rotation.x *= 0.72;
+  400:       }
+  401:       if (!gestureActive) {
+  402:         leftArm.rotation.x *= 0.72;
+  403:         rightArm.rotation.x *= 0.72;
+  404:         leftArm.rotation.z *= 0.72;
+  405:         rightArm.rotation.z *= 0.72;
+  406:       }
+  407:       if (!sleeping) visualRoot.position.y *= 0.72;
+  408:       return;
+  409:     }
+  410: 
+  411:     walkPhase += deltaSeconds * 9;
+  412:     const swing = Math.sin(walkPhase) * 0.48;
+  413:     leftLeg.rotation.x = swing;
+  414:     rightLeg.rotation.x = -swing;
+  415:     if (!gestureActive) {
+  416:       leftArm.rotation.x = -swing * 0.65;
+  417:       rightArm.rotation.x = swing * 0.65;
+  418:       leftArm.rotation.z *= 0.72;
+  419:       rightArm.rotation.z *= 0.72;
+  420:     }
+
+============================================================
+FILE: src/game/characters/createCharacterVisual.ts � lines 580-630
+============================================================
+  580:       leftLeg.rotation.x = -1.28;
+  581:       rightLeg.rotation.x = -1.28;
+  582:       leftArm.rotation.x = -0.15;
+  583:       rightArm.rotation.x = -0.15;
+  584:     },
+  585:     sleepAt(sleepPosition: Vector3, rotationY: number): void {
+  586:       target = null;
+  587:       arrivalAction = null;
+  588:       seated = true;
+  589:       sleeping = true;
+  590:       root.position.copyFrom(sleepPosition);
+  591:       root.rotation.y = rotationY;
+  592:       root.position.y = .48;
+  593:       visualRoot.position.y = .15;
+  594:       visualRoot.rotation.z = -Math.PI / 2;
+  595:       leftLeg.rotation.x = -.18;
+  596:       rightLeg.rotation.x = .18;
+  597:       leftArm.rotation.x = .42;
+  598:       rightArm.rotation.x = .42;
+  599:     },
+  600:     stand,
+  601:     placeAt(nextPosition: Vector3): void {
+  602:       stand();
+  603:       target = null;
+  604:       arrivalAction = null;
+  605:       root.position.copyFrom(nextPosition);
+  606:       clampPositionInPlace(root.position);
+  607:       onPositionChanged?.(root.position, root.rotation.y);
+  608:     },
+  609:     setOutfitColor(color: Color3): void {
+  610:       hoodie.diffuseColor = color;
+  611:     },
+  612:     setExpression(nextExpression: CharacterExpression): void {
+  613:       expression = nextExpression;
+  614:       applyExpression();
+  615:     },
+  616:     setSelected(_selected: boolean): void {
+  617:       // Intentionally empty: Khadija is the only playable character.
+  618:     },
+  619:     setVisible(visible: boolean): void {
+  620:       root.setEnabled(visible);
+  621:     },
+  622:     setBounds(minX: number, maxX: number, minZ: number, maxZ: number): void {
+  623:       bounds = { minX, maxX, minZ, maxZ };
+  624:       clampPositionInPlace(root.position);
+  625:     },
+  626:     setLivingAnimation(enabled: boolean, hasHeldItem = false): void {
+  627:       livingAnimation = enabled;
+  628:       heldItemAnimation = enabled && hasHeldItem;
+  629:       if (!enabled) {
+  630:         lookTarget = null;
+
+============================================================
+FILE: src/game/world/createWorldRuntime.ts � lines 740-920
+============================================================
+  740:   });
+  741:   box(scene, "wardrobe-drawer", new Vector3(1.35, 0.48, 0.42), new Vector3(4.95, 0.45, -3.38), mint);
+  742: 
+  743:   // ART.1A keeps the family state records for save compatibility, but Khadija
+  744:   // is now the only player-controlled character. Her siblings remain living
+  745:   // companion NPCs with their existing autonomous behavior and saved state.
+  746:   const characters: Record<CharacterId, CharacterState> = save.characters;
+  747:   const selectedCharacterId: CharacterId = "khadija";
+  748:   activeRoom = save.activeRoom;
+  749:   characters.khadija.room = activeRoom;
+  750:   const characterRigs = {} as Record<CharacterId, CharacterRig>;
+  751:   const outfitColors: Record<OutfitId, Color3> = {
+  752:     pink: colors.pink,
+  753:     teal: colors.teal,
+  754:     yellow: colors.yellow,
+  755:   };
+  756: 
+  757:   for (const characterId of CHARACTER_IDS) {
+  758:     const state = characters[characterId];
+  759:     const characterDefinition = CHARACTER_DEFINITIONS[characterId];
+  760:     const roomDefinition = roomDefinitions[state.room];
+  761:     const savedPosition = new Vector3(state.position.x, 0, state.position.z);
+  762:     const positionIsValid = savedPosition.x >= roomDefinition.bounds.minX
+  763:       && savedPosition.x <= roomDefinition.bounds.maxX
+  764:       && savedPosition.z >= roomDefinition.bounds.minZ
+  765:       && savedPosition.z <= roomDefinition.bounds.maxZ;
+  766:     const rig = createCharacter(
+  767:       scene,
+  768:       characterId,
+  769:       positionIsValid ? savedPosition : roomDefinition.spawn.clone(),
+  770:       outfitColors[state.outfit],
+  771:       characterDefinition.scale,
+  772:       true,
+  773:       characterId,
+  774:     );
+  775:     rig.root.rotation.y = state.rotationY;
+  776:     rig.setBounds(
+  777:       roomDefinition.bounds.minX,
+  778:       roomDefinition.bounds.maxX,
+  779:       roomDefinition.bounds.minZ,
+  780:       roomDefinition.bounds.maxZ,
+  781:     );
+  782:     rig.setExpression(state.expression);
+  783:     rig.setSelected(characterId === selectedCharacterId);
+  784:     const companionHeroProfile = COMPANION_HERO_PROFILES[characterId];
+  785:     if (companionHeroProfile) {
+  786:       applyHeroCharacterPolish(scene, rig, companionHeroProfile);
+  787:     }
+  788:     characterRigs[characterId] = rig;
+  789:   }
+  790: 
+  791:   let mediumHighProductionEnabled = save.qualityPreset !== "low";
+  792:   const characterProductionVisuals: Partial<
+  793:     Record<CharacterId, ProductionCharacterVisual>
+  794:   > = {};
+  795: 
+  796:   for (const characterId of CHARACTER_IDS) {
+  797:     const productionDefinition = PRODUCTION_CHARACTER_ASSETS[characterId];
+  798:     if (!productionDefinition) continue;
+  799:     const eagerOrCurrent = characterId === "khadija"
+  800:       || characters[characterId].room === activeRoom;
+  801:     const productionVisual = createProductionCharacterVisual(
+  802:       scene,
+  803:       characterRigs[characterId],
+  804:       productionDefinition,
+  805:       eagerOrCurrent
+  806:         && isProductionAssetAllowed(productionDefinition, mediumHighProductionEnabled),
+  807:       {
+  808:         metadata: {
+  809:           characterId,
+  810:         },
+  811:         logLabel: CHARACTER_DEFINITIONS[characterId].shortName,
+  812:       },
+  813:     );
+  814:     productionVisual.setOutfit(characters[characterId].outfit);
+  815:     productionVisual.setExpression(characters[characterId].expression);
+  816:     characterProductionVisuals[characterId] = productionVisual;
+  817:   }
+  818: 
+  819:   const khadijaProductionVisual = characterProductionVisuals.khadija
+  820:     ?? createProductionCharacterVisual(
+  821:       scene,
+  822:       characterRigs.khadija,
+  823:       KHADIJA_PRODUCTION_ASSET,
+  824:       false,
+  825:     );
+  826: 
+  827:   const npcStates: Record<NpcId, StoredNpcState> = save.npcs;
+  828:   const npcRigs = {} as Record<NpcId, CharacterRig>;
+  829:   const npcOutfitColors = {
+  830:     pink: new Color3(.62, .28, .48),
+  831:     teal: new Color3(.12, .48, .43),
+  832:     yellow: new Color3(.76, .52, .16),
+  833:   };
+  834:   const npcHelloMaterials = {
+  835:     pink: material(scene, "npc-hello-pink-mat", colors.pink, new Color3(.22, .08, .12)),
+  836:     yellow: material(scene, "npc-hello-yellow-mat", colors.yellow, new Color3(.22, .12, .04)),
+  837:   };
+  838:   const npcProductionVisuals: Partial<
+  839:     Record<NpcId, ProductionCharacterVisual>
+  840:   > = {};
+  841:   const npcBounds: Record<NpcId, {
+  842:     minX: number;
+  843:     maxX: number;
+  844:     minZ: number;
+  845:     maxZ: number;
+  846:   }> = {
+  847:     parent: { minX: 1.25, maxX: 2.25, minZ: .8, maxZ: 1.9 },
+  848:     neighbor: { minX: 39.1, maxX: 41.05, minZ: -1.55, maxZ: .35 },
+  849:     "cafe-worker": { minX: 68.6, maxX: 70.35, minZ: 2.25, maxZ: 3.25 },
+  850:     "park-keeper": { minX: 83.4, maxX: 86.15, minZ: .55, maxZ: 2.2 },
+  851:     "park-parent": { minX: 90.3, maxX: 92.0, minZ: -.7, maxZ: .65 },
+  852:     shopkeeper: { minX: 110.8, maxX: 112.6, minZ: -2.65, maxZ: -1.25 },
+  853:     "grocery-shopper": { minX: 106.15, maxX: 108.2, minZ: -.75, maxZ: 1.0 },
+  854:   };
+  855: 
+  856:   for (const npcId of NPC_IDS) {
+  857:     const definition = NPC_DEFINITIONS[npcId];
+  858:     const state = npcStates[npcId];
+  859:     const rig = createCharacter(
+  860:       scene,
+  861:       `npc-${npcId}`,
+  862:       new Vector3(state.position.x, 0, state.position.z),
+  863:       npcOutfitColors[definition.outfit],
+  864:       definition.scale,
+  865:       true,
+  866:     );
+  867:     // Hero-style procedural profiles provide a cohesive, fully animated cast.
+  868:     // Mama now remains procedural on every quality tier because her archived
+  869:     // Meshy GLB has no true idle/talk animation and reads as static in play.
+  870:     applyHeroCharacterPolish(scene, rig, NPC_HERO_PROFILES[npcId]);
+  871:     const bounds = npcBounds[npcId];
+  872:     rig.setBounds(bounds.minX, bounds.maxX, bounds.minZ, bounds.maxZ);
+  873:     rig.root.rotation.y = state.rotationY;
+  874:     rig.setExpression(
+  875:       npcId === "cafe-worker" || npcId === "shopkeeper" || npcId === "park-keeper"
+  876:         ? "happy"
+  877:         : "neutral",
+  878:     );
+  879:     for (const childMesh of rig.root.getChildMeshes()) {
+  880:       childMesh.metadata = {
+  881:         ...childMesh.metadata,
+  882:         npcId,
+  883:         interactionPrompt: definition.interactionPrompt,
+  884:       };
+  885:     }
+  886:     const helloIcon = MeshBuilder.CreateSphere(
+  887:       `npc-${npcId}-hello`,
+  888:       { diameter: .2, segments: 8 },
+  889:       scene,
+  890:     );
+  891:     helloIcon.position.set(0, 2.42, 0);
+  892:     helloIcon.scaling.set(1, 1.25, .5);
+  893:     helloIcon.material = npcId === "cafe-worker"
+  894:       ? npcHelloMaterials.yellow
+  895:       : npcHelloMaterials.pink;
+  896:     helloIcon.parent = rig.root;
+  897:     helloIcon.metadata = { npcId, interactionPrompt: definition.interactionPrompt };
+  898:     const productionDefinition = PRODUCTION_NPC_ASSETS[npcId];
+  899:     if (productionDefinition) {
+  900:       // Imported NPC visuals are optional and location-aware. The active
+  901:       // registry is currently empty because every world NPC, including Mama,
+  902:       // uses the cohesive hero-procedural system.
+  903:       const eagerOrCurrent = npcId === "parent" || state.room === activeRoom;
+  904:       npcProductionVisuals[npcId] = createProductionCharacterVisual(
+  905:         scene,
+  906:         rig,
+  907:         productionDefinition,
+  908:         eagerOrCurrent
+  909:           && isProductionAssetAllowed(productionDefinition, mediumHighProductionEnabled),
+  910:         {
+  911:           metadata: {
+  912:             npcId,
+  913:             interactionPrompt: definition.interactionPrompt,
+  914:           },
+  915:           logLabel: definition.displayName,
+  916:         },
+  917:       );
+  918:     }
+  919:     npcRigs[npcId] = rig;
+  920:   }
+
+============================================================
+FILE: src/game/assets/characterAssets.ts
+============================================================
+    1: import type { CharacterId } from "../characterState";
+    2: import type { NpcId } from "../livingCharacters";
+    3: import type { OutfitId } from "../storage";
+    4: 
+    5: export const CHARACTER_ASSET_VERSION = "art1e-1";
+    6: 
+    7: export type SemanticCharacterAnimation =
+    8:   | "idle"
+    9:   | "walk"
+   10:   | "run"
+   11:   | "walkCarry"
+   12:   | "pickUp"
+   13:   | "sitDown"
+   14:   | "standUp";
+   15: 
+   16: export type ProductionAssetQualityPolicy = "all" | "medium-high";
+   17: 
+   18: export interface ProductionCharacterAssetDefinition {
+   19:   id: string;
+   20:   assetVersion: string;
+   21:   modelPath: string;
+   22:   fallback: "procedural";
+   23:   scale: number;
+   24:   /** Optional world-space visual height. When set, imported bounds are normalized to this height. */
+   25:   targetHeight?: number;
+   26:   rotationY: number;
+   27:   verticalOffset: number;
+   28:   qualityPolicy: ProductionAssetQualityPolicy;
+   29:   animations: Partial<Record<SemanticCharacterAnimation, readonly string[]>>;
+   30:   /** Freeze an available movement clip at this normalized frame while idle. */
+   31:   idlePoseFraction?: number;
+   32:   /** Small local-node corrections applied after the idle frame is sampled. */
+   33:   idlePoseAdjustments?: readonly {
+   34:     nodeName: string;
+   35:     axis: "x" | "y" | "z";
+   36:     radians: number;
+   37:     multiply?: "before" | "after";
+   38:   }[];
+   39:   outfitTextures?: Partial<Record<OutfitId, string>>;
+   40:   triangleCount: number;
+   41:   textureSize: readonly [number, number];
+   42:   materialCount: number;
+   43:   source: string;
+   44:   license: string;
+   45: }
+   46: 
+   47: const QUATERNIUS_ANIMATIONS: ProductionCharacterAssetDefinition["animations"] = {
+   48:   idle: ["Idle"],
+   49:   walk: ["Walk"],
+   50:   run: ["Run"],
+   51:   walkCarry: ["Walk_Carry"],
+   52:   pickUp: ["PickUp"],
+   53:   sitDown: ["SitDown"],
+   54:   standUp: ["StandUp"],
+   55: };
+   56: 
+   57: export const KHADIJA_PRODUCTION_ASSET: ProductionCharacterAssetDefinition = {
+   58:   id: "khadija",
+   59:   assetVersion: CHARACTER_ASSET_VERSION,
+   60:   modelPath: "assets/characters/khadija/khadija-v1.glb",
+   61:   fallback: "procedural",
+   62:   // Babylon resolves the Meshy armature unit conversion during import.
+   63:   scale: 1.23,
+   64:   rotationY: Math.PI,
+   65:   verticalOffset: 0,
+   66:   qualityPolicy: "medium-high",
+   67:   animations: {
+   68:     walk: ["Walking", "walk", "walking"],
+   69:     run: ["Running", "run", "running"],
+   70:   },
+   71:   outfitTextures: {
+   72:     pink: "assets/characters/khadija/outfits/khadija-pink.webp",
+   73:     teal: "assets/characters/khadija/outfits/khadija-teal.webp",
+   74:     yellow: "assets/characters/khadija/outfits/khadija-yellow.webp",
+   75:   },
+   76:   triangleCount: 168_908,
+   77:   textureSize: [2048, 2048],
+   78:   materialCount: 1,
+   79:   source: "Meshy AI generation supplied by the project owner",
+   80:   license: "Project-owner generated asset; see ASSET_CREDITS.md",
+   81: };
+   82: 
+   83: export const BROTHER_PRODUCTION_ASSET: ProductionCharacterAssetDefinition = {
+   84:   id: "brother",
+   85:   assetVersion: CHARACTER_ASSET_VERSION,
+   86:   modelPath: "assets/characters/brother/brother-v1.glb",
+   87:   fallback: "procedural",
+   88:   scale: 1,
+   89:   targetHeight: 1.95,
+   90:   rotationY: 0,
+   91:   verticalOffset: 0,
+   92:   qualityPolicy: "all",
+   93:   animations: QUATERNIUS_ANIMATIONS,
+   94:   triangleCount: 3_216,
+   95:   textureSize: [0, 0],
+   96:   materialCount: 6,
+   97:   source: "Quaternius Ultimate Animated Character Pack — Casual2_Male",
+   98:   license: "CC0; see THIRD_PARTY_NOTICES.md",
+   99: };
+  100: 
+  101: export const MAMA_PRODUCTION_ASSET: ProductionCharacterAssetDefinition = {
+  102:   id: "parent",
+  103:   assetVersion: CHARACTER_ASSET_VERSION,
+  104:   modelPath: "assets/characters/mama/mama-v1.glb",
+  105:   fallback: "procedural",
+  106:   // Normalize from the imported visual bounds instead of guessing against
+  107:   // Meshy/armature unit conversions. This makes Mama visibly adult-sized.
+  108:   scale: 1,
+  109:   targetHeight: 2.80,
+  110:   rotationY: Math.PI,
+  111:   verticalOffset: 0,
+  112:   qualityPolicy: "medium-high",
+  113:   animations: {
+  114:     walk: ["Armature|walking_man|baselayer", "walking_man", "walking", "walk"],
+  115:   },
+  116:   // The GLB has no separate idle clip. Sample the least-strided walk frame,
+  117:   // then rotate both upper-arm nodes down from the source clip's wide pose.
+  118:   idlePoseFraction: 0,
+  119:   idlePoseAdjustments: [
+  120:     {
+  121:       nodeName: "LeftArm",
+  122:       axis: "x",
+  123:       radians: 0.58,
+  124:       multiply: "before",
+  125:     },
+  126:     {
+  127:       nodeName: "RightArm",
+  128:       axis: "x",
+  129:       radians: 0.58,
+  130:       multiply: "before",
+  131:     },
+  132:   ],
+  133:   triangleCount: 72_269,
+  134:   textureSize: [2048, 2048],
+  135:   materialCount: 1,
+  136:   source: "Meshy AI generation supplied by the project owner",
+  137:   license: "Project-owner generated asset; see ASSET_CREDITS.md",
+  138: };
+  139: 
+  140: export const NEIGHBOR_PRODUCTION_ASSET: ProductionCharacterAssetDefinition = {
+  141:   id: "neighbor",
+  142:   assetVersion: CHARACTER_ASSET_VERSION,
+  143:   modelPath: "assets/characters/neighbor/neighbor-v1.glb",
+  144:   fallback: "procedural",
+  145:   scale: 1,
+  146:   targetHeight: 2.28,
+  147:   rotationY: 0,
+  148:   verticalOffset: 0,
+  149:   qualityPolicy: "all",
+  150:   animations: QUATERNIUS_ANIMATIONS,
+  151:   triangleCount: 6_752,
+  152:   textureSize: [0, 0],
+  153:   materialCount: 6,
+  154:   source: "Quaternius Ultimate Animated Character Pack — Casual2_Female",
+  155:   license: "CC0; see THIRD_PARTY_NOTICES.md",
+  156: };
+  157: 
+  158: export const CAFE_WORKER_PRODUCTION_ASSET: ProductionCharacterAssetDefinition = {
+  159:   id: "cafe-worker",
+  160:   assetVersion: CHARACTER_ASSET_VERSION,
+  161:   modelPath: "assets/characters/cafe-worker/cafe-worker-v1.glb",
+  162:   fallback: "procedural",
+  163:   scale: 1,
+  164:   targetHeight: 2.34,
+  165:   rotationY: 0,
+  166:   verticalOffset: 0,
+  167:   qualityPolicy: "all",
+  168:   animations: QUATERNIUS_ANIMATIONS,
+  169:   triangleCount: 8_768,
+  170:   textureSize: [0, 0],
+  171:   materialCount: 6,
+  172:   source: "Quaternius Ultimate Animated Character Pack — Chef_Female",
+  173:   license: "CC0; see THIRD_PARTY_NOTICES.md",
+  174: };
+  175: 
+  176: export const PARK_KEEPER_PRODUCTION_ASSET: ProductionCharacterAssetDefinition = {
+  177:   id: "park-keeper",
+  178:   assetVersion: CHARACTER_ASSET_VERSION,
+  179:   modelPath: "assets/characters/park-keeper/park-keeper-v1.glb",
+  180:   fallback: "procedural",
+  181:   scale: 1,
+  182:   targetHeight: 2.38,
+  183:   rotationY: 0,
+  184:   verticalOffset: 0,
+  185:   qualityPolicy: "all",
+  186:   animations: QUATERNIUS_ANIMATIONS,
+  187:   triangleCount: 2_524,
+  188:   textureSize: [0, 0],
+  189:   materialCount: 6,
+  190:   source: "Quaternius Ultimate Animated Character Pack — Worker_Male",
+  191:   license: "CC0; see THIRD_PARTY_NOTICES.md",
+  192: };
+  193: 
+  194: export const SHOPKEEPER_PRODUCTION_ASSET: ProductionCharacterAssetDefinition = {
+  195:   id: "shopkeeper",
+  196:   assetVersion: CHARACTER_ASSET_VERSION,
+  197:   modelPath: "assets/characters/grocery-shopkeeper/grocery-shopkeeper-v1.glb",
+  198:   fallback: "procedural",
+  199:   scale: 1,
+  200:   targetHeight: 2.36,
+  201:   rotationY: 0,
+  202:   verticalOffset: 0,
+  203:   qualityPolicy: "all",
+  204:   animations: QUATERNIUS_ANIMATIONS,
+  205:   triangleCount: 5_856,
+  206:   textureSize: [0, 0],
+  207:   materialCount: 7,
+  208:   source: "Quaternius Ultimate Animated Character Pack — Worker_Female",
+  209:   license: "CC0; see THIRD_PARTY_NOTICES.md",
+  210: };
+  211: 
+  212: export const PRODUCTION_CHARACTER_ASSETS: Partial<
+  213:   Record<CharacterId, ProductionCharacterAssetDefinition>
+  214: > = {
+  215:   khadija: KHADIJA_PRODUCTION_ASSET,
+  216: };
+  217: 
+  218: /**
+  219:  * World NPCs use the cohesive hero-procedural system.
+  220:  *
+  221:  * Mama's Meshy definition remains above for asset history and rollback, but it
+  222:  * is deliberately not registered here because the supplied GLB has no true
+  223:  * idle/talk animation and reads as static beside the living procedural cast.
+  224:  */
+  225: export const PRODUCTION_NPC_ASSETS: Partial<
+  226:   Record<NpcId, ProductionCharacterAssetDefinition>
+  227: > = {};
+  228: 
+  229: export function resolvePublicAssetUrl(path: string, baseUri?: string): string {
+  230:   const base = baseUri
+  231:     ?? (typeof document !== "undefined" ? document.baseURI : "http://localhost/");
+  232:   return new URL(path, base).href;
+  233: }
+  234: 
+  235: export function findAnimationName(
+  236:   availableNames: readonly string[],
+  237:   candidates: readonly string[] | undefined,
+  238: ): string | null {
+  239:   if (!candidates?.length) return null;
+  240:   const exact = new Map(availableNames.map((name) => [name.toLowerCase(), name]));
+  241:   for (const candidate of candidates) {
+  242:     const match = exact.get(candidate.toLowerCase());
+  243:     if (match) return match;
+  244:   }
+  245:   for (const candidate of candidates) {
+  246:     const loweredCandidate = candidate.toLowerCase();
+  247:     const partial = availableNames.find((name) => name.toLowerCase().includes(loweredCandidate));
+  248:     if (partial) return partial;
+  249:   }
+  250:   return null;
+  251: }
+  252: 
+  253: export function isProductionAssetAllowed(
+  254:   definition: ProductionCharacterAssetDefinition,
+  255:   mediumHighEnabled: boolean,
+  256: ): boolean {
+  257:   return definition.qualityPolicy === "all" || mediumHighEnabled;
+  258: }
+
+============================================================
+FILE: docs/ART1E_HERO_PROCEDURAL_CAST.md
+============================================================
+    1: # ART.1E Hero-Style Procedural Cast
+    2: 
+    3: ART.1E replaces the visibly mismatched Quaternius runtime characters with a
+    4: shared, custom procedural character language. Khadija and Mama remain the two
+    5: approved Meshy hero assets. The family companions and world NPCs use lightweight
+    6: Babylon geometry designed specifically for Khadija's World.
+    7: 
+    8: ## Active visual roster
+    9: 
+   10: - Khadija — Meshy GLB on Medium/High, procedural fallback on Low or failure
+   11: - Mama — Meshy GLB on Medium/High, hero procedural fallback
+   12: - Little sister — hero procedural toddler
+   13: - Brother — hero procedural child
+   14: - Auntie Noor — hero procedural neighborhood resident
+   15: - Ms. Sana — hero procedural café worker
+   16: - Mr. Sami — hero procedural park keeper
+   17: - Auntie Layla — hero procedural caregiver
+   18: - Mr. Kareem — hero procedural shopkeeper
+   19: - Mrs. Huda — hero procedural older shopper
+   20: 
+   21: ## Visual improvements
+   22: 
+   23: The shared `applyHeroCharacterPolish` layer adds:
+   24: 
+   25: - character-specific skin, hair, eye, outfit, accent, and shoe palettes
+   26: - layered irises, eye highlights, ears, lashes, and accessories
+   27: - bespoke hair silhouettes including double buns, fluffy crop, bob, low bun,
+   28:   wrapped scarf, garden crop, silver bob, and neat crop
+   29: - dress, tunic, apron, cardigan, work-shirt, and hoodie overlays
+   30: - collars, cuffs, shoulder caps, buttons, pockets, badges, scarf tails, hats,
+   31:   glasses, earrings, and chef cap
+   32: - rounded shoe toes and laces
+   33: - age-specific head, shoulder, torso, and leg proportions
+   34: - shared low-spec materials without image textures or transparency
+   35: 
+   36: ## Stable gameplay behavior
+   37: 
+   38: The visual pass does not change:
+   39: 
+   40: - character or NPC IDs
+   41: - save schema
+   42: - room ownership
+   43: - movement bounds
+   44: - dialogue activation
+   45: - memory and relationships
+   46: - item giving and held-item state
+   47: - seating and sleeping
+   48: - fallback behavior
+   49: 
+   50: The unused Quaternius definitions and files remain in the source temporarily for
+   51: license auditing and rollback, but they are not in the active runtime registry.
+   52: They may be removed in a later cleanup after ART.1E is approved.
+
+============================================================
+FILE: docs/ART1G_MAMA_PROCEDURAL_APPLY.md
+============================================================
+    1: # Apply ART.1G Procedural Mama Hotfix
+    2: 
+    3: Extract the update over the source repository:
+    4: 
+    5: ```text
+    6: C:\Projects\khadijas-world
+    7: ```
+    8: 
+    9: Then run:
+   10: 
+   11: ```powershell
+   12: cd C:\Projects\khadijas-world
+   13: npm install
+   14: npm run validate:assets
+   15: npm test
+   16: npm run build
+   17: npm run deploy:wamp
+   18: ```
+   19: 
+   20: For local Vite testing:
+   21: 
+   22: ```powershell
+   23: npm run dev
+   24: ```
+   25: 
+   26: Open `http://localhost:5173` and hard-refresh.
+   27: 
+   28: ## Approval checks
+   29: 
+   30: - Mama is procedural on High, Medium, Adaptive, and Low.
+   31: - Mama blinks and uses living idle movement.
+   32: - Mama walks without switching to the old GLB.
+   33: - Clicking Mama opens the existing dialogue.
+   34: - Gifts, held items, seating, and saves still work.
+   35: - Khadija's production GLB remains active on Medium/High.
+
+============================================================
+FILE: package.json
+============================================================
+    1: {
+    2:   "name": "khadijas-world",
+    3:   "private": true,
+    4:   "version": "0.24.0",
+    5:   "type": "module",
+    6:   "scripts": {
+    7:     "dev": "vite",
+    8:     "build": "tsc --noEmit && vite build",
+    9:     "preview": "vite preview",
+   10:     "check": "tsc --noEmit",
+   11:     "test": "vitest run",
+   12:     "deploy:wamp": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-wamp.ps1",
+   13:     "validate:assets": "node scripts/validate-assets.mjs"
+   14:   },
+   15:   "dependencies": {
+   16:     "@babylonjs/core": "9.18.0",
+   17:     "@babylonjs/loaders": "9.18.0"
+   18:   },
+   19:   "devDependencies": {
+   20:     "typescript": "^5.9.2",
+   21:     "vite": "8.1.5",
+   22:     "vitest": "^4.1.10"
+   23:   }
+   24: }

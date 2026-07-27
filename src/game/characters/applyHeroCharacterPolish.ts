@@ -65,6 +65,28 @@ function box(
   return mesh;
 }
 
+function cylinder(
+  scene: Scene,
+  name: string,
+  diameter: number,
+  height: number,
+  position: Vector3,
+  material: StandardMaterial,
+  parent: TransformNode,
+  tessellation = 14,
+): Mesh {
+  const mesh = MeshBuilder.CreateCylinder(name, {
+    diameter,
+    height,
+    tessellation,
+  }, scene);
+  mesh.position.copyFrom(position);
+  mesh.material = material;
+  mesh.parent = parent;
+  mesh.isPickable = false;
+  return mesh;
+}
+
 function torus(
   scene: Scene,
   name: string,
@@ -113,6 +135,76 @@ function hideLegacyHair(rig: CharacterRig): void {
       mesh.setEnabled(false);
     }
   }
+}
+
+function applyProfileProportions(
+  scene: Scene,
+  rig: CharacterRig,
+  profile: HeroCharacterProfile,
+  bodyRoot: TransformNode,
+  headRoot: TransformNode,
+): void {
+  const torsoDelta = profile.torsoHeight - 1;
+
+  // Scale the complete head pivot rather than the head mesh alone. This keeps
+  // hair, eyes, ears, and accessories registered to the same facial volume.
+  headRoot.scaling.x *= profile.headScale * profile.faceWidth;
+  headRoot.scaling.y *= profile.headScale * profile.headHeight;
+  headRoot.scaling.z *= profile.headScale * profile.headDepth;
+  headRoot.position.y += torsoDelta * .44;
+
+  rig.semantic.body.scaling.x *= profile.bodyWidth;
+  rig.semantic.body.scaling.y *= profile.torsoHeight;
+
+  for (const [index, arm] of rig.semantic.arms.entries()) {
+    const side = index === 0 ? -1 : 1;
+    arm.position.x = side * .34 * profile.shoulderWidth;
+    arm.position.y += torsoDelta * .38;
+    arm.scaling.y *= profile.armLength;
+  }
+
+  for (const hand of rig.semantic.hands) {
+    hand.scaling.scaleInPlace(profile.handScale);
+  }
+
+  for (const mesh of rig.root.getChildMeshes(false)) {
+    const name = mesh.name.toLowerCase();
+    const side = mesh.position.x < 0 ? -1 : 1;
+
+    if (name.includes("-eye-white-") || name.includes("-pupil-")) {
+      mesh.position.x = side * .18 * profile.eyeSpacing;
+      mesh.scaling.x *= profile.eyeScale;
+    } else if (name.includes("-cheek-")) {
+      mesh.position.x = side * .285 * profile.faceWidth;
+      mesh.scaling.x *= profile.cheekScale;
+      mesh.scaling.y *= Math.sqrt(profile.cheekScale);
+    } else if (name.includes("-nose")) {
+      mesh.scaling.scaleInPlace(profile.noseScale);
+    } else if (name.includes("-mouth") || name.includes("smile-highlight")) {
+      mesh.scaling.x *= profile.mouthWidth;
+    }
+
+    if (name.includes("-shoe-")) {
+      mesh.scaling.x *= profile.footScale;
+      mesh.scaling.z *= profile.footScale;
+    }
+  }
+
+  const leftLeg = scene.getTransformNodeByName(`${rig.root.name}-left-leg-pivot`);
+  const rightLeg = scene.getTransformNodeByName(`${rig.root.name}-right-leg-pivot`);
+  for (const leg of [leftLeg, rightLeg]) {
+    if (!leg) continue;
+    leg.scaling.y *= profile.legLength;
+    // Keep the sole near the ground while changing leg length.
+    leg.position.y = .01 + .66 * profile.legLength;
+  }
+
+  // Torso-length changes should not alter the root transform or gameplay
+  // anchors. Only the visual rig is adjusted.
+  bodyRoot.metadata = {
+    ...bodyRoot.metadata,
+    heroTorsoHeight: profile.torsoHeight,
+  };
 }
 
 function addHair(
@@ -258,31 +350,36 @@ function addFaceDetails(
   iris: StandardMaterial,
   white: StandardMaterial,
   hair: StandardMaterial,
+  dark: StandardMaterial,
+  lip: StandardMaterial,
 ): void {
-  for (const x of [-.18, .18]) {
+  const eyeX = .18 * profile.eyeSpacing;
+
+  for (const x of [-eyeX, eyeX]) {
+    const side = x < 0 ? -1 : 1;
     sphere(
       scene,
-      `${rootName}-hero-ear-${x}`,
+      `${rootName}-hero-ear-${side}`,
       .15,
-      new Vector3(x < 0 ? -.43 : .43, -.015, -.01),
-      new Vector3(.72, 1.05, .56),
+      new Vector3(side * .43, -.015, -.01),
+      new Vector3(.72, 1.05, .56).scale(profile.earScale),
       skin,
       head,
       9,
     );
     sphere(
       scene,
-      `${rootName}-hero-iris-${x}`,
+      `${rootName}-hero-iris-${side}`,
       .070,
       new Vector3(x, .025, -.466),
-      new Vector3(1, 1, .34),
+      new Vector3(profile.eyeScale, 1, .34),
       iris,
       head,
       9,
     );
     sphere(
       scene,
-      `${rootName}-hero-eye-shine-${x}`,
+      `${rootName}-hero-eye-shine-${side}`,
       .024,
       new Vector3(x - .014, .052, -.489),
       new Vector3(1, 1, .30),
@@ -294,14 +391,76 @@ function addFaceDetails(
     if (profile.age !== "adult" || profile.accessory === "earrings") {
       const lash = box(
         scene,
-        `${rootName}-hero-lash-${x}`,
-        new Vector3(.10, .016, .018),
+        `${rootName}-hero-lash-${side}`,
+        new Vector3(.10 * profile.eyeScale, .016, .018),
         new Vector3(x, .105, -.466),
         hair,
         head,
       );
-      lash.rotation.z = x < 0 ? -.10 : .10;
+      lash.rotation.z = side * .10;
     }
+  }
+
+  // Small nostrils and mouth corners stay readable at gameplay distance without
+  // turning the face into a high-detail or texture-dependent asset.
+  for (const x of [-.022, .022]) {
+    sphere(
+      scene,
+      `${rootName}-hero-nostril-${x}`,
+      .018 * profile.noseScale,
+      new Vector3(x, -.068, -.469),
+      new Vector3(.78, .55, .30),
+      dark,
+      head,
+      6,
+    );
+  }
+
+  for (const side of [-1, 1]) {
+    sphere(
+      scene,
+      `${rootName}-hero-mouth-corner-${side}`,
+      .028,
+      new Vector3(side * .11 * profile.mouthWidth, -.16, -.442),
+      new Vector3(.72, .62, .32),
+      lip,
+      head,
+      7,
+    );
+  }
+}
+
+function addBodyDetails(
+  scene: Scene,
+  rootName: string,
+  bodyRoot: TransformNode,
+  rig: CharacterRig,
+  profile: HeroCharacterProfile,
+  skin: StandardMaterial,
+): void {
+  const torsoDelta = profile.torsoHeight - 1;
+  cylinder(
+    scene,
+    `${rootName}-hero-neck`,
+    .22 * profile.neckWidth,
+    .18,
+    new Vector3(0, 1.49 + torsoDelta * .42, 0),
+    skin,
+    bodyRoot,
+  );
+
+  for (const [index, arm] of rig.semantic.arms.entries()) {
+    const inward = index === 0 ? .068 : -.068;
+    sphere(
+      scene,
+      `${rootName}-hero-thumb-${index}`,
+      .10,
+      new Vector3(inward, -.50, -.015),
+      new Vector3(.58, .82, .70).scale(profile.handScale),
+      skin,
+      arm,
+      8,
+    );
   }
 }
 
@@ -330,7 +489,13 @@ function addClothing(
   if (profile.clothingStyle !== "hoodie") {
     for (const mesh of bodyRoot.getChildMeshes(false)) {
       const name = mesh.name.toLowerCase();
-      if (name.includes("drawstring") || name.includes("-pocket") || name.includes("emblem")) {
+      if (
+        name.includes("drawstring")
+        || name.includes("-pocket")
+        || name.includes("-flower-")
+        || name.includes("-star-")
+        || name.includes("-heart-")
+      ) {
         mesh.setEnabled(false);
       }
     }
@@ -673,6 +838,7 @@ export function applyHeroCharacterPolish(
   const secondaryColor = color(profile.secondary);
   const accentColor = color(profile.accent);
   const shoeColor = color(profile.shoe);
+  const blushColor = Color3.Lerp(skinColor, accentColor, .18);
 
   setExistingMaterialColor(rig, (name) => (
     name.includes("-head") || name.includes("-hand-") || name.includes("-nose")
@@ -685,21 +851,17 @@ export function applyHeroCharacterPolish(
   ), primaryColor);
   setExistingMaterialColor(rig, (name) => name.includes("-leg-"), secondaryColor);
   setExistingMaterialColor(rig, (name) => name.includes("-shoe-") && !name.includes("sole"), shoeColor);
+  setExistingMaterialColor(rig, (name) => name.includes("-cheek-"), blushColor);
   setExistingMaterialColor(rig, (name) => (
-    name.includes("emblem") || name.includes("headband") || name.includes("bow") || name.includes("bun-band")
+    name.includes("-flower-")
+    || name.includes("-star-")
+    || name.includes("-heart-")
+    || name.includes("headband")
+    || name.includes("bow")
+    || name.includes("bun-band")
   ), accentColor);
 
-  rig.semantic.head.scaling.scaleInPlace(profile.headScale);
-  rig.semantic.body.scaling.x *= profile.bodyWidth;
-  rig.semantic.arms[0].position.x = -.34 * profile.shoulderWidth;
-  rig.semantic.arms[1].position.x = .34 * profile.shoulderWidth;
-
-  const leftLeg = scene.getTransformNodeByName(`${rootName}-left-leg-pivot`);
-  const rightLeg = scene.getTransformNodeByName(`${rootName}-right-leg-pivot`);
-  for (const leg of [leftLeg, rightLeg]) {
-    if (leg) leg.scaling.y = profile.legLength;
-  }
-
+  applyProfileProportions(scene, rig, profile, bodyRoot, headRoot);
   hideLegacyHair(rig);
 
   const skin = heroMaterial(scene, `${rootName}-hero-skin`, profile.skin, "skin");
@@ -708,15 +870,19 @@ export function applyHeroCharacterPolish(
   const primary = heroMaterial(scene, `${rootName}-hero-primary`, profile.primary, "fabric");
   const secondary = heroMaterial(scene, `${rootName}-hero-secondary`, profile.secondary, "fabric");
   const accent = heroMaterial(scene, `${rootName}-hero-accent`, profile.accent, "soft-toy");
+  const shoe = heroMaterial(scene, `${rootName}-hero-shoe`, profile.shoe, "soft-toy");
   const white = heroMaterial(scene, `${rootName}-hero-white`, [.98, .96, .91], "ceramic");
   const dark = heroMaterial(scene, `${rootName}-hero-dark`, [.08, .055, .07], "soft-toy");
+  const lip = heroMaterial(scene, `${rootName}-hero-lip`, [.48, .13, .17], "soft-toy");
 
-  addFaceDetails(scene, rootName, headRoot, profile, skin, iris, white, hair);
+  addBodyDetails(scene, rootName, bodyRoot, rig, profile, skin);
+  addFaceDetails(scene, rootName, headRoot, profile, skin, iris, white, hair, dark, lip);
   addHair(scene, rootName, headRoot, profile, hair, accent);
   addClothing(scene, rootName, bodyRoot, profile, primary, secondary, accent, white);
   addAccessory(scene, rootName, headRoot, bodyRoot, profile, accent, secondary, white, dark);
 
-  // Rounded toe caps and laces soften the original box shoes.
+  // Rounded toe caps and shared shoe material soften the original box shoes
+  // without allocating a separate material for every foot.
   for (const mesh of rig.root.getChildMeshes(false)) {
     if (!mesh.name.includes("-shoe-") || mesh.name.includes("sole")) continue;
     if (!(mesh.parent instanceof TransformNode)) continue;
@@ -725,8 +891,8 @@ export function applyHeroCharacterPolish(
       `${mesh.name}-hero-toe`,
       .27,
       new Vector3(0, -.58, -.20),
-      new Vector3(1.05, .55, 1.32),
-      heroMaterial(scene, `${mesh.name}-hero-toe-mat`, profile.shoe, "soft-toy"),
+      new Vector3(1.05 * profile.footScale, .55, 1.32 * profile.footScale),
+      shoe,
       mesh.parent,
       10,
     );
@@ -734,8 +900,8 @@ export function applyHeroCharacterPolish(
       const lace = box(
         scene,
         `${mesh.name}-hero-lace-${x}`,
-        new Vector3(.025, .015, .16),
-        new Vector3(x, -.51, -.22),
+        new Vector3(.025, .015, .16 * profile.footScale),
+        new Vector3(x * profile.footScale, -.51, -.22),
         white,
         mesh.parent,
       );
@@ -749,6 +915,7 @@ export function applyHeroCharacterPolish(
       ...mesh.metadata,
       heroProcedural: true,
       heroProfileId: profile.id,
+      heroRefinement: "ART.1K-B",
     };
   }
 }
