@@ -9,7 +9,7 @@ import {
   TransformNode,
   Vector3,
 } from "@babylonjs/core";
-import "@babylonjs/loaders/glTF";
+import { ensureGltfLoader } from "./ensureGltfLoader";
 import type { RoomId } from "../storage";
 import { resolvePublicAssetUrl } from "./characterAssets";
 import type {
@@ -210,6 +210,7 @@ export function createSelectiveInteriorFurnitureManager(
     if (state.status !== "idle" || disposed) return;
     state.status = "loading";
     try {
+      await ensureGltfLoader();
       const result = await SceneLoader.ImportMeshAsync(
         null,
         "",

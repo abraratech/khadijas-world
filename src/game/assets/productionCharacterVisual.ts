@@ -10,7 +10,7 @@ import {
   Texture,
   TransformNode,
 } from "@babylonjs/core";
-import "@babylonjs/loaders/glTF";
+import { ensureGltfLoader } from "./ensureGltfLoader";
 import type {
   CharacterActivity,
   CharacterExpression,
@@ -247,6 +247,7 @@ export function createProductionCharacterVisual(
     if (currentStatus !== "idle" || disposed) return;
     currentStatus = "loading";
     try {
+      await ensureGltfLoader();
       const result = await SceneLoader.ImportMeshAsync(
         null,
         "",

@@ -10,7 +10,9 @@
     "check": "tsc --noEmit",
     "test": "vitest run",
     "deploy:wamp": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-wamp.ps1",
-    "validate:assets": "node scripts/validate-assets.mjs"
+    "validate:assets": "node scripts/validate-assets.mjs",
+    "check:bundle": "node scripts/check-bundle-size.mjs",
+    "build:verified": "npm run build && npm run check:bundle"
   },
   "dependencies": {
     "@babylonjs/core": "9.18.0",
