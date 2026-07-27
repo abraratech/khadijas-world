@@ -61,7 +61,9 @@ import {
 
 type PlayerQuality = "low" | "medium" | "high";
 
-const isDebugMode = new URLSearchParams(window.location.search).get("debug") === "1";
+const searchParams = new URLSearchParams(window.location.search);
+const isDebugMode = searchParams.get("debug") === "1";
+const isQaMode = searchParams.get("qa") === "1";
 
 const app = document.querySelector<HTMLElement>("#app");
 const canvas = document.querySelector<HTMLCanvasElement>("#game-canvas");
@@ -1083,6 +1085,46 @@ room = createPrototypeRoom(engine, {
 });
 room.setLivingSettings(livingPreferences);
 
+if (isQaMode) {
+  Object.defineProperty(window, "__KHADIJAS_WORLD_QA__", {
+    configurable: true,
+    value: {
+      openChat(npcId: string): boolean {
+        const qaNpcRooms: Record<NpcId, RoomId> = {
+          parent: "home",
+          neighbor: "street",
+          "cafe-worker": "cafe",
+          "park-keeper": "park",
+          "park-parent": "park",
+          shopkeeper: "grocery",
+          "grocery-shopper": "grocery",
+        };
+
+        const targetNpc = npcId as NpcId;
+        const targetRoom = qaNpcRooms[targetNpc];
+        if (!targetRoom) return false;
+
+        dialoguePreferences = {
+          ...dialoguePreferences,
+          npcChat: true,
+          typedMessages: true,
+        };
+        dialogueController.memory.setSettings(dialoguePreferences);
+        updateSwitch(npcChatToggle, true);
+        updateSwitch(typedChatToggle, true);
+        chatForm.hidden = false;
+
+        room.switchRoom(targetRoom);
+        openNpcChat(targetNpc);
+        return !chatPanel.hidden;
+      },
+      announce(message: string): void {
+        showAction(message);
+      },
+    },
+  });
+}
+
 const playerQualityToPreset: Record<PlayerQuality, QualityPreset> = {
   low: "low",
   medium: "adaptive",
@@ -1216,7 +1258,7 @@ importSaveButton.addEventListener("click", () => importSaveInput.click());
 importSaveInput.addEventListener("change", async () => {
   const file = importSaveInput.files?.[0];
   if (!file) return;
-  parentResult.textContent = "Checking that save…";
+  parentResult.textContent = "Checking that saveâ€¦";
   const raw = await file.text();
   const preview = previewWorldSaveImport(raw);
   if (!preview.accepted) {
@@ -1594,8 +1636,8 @@ let saveStatusTimer = 0;
 window.addEventListener("khadijas-world:save-status", (event) => {
   const saved = (event as CustomEvent<{ saved: boolean }>).detail.saved;
   window.clearTimeout(saveStatusTimer);
-  saveStatus.textContent = "Saving…";
-  pauseSaveStatus.textContent = "Saving…";
+  saveStatus.textContent = "Savingâ€¦";
+  pauseSaveStatus.textContent = "Savingâ€¦";
   saveStatus.classList.add("is-visible");
   saveStatusTimer = window.setTimeout(() => {
     const message = saved ? "Saved" : "Saving is unavailable";
