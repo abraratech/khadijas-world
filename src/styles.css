@@ -2016,3 +2016,635 @@ button:disabled {
   .onboarding-icon { width: 40px; height: 40px; }
   .onboarding-copy > span:last-child > span { font-size: .68rem; }
 }
+
+/* UX.2 mobile, touch, and responsive interface polish */
+:root {
+  --viewport-width: 100vw;
+  --viewport-height: 100vh;
+  --viewport-offset-left: 0px;
+  --viewport-offset-top: 0px;
+  --keyboard-inset: 0px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+
+@supports (height: 100dvh) {
+  :root { --viewport-height: 100dvh; }
+}
+
+html,
+body {
+  min-height: 100%;
+  overscroll-behavior: none;
+}
+
+body {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+}
+
+#app {
+  width: min(var(--viewport-width), 100vw);
+  height: var(--viewport-height);
+  min-height: 1px;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+@supports (height: 100dvh) {
+  #app { max-height: 100dvh; }
+}
+
+.title-screen,
+.release-modal,
+.loading-screen,
+.display-recovery {
+  min-height: var(--viewport-height);
+  overscroll-behavior: contain;
+}
+
+.title-card,
+.release-card {
+  max-height: calc(
+    var(--viewport-height)
+    - var(--safe-top)
+    - var(--safe-bottom)
+    - 2rem
+  );
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.top-bar {
+  inset: auto;
+  top: max(16px, calc(var(--safe-top) + 8px));
+  right: max(18px, calc(var(--safe-right) + 10px));
+  left: max(18px, calc(var(--safe-left) + 10px));
+}
+
+.location-tray {
+  top: max(18px, calc(var(--safe-top) + 8px));
+  max-width: calc(
+    var(--viewport-width)
+    - var(--safe-left)
+    - var(--safe-right)
+    - 24px
+  );
+}
+
+.location-list,
+.play-tray,
+.chat-topics {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.location-list::-webkit-scrollbar,
+.play-tray::-webkit-scrollbar,
+.chat-topics::-webkit-scrollbar {
+  display: none;
+}
+
+.location-list {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.character-selector {
+  top: max(118px, calc(var(--safe-top) + 108px));
+  left: max(18px, calc(var(--safe-left) + 10px));
+}
+
+.popover {
+  top: max(84px, calc(var(--safe-top) + 74px));
+  right: max(18px, calc(var(--safe-right) + 10px));
+  max-height: calc(
+    var(--viewport-height)
+    - var(--safe-top)
+    - var(--safe-bottom)
+    - 96px
+  );
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.settings-panel {
+  max-height: calc(
+    var(--viewport-height)
+    - var(--safe-top)
+    - var(--safe-bottom)
+    - 96px
+  );
+}
+
+.play-tray {
+  bottom: max(17px, calc(var(--safe-bottom) + 9px));
+  max-width: calc(
+    var(--viewport-width)
+    - var(--safe-left)
+    - var(--safe-right)
+    - 22px
+  );
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.action-message {
+  bottom: max(103px, calc(var(--safe-bottom) + 95px));
+}
+
+.feedback-sparkles {
+  bottom: max(126px, calc(var(--safe-bottom) + 118px));
+}
+
+.onboarding-card {
+  left: max(18px, calc(var(--safe-left) + 10px));
+  bottom: max(112px, calc(var(--safe-bottom) + 104px));
+}
+
+.save-status {
+  right: max(1rem, calc(var(--safe-right) + .6rem));
+  bottom: max(1rem, calc(var(--safe-bottom) + .6rem));
+}
+
+.chat-panel {
+  right: max(22px, calc(var(--safe-right) + 10px));
+  bottom: max(22px, calc(var(--safe-bottom) + 10px));
+  max-height: min(
+    610px,
+    calc(
+      var(--viewport-height)
+      - var(--safe-top)
+      - var(--safe-bottom)
+      - 24px
+    )
+  );
+}
+
+.chat-messages,
+.settings-panel,
+.release-card,
+.title-card {
+  scroll-padding-bottom: calc(var(--safe-bottom) + 1rem);
+}
+
+.chat-form input {
+  font-size: max(.78rem, 16px);
+}
+
+button,
+input,
+label {
+  touch-action: manipulation;
+}
+
+@media (hover: none) {
+  .round-button:hover,
+  .location-button:hover,
+  .character-button:hover,
+  .expression-button:hover {
+    filter: none;
+    transform: none;
+  }
+
+  .location-button.is-active,
+  .expression-button.is-active,
+  .outfit-button.is-active {
+    transform: none;
+  }
+}
+
+@media (max-width: 980px) {
+  .top-bar {
+    top: max(12px, calc(var(--safe-top) + 8px));
+    right: max(12px, calc(var(--safe-right) + 8px));
+    left: max(12px, calc(var(--safe-left) + 8px));
+  }
+
+  .location-tray {
+    top: max(91px, calc(var(--safe-top) + 79px));
+  }
+
+  .popover {
+    top: max(76px, calc(var(--safe-top) + 64px));
+    right: max(12px, calc(var(--safe-right) + 8px));
+  }
+
+  .character-selector {
+    top: max(153px, calc(var(--safe-top) + 141px));
+    left: max(12px, calc(var(--safe-left) + 8px));
+  }
+
+  .play-tray {
+    bottom: max(11px, calc(var(--safe-bottom) + 7px));
+  }
+
+  .action-message {
+    bottom: max(95px, calc(var(--safe-bottom) + 91px));
+  }
+}
+
+@media (max-width: 720px) {
+  .top-bar {
+    top: calc(var(--safe-top) + 8px);
+    right: calc(var(--safe-right) + 8px);
+    left: calc(var(--safe-left) + 8px);
+  }
+
+  .popover {
+    top: calc(var(--safe-top) + 62px);
+    right: calc(var(--safe-right) + 8px);
+    width: calc(
+      var(--viewport-width)
+      - var(--safe-left)
+      - var(--safe-right)
+      - 16px
+    );
+    max-height: calc(
+      var(--viewport-height)
+      - var(--safe-top)
+      - var(--safe-bottom)
+      - 70px
+    );
+  }
+
+  .location-tray {
+    top: auto;
+    right: calc(var(--safe-right) + 8px);
+    bottom: calc(var(--safe-bottom) + 104px);
+    max-height: calc(
+      var(--viewport-height)
+      - var(--safe-top)
+      - var(--safe-bottom)
+      - 188px
+    );
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .character-selector {
+    top: calc(var(--safe-top) + 68px);
+    left: calc(var(--safe-left) + 8px);
+  }
+
+  .play-tray {
+    bottom: calc(var(--safe-bottom) + 7px);
+    width: calc(
+      var(--viewport-width)
+      - var(--safe-left)
+      - var(--safe-right)
+      - 14px
+    );
+    max-width: none;
+  }
+
+  .action-message {
+    bottom: calc(var(--safe-bottom) + 139px);
+  }
+
+  .feedback-sparkles {
+    bottom: calc(var(--safe-bottom) + 152px);
+  }
+
+  .onboarding-card {
+    left: calc(var(--safe-left) + 8px);
+    bottom: calc(var(--safe-bottom) + 176px);
+  }
+
+  .chat-panel {
+    inset: auto;
+    top: calc(var(--safe-top) + 6px);
+    right: calc(var(--safe-right) + 6px);
+    bottom: calc(var(--safe-bottom) + 6px);
+    left: calc(var(--safe-left) + 6px);
+    width: auto;
+    max-height: none;
+  }
+
+  .chat-messages {
+    min-height: 80px;
+  }
+
+  .save-status {
+    right: calc(var(--safe-right) + 8px);
+    bottom: calc(var(--safe-bottom) + 8px);
+  }
+}
+
+@media (max-width: 480px) {
+  .top-bar {
+    top: calc(var(--safe-top) + 6px);
+    right: calc(var(--safe-right) + 6px);
+    left: calc(var(--safe-left) + 6px);
+  }
+
+  .popover {
+    top: calc(var(--safe-top) + 58px);
+    right: calc(var(--safe-right) + 6px);
+    width: calc(
+      var(--viewport-width)
+      - var(--safe-left)
+      - var(--safe-right)
+      - 12px
+    );
+    max-height: calc(
+      var(--viewport-height)
+      - var(--safe-top)
+      - var(--safe-bottom)
+      - 64px
+    );
+  }
+
+  .location-tray {
+    right: calc(var(--safe-right) + 6px);
+    bottom: calc(var(--safe-bottom) + 142px);
+  }
+
+  .character-selector {
+    top: calc(var(--safe-top) + 58px);
+    left: calc(var(--safe-left) + 6px);
+  }
+
+  .play-tray {
+    bottom: calc(var(--safe-bottom) + 7px);
+    width: calc(
+      var(--viewport-width)
+      - var(--safe-left)
+      - var(--safe-right)
+      - 14px
+    );
+  }
+
+  .action-message {
+    right: calc(var(--safe-right) + 58px);
+    bottom: calc(var(--safe-bottom) + 132px);
+    left: calc(var(--safe-left) + 8px);
+  }
+
+  .feedback-sparkles {
+    bottom: calc(var(--safe-bottom) + 145px);
+  }
+
+  .onboarding-card {
+    right: calc(var(--safe-right) + 58px);
+    bottom: calc(var(--safe-bottom) + 194px);
+    left: calc(var(--safe-left) + 8px);
+  }
+
+  .is-chat-input-active .chat-heading {
+    grid-template-columns: 40px minmax(0, 1fr) 44px;
+    gap: 7px;
+    padding: 8px 10px;
+  }
+
+  .is-chat-input-active .chat-portrait {
+    width: 38px;
+    height: 38px;
+    border-width: 2px;
+    font-size: 1.3rem;
+  }
+
+  .is-chat-input-active .chat-messages {
+    min-height: 56px;
+    padding: 8px 10px;
+  }
+
+  .is-chat-input-active .chat-topics {
+    padding-bottom: 6px;
+  }
+
+  .is-chat-input-active .chat-clear-button {
+    display: none;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .brand,
+  .character-selector {
+    display: none;
+  }
+
+  .top-bar {
+    top: calc(var(--safe-top) + 5px);
+    right: calc(var(--safe-right) + 6px);
+    left: auto;
+  }
+
+  .location-tray {
+    top: calc(var(--safe-top) + 5px);
+    right: calc(var(--safe-right) + 166px);
+    bottom: auto;
+    left: calc(var(--safe-left) + 6px);
+    display: block;
+    max-width: none;
+    max-height: 62px;
+    padding: 4px 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-radius: 18px;
+    transform: none;
+  }
+
+  .location-list {
+    display: flex;
+    width: max-content;
+    gap: 3px;
+  }
+
+  .tray-title,
+  .map-path,
+  .location-name {
+    display: none;
+  }
+
+  .location-button {
+    min-width: 48px;
+    min-height: 48px;
+    padding: 3px;
+    border-radius: 13px;
+  }
+
+  .location-button.is-active {
+    transform: none;
+  }
+
+  .location-button.is-active::after {
+    display: none;
+  }
+
+  .location-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .popover {
+    top: calc(var(--safe-top) + 58px);
+    right: calc(var(--safe-right) + 6px);
+    max-height: calc(
+      var(--viewport-height)
+      - var(--safe-top)
+      - var(--safe-bottom)
+      - 64px
+    );
+  }
+
+  .play-tray {
+    right: calc(var(--safe-right) + 5px);
+    bottom: calc(var(--safe-bottom) + 5px);
+    left: calc(var(--safe-left) + 5px);
+    width: auto;
+    max-width: none;
+    min-height: 56px;
+    justify-content: flex-start;
+    transform: none;
+  }
+
+  .held-item {
+    min-width: 44px;
+  }
+
+  .use-item-button {
+    min-width: 108px;
+  }
+
+  .expression-controls {
+    position: static;
+    display: grid;
+    min-width: max-content;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    transform: none;
+  }
+
+  .outfit-heading,
+  .expression-heading {
+    display: none;
+  }
+
+  .action-message {
+    right: calc(var(--safe-right) + 8px);
+    bottom: calc(var(--safe-bottom) + 68px);
+    left: calc(var(--safe-left) + 8px);
+    max-width: none;
+    transform: translateY(10px) scale(.97);
+  }
+
+  .action-message.is-visible {
+    transform: translateY(0) scale(1);
+  }
+
+  .feedback-sparkles {
+    bottom: calc(var(--safe-bottom) + 88px);
+  }
+
+  .onboarding-card {
+    top: calc(var(--safe-top) + 64px);
+    right: auto;
+    bottom: auto;
+    left: calc(var(--safe-left) + 8px);
+    width: min(280px, calc(var(--viewport-width) * .45));
+  }
+
+  .save-status {
+    right: calc(var(--safe-right) + 8px);
+    bottom: calc(var(--safe-bottom) + 66px);
+  }
+
+  .chat-panel {
+    inset: auto;
+    top: calc(var(--safe-top) + 5px);
+    right: calc(var(--safe-right) + 5px);
+    bottom: calc(var(--safe-bottom) + 5px);
+    left: calc(var(--safe-left) + 5px);
+    width: auto;
+    max-height: none;
+  }
+
+  .chat-heading {
+    padding-block: 7px;
+  }
+
+  .chat-messages {
+    min-height: 54px;
+    padding-block: 8px;
+  }
+
+  .chat-clear-button {
+    display: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .round-button,
+  .close-button,
+  .chat-close-button,
+  .chat-topic-button,
+  .chat-clear-button,
+  .onboarding-heading button,
+  .fresh-start-button,
+  .memory-clear-button,
+  .use-item-button,
+  .drop-item-button,
+  .together-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .location-button,
+  .character-button {
+    min-width: 48px;
+    min-height: 48px;
+  }
+
+  .outfit-button,
+  .expression-button {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .switch {
+    width: 52px;
+    min-width: 52px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    background: transparent;
+  }
+
+  .switch::before {
+    content: "";
+    position: absolute;
+    inset: 8px 2px;
+    border-radius: 999px;
+    background: #d5cbd8;
+  }
+
+  .switch.is-on {
+    background: transparent;
+  }
+
+  .switch.is-on::before {
+    background: var(--teal);
+  }
+
+  .switch span {
+    top: 12px;
+    left: 6px;
+    z-index: 1;
+  }
+
+  .chat-form button {
+    min-width: 72px;
+    min-height: 44px;
+  }
+}

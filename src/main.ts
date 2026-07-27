@@ -50,6 +50,10 @@ import {
   onboardingStepCopy,
   type OnboardingStepId,
 } from "./game/onboarding";
+import {
+  measureViewportLayout,
+  type ViewportLayout,
+} from "./game/ui/viewportLayout";
 
 type PlayerQuality = "low" | "medium" | "high";
 
@@ -217,6 +221,34 @@ if (
 ) {
   throw new Error("Required game UI elements are missing.");
 }
+
+const readViewportLayout = (): ViewportLayout => measureViewportLayout(
+  window.innerWidth,
+  window.innerHeight,
+  window.visualViewport
+    ? {
+      width: window.visualViewport.width,
+      height: window.visualViewport.height,
+      offsetLeft: window.visualViewport.offsetLeft,
+      offsetTop: window.visualViewport.offsetTop,
+    }
+    : null,
+);
+
+let currentViewportLayout = readViewportLayout();
+
+const applyViewportLayout = (): void => {
+  currentViewportLayout = readViewportLayout();
+  const rootStyle = document.documentElement.style;
+  rootStyle.setProperty("--viewport-width", `${currentViewportLayout.width}px`);
+  rootStyle.setProperty("--viewport-height", `${currentViewportLayout.height}px`);
+  rootStyle.setProperty("--viewport-offset-left", `${currentViewportLayout.offsetLeft}px`);
+  rootStyle.setProperty("--viewport-offset-top", `${currentViewportLayout.offsetTop}px`);
+  rootStyle.setProperty("--keyboard-inset", `${currentViewportLayout.keyboardInset}px`);
+  app.classList.toggle("is-compact-landscape", currentViewportLayout.compactLandscape);
+};
+
+applyViewportLayout();
 
 const showPublicStartupError = (): void => {
   loadingScreen.hidden = true;
@@ -531,6 +563,24 @@ const engine = new Engine(
   false,
 );
 
+const visualViewport = window.visualViewport;
+let viewportSyncFrame = 0;
+
+const scheduleViewportSync = (): void => {
+  if (viewportSyncFrame !== 0) window.cancelAnimationFrame(viewportSyncFrame);
+  viewportSyncFrame = window.requestAnimationFrame(() => {
+    viewportSyncFrame = 0;
+    applyViewportLayout();
+    engine.resize();
+    if (!chatPanel.hidden) chatMessages.scrollTop = chatMessages.scrollHeight;
+  });
+};
+
+window.addEventListener("resize", scheduleViewportSync);
+visualViewport?.addEventListener("resize", scheduleViewportSync);
+visualViewport?.addEventListener("scroll", scheduleViewportSync);
+scheduleViewportSync();
+
 let actionTimer = 0;
 let feedbackTimer = 0;
 const showAction = (message: string, sound: InteractionSound = "success"): void => {
@@ -573,8 +623,18 @@ const updateInteractionLabel = (hint: InteractionHint | null): void => {
 
   const estimatedWidth = Math.min(260, Math.max(154, hint.label.length * 8 + 82));
   const estimatedHeight = 62;
-  const left = Math.min(window.innerWidth - estimatedWidth - 12, Math.max(8, hint.x));
-  const top = Math.min(window.innerHeight - estimatedHeight - 12, Math.max(8, hint.y));
+  const minimumLeft = currentViewportLayout.offsetLeft + 8;
+  const minimumTop = currentViewportLayout.offsetTop + 8;
+  const maximumLeft = currentViewportLayout.offsetLeft
+    + currentViewportLayout.width
+    - estimatedWidth
+    - 12;
+  const maximumTop = currentViewportLayout.offsetTop
+    + currentViewportLayout.height
+    - estimatedHeight
+    - 12;
+  const left = Math.min(maximumLeft, Math.max(minimumLeft, hint.x));
+  const top = Math.min(maximumTop, Math.max(minimumTop, hint.y));
   interactionLabel.style.left = `${left}px`;
   interactionLabel.style.top = `${top}px`;
 };
@@ -625,7 +685,8 @@ const closeChat = (): void => {
   activeChatCharacter = null;
   chatPanel.hidden = true;
   chatThinking.hidden = true;
-  app.classList.remove("is-chat-open");
+  app.classList.remove("is-chat-open", "is-chat-input-active");
+  scheduleViewportSync();
 };
 
 const submitChat = (message: string, forcedIntent?: DialogueIntent): void => {
@@ -677,6 +738,7 @@ const openNpcChat = (npcId: NpcId): void => {
   chatPanel.hidden = false;
   app.classList.add("is-chat-open");
   chatForm.hidden = !dialoguePreferences.typedMessages;
+  scheduleViewportSync();
   renderTopics(state.suggestions);
   renderConversation(npcId);
   if (state.conversation.length === 0) submitChat("Hello!", "greeting");
@@ -1063,6 +1125,12 @@ clearAllMemoriesButton.addEventListener("click", () => {
 chatCloseButton.addEventListener("click", closeChat);
 chatInput.addEventListener("focus", () => {
   chatPrivacyReminder.hidden = releasePreferences.chatPrivacyAcknowledged;
+  app.classList.add("is-chat-input-active");
+  scheduleViewportSync();
+});
+chatInput.addEventListener("blur", () => {
+  app.classList.remove("is-chat-input-active");
+  scheduleViewportSync();
 });
 chatPrivacyAcknowledge.addEventListener("click", () => {
   releasePreferences.chatPrivacyAcknowledged = true;
@@ -1350,8 +1418,11 @@ window.setTimeout(() => {
       : "save ready";
   }
 }, 350);
-window.addEventListener("resize", () => engine.resize());
 window.addEventListener("beforeunload", () => {
+  window.removeEventListener("resize", scheduleViewportSync);
+  visualViewport?.removeEventListener("resize", scheduleViewportSync);
+  visualViewport?.removeEventListener("scroll", scheduleViewportSync);
+  if (viewportSyncFrame !== 0) window.cancelAnimationFrame(viewportSyncFrame);
   room.dispose();
   gameAudio.dispose();
   engine.dispose();
