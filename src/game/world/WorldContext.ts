@@ -81,5 +81,6 @@ export interface RoomOptions {
   onNpcChat?(npcId: NpcId): void;
   isNpcChatEnabled?(): boolean;
   onNpcMemoryEvent?(event: NpcWorldMemoryEvent): void;
+  onPlayerMovement?(): void;
   onInteractionHint?(hint: InteractionHint | null): void;
 }

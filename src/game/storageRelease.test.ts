@@ -53,6 +53,7 @@ describe("release world saves", () => {
     expect(save.activeRoom).toBe("home");
     expect(Object.keys(save.characters)).toEqual(["khadija", "sister", "brother"]);
     expect(save.release.chatPrivacyAcknowledged).toBe(false);
+    expect(save.release.onboarding).toEqual({ completedSteps: [], dismissed: false });
   });
 
   it("does not mistake initialization writes for a completed first launch", () => {
@@ -76,6 +77,23 @@ describe("release world saves", () => {
     expect(save.accessibility.reducedMotion).toBe(true);
     expect(save.qualityPreset).toBe("low");
     expect(save.release.firstLaunchComplete).toBe(true);
+    expect(save.release.onboarding.completedSteps).toEqual([]);
+  });
+
+  it("grandfathers schema-12 worlds saved before onboarding", () => {
+    const existing = createDefaultWorldSave();
+    existing.release.firstLaunchComplete = true;
+    const raw = JSON.parse(JSON.stringify(existing)) as Record<string, unknown>;
+    const release = raw.release as Record<string, unknown>;
+    delete release.onboarding;
+    localStorage.setItem("khadijas-world:world-2", JSON.stringify(raw));
+
+    expect(loadSave().release.onboarding.completedSteps).toEqual([
+      "move",
+      "interact",
+      "travel",
+      "help",
+    ]);
   });
 
   it("migrates an existing schema-11 world without wiping its active state", () => {
@@ -91,7 +109,10 @@ describe("release world saves", () => {
       version: 12,
       activeRoom: "park",
       selectedCharacter: "khadija",
-      release: { firstLaunchComplete: true },
+      release: {
+        firstLaunchComplete: true,
+        onboarding: { completedSteps: ["move", "interact", "travel", "help"] },
+      },
     });
     expect(migrated.characters.khadija.room).toBe("park");
     expect(migrated.characters.sister.room).toBe("park");

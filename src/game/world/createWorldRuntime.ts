@@ -3611,6 +3611,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     }
 
     const khadijaMoving = hasMovementInput || selectedRig().isMoving();
+    if (khadijaMoving) options.onPlayerMovement?.();
     if (!khadijaMoving && selectedState().interaction === "walking") {
       selectedState().interaction = "idle";
     }
