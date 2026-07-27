@@ -1127,14 +1127,14 @@ let activePopover: {
 } | null = null;
 
 function closePopovers(shouldRestoreFocus = true): void {
-  helpCard.hidden = true;
-  settingsPanel.hidden = true;
-  helpButton.setAttribute("aria-expanded", "false");
-  settingsButton.setAttribute("aria-expanded", "false");
+  helpCard!.hidden = true;
+  settingsPanel!.hidden = true;
+  helpButton!.setAttribute("aria-expanded", "false");
+  settingsButton!.setAttribute("aria-expanded", "false");
 
   const opener = activePopover?.opener ?? null;
   activePopover = null;
-  if (shouldRestoreFocus && opener) restoreFocus(opener, canvas);
+  if (shouldRestoreFocus && opener) restoreFocus(opener, canvas!);
 }
 
 function openPopover(target: HTMLElement, button: HTMLButtonElement): void {
