@@ -12,6 +12,7 @@ import {
   type CharacterId,
 } from "./game/characterState";
 import { applyQuality, type QualityPreset } from "./game/quality";
+import { AdaptiveResolutionController } from "./game/performance/adaptiveResolution";
 import { DialogueController, type DialogueContext } from "./game/dialogue/DialogueController";
 import type { DialogueTopic } from "./game/content/dialogue/topicSuggestions";
 import type { DialogueIntent } from "./game/dialogue/DialogueIntent";
@@ -1118,6 +1119,32 @@ if (isQaMode) {
         openNpcChat(targetNpc);
         return !chatPanel.hidden;
       },
+      switchRoom(roomId: string): boolean {
+        const qaRooms: readonly RoomId[] = [
+          "home",
+          "bedroom",
+          "street",
+          "cafe",
+          "park",
+          "grocery",
+        ];
+        const targetRoom = roomId as RoomId;
+        if (!qaRooms.includes(targetRoom)) return false;
+        room.switchRoom(targetRoom);
+        return true;
+      },
+      diagnostics() {
+        return {
+          activeRoom: loadSave().activeRoom,
+          meshes: room.scene.meshes.length,
+          materials: room.scene.materials.length,
+          textures: room.scene.textures.length,
+          transformNodes: room.scene.transformNodes.length,
+          animationGroups: room.scene.animationGroups.length,
+          activeMeshes: room.scene.getActiveMeshes().length,
+          hardwareScalingLevel: engine.getHardwareScalingLevel(),
+        };
+      },
       announce(message: string): void {
         showAction(message);
       },
@@ -1138,12 +1165,11 @@ const presetToPlayerQuality: Record<QualityPreset, PlayerQuality> = {
 };
 
 let activePreset: QualityPreset = loadSave().qualityPreset;
-let adaptiveTimer = 0;
-let fpsAccumulator = 0;
-let fpsSamples = 0;
+const adaptiveResolution = new AdaptiveResolutionController();
 
 function setQuality(playerQuality: PlayerQuality, announce = true): void {
   activePreset = playerQualityToPreset[playerQuality];
+  adaptiveResolution.reset();
   const settings = applyQuality(engine, activePreset);
   room.setQuality(settings);
   saveQualityPreset(activePreset);
@@ -1612,6 +1638,7 @@ canvas.addEventListener("webglcontextlost", (event) => {
 });
 
 canvas.addEventListener("webglcontextrestored", () => {
+  adaptiveResolution.reset();
   displayPaused = false;
   displayRecovery.hidden = true;
   syncFocusIsolation();
@@ -1620,6 +1647,7 @@ canvas.addEventListener("webglcontextrestored", () => {
 });
 
 restoreDisplayButton.addEventListener("click", () => {
+  adaptiveResolution.reset();
   displayPaused = false;
   displayRecovery.hidden = true;
   syncFocusIsolation();
@@ -1629,6 +1657,7 @@ restoreDisplayButton.addEventListener("click", () => {
 reloadDisplayButton.addEventListener("click", () => window.location.reload());
 
 document.addEventListener("visibilitychange", () => {
+  adaptiveResolution.reset();
   gameAudio.setPageVisible(!document.hidden && !gamePaused && !atTitleScreen);
 });
 
@@ -1651,41 +1680,37 @@ window.addEventListener("khadijas-world:save-status", (event) => {
 let metricsTimer = 0;
 room.scene.onAfterRenderObservable.add(() => {
   const delta = engine.getDeltaTime();
+  const fps = engine.getFps();
   metricsTimer += delta;
-  adaptiveTimer += delta;
-  fpsAccumulator += engine.getFps();
-  fpsSamples += 1;
 
   if (isDebugMode && metricsTimer >= 500) {
     metricsTimer = 0;
-    const fps = Math.round(engine.getFps());
-    const frameMs = engine.getFps() > 0 ? 1000 / engine.getFps() : 0;
+    const roundedFps = Math.round(fps);
+    const frameMs = fps > 0 ? 1000 / fps : 0;
     const width = engine.getRenderWidth();
     const height = engine.getRenderHeight();
 
-    fpsValue.textContent = String(fps);
+    fpsValue.textContent = String(roundedFps);
     frameValue.textContent = `${frameMs.toFixed(1)} ms`;
     meshValue.textContent = String(room.scene.getActiveMeshes().length);
     resolutionValue.textContent = `${width}\u00d7${height}`;
     const livingDebug = room.getLivingDebugState();
     livingValue.textContent = `${livingDebug.activePlayable}/${livingDebug.activeNpcs}`
       + ` \u00b7 ${livingDebug.decisions} decisions`;
-    status.value = `${activePreset} \u00b7 WebGL \u00b7 Babylon.js`;
+    status.value = `${activePreset} \u00b7 `
+      + `${engine.getHardwareScalingLevel().toFixed(2)}x scale `
+      + `\u00b7 WebGL \u00b7 Babylon.js`;
   }
 
-  if (activePreset !== "adaptive" || adaptiveTimer < 4000 || fpsSamples === 0) return;
+  if (activePreset !== "adaptive") return;
 
-  adaptiveTimer = 0;
-  const averageFps = fpsAccumulator / fpsSamples;
-  fpsAccumulator = 0;
-  fpsSamples = 0;
+  const nextScale = adaptiveResolution.sample(
+    fps,
+    delta,
+    engine.getHardwareScalingLevel(),
+  );
 
-  const currentScale = engine.getHardwareScalingLevel();
-  let nextScale = currentScale;
-  if (averageFps < 28) nextScale = Math.min(2, currentScale + .15);
-  if (averageFps > 48) nextScale = Math.max(1.15, currentScale - .1);
-
-  if (Math.abs(nextScale - currentScale) >= .05) {
+  if (nextScale !== null) {
     engine.setHardwareScalingLevel(nextScale);
     engine.resize();
   }
@@ -1705,6 +1730,13 @@ window.setTimeout(() => {
   }
 }, 350);
 window.addEventListener("beforeunload", () => {
+  engine.stopRenderLoop();
+  adaptiveResolution.reset();
+  window.clearTimeout(actionTimer);
+  window.clearTimeout(feedbackTimer);
+  window.clearTimeout(chatReplyTimer);
+  window.clearTimeout(roomTransitionTimer);
+  window.clearTimeout(saveStatusTimer);
   window.removeEventListener("resize", scheduleViewportSync);
   visualViewport?.removeEventListener("resize", scheduleViewportSync);
   visualViewport?.removeEventListener("scroll", scheduleViewportSync);

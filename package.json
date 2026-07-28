@@ -16,6 +16,7 @@
     "check:qa": "tsc --noEmit -p tsconfig.qa.json",
     "qa:install": "playwright install chromium",
     "qa:browser": "playwright test",
+    "qa:perf": "playwright test tests/browser/performance.spec.ts",
     "qa:browser:headed": "playwright test --headed",
     "qa:browser:ui": "playwright test --ui",
     "qa:verified": "npm run validate:assets && npm run check && npm test && npm run check:qa && npm run qa:browser && npm run check:bundle"
