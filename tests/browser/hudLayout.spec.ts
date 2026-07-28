@@ -1,4 +1,9 @@
-﻿import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
+
+// This test initializes the complete Babylon runtime and validates three
+// desktop viewport sizes. Cold Windows/WebGL startup can exceed the default
+// Playwright timeout even when every layout assertion succeeds.
+test.describe.configure({ timeout: 180_000 });
 import {
   collectRuntimeFailures,
   enterExistingWorld,
