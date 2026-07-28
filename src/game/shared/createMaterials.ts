@@ -1,5 +1,6 @@
 import {
   Color3,
+  PBRMaterial,
   type Scene,
   StandardMaterial,
 } from "@babylonjs/core";
@@ -186,4 +187,54 @@ export function createWorldMaterials(scene: Scene): WorldMaterialRegistry {
   registry.marker.alpha = 0.75;
   registry.glass.alpha = 0.48;
   return registry;
+}
+
+
+export interface ToyPBRMaterialOptions {
+  roughness?: number;
+  metallic?: number;
+  clearCoatIntensity?: number;
+  clearCoatRoughness?: number;
+  translucent?: boolean;
+  tintColor?: Color3;
+  environmentIntensity?: number;
+}
+
+/**
+ * Creates an opt-in PBR material for polished toy, ceramic, painted-plastic,
+ * or character-detail surfaces. Existing world materials remain StandardMaterial
+ * until a location or asset explicitly adopts this factory.
+ */
+export function createToyPBRMaterial(
+  scene: Scene,
+  name: string,
+  albedoColor: Color3,
+  options: ToyPBRMaterialOptions = {},
+): PBRMaterial {
+  const material = new PBRMaterial(name, scene);
+
+  material.albedoColor = albedoColor;
+  material.metallic = options.metallic ?? 0;
+  material.roughness = options.roughness ?? 0.32;
+  material.environmentIntensity =
+    options.environmentIntensity ?? 0.82;
+
+  const clearCoatIntensity =
+    options.clearCoatIntensity ?? 0.28;
+
+  material.clearCoat.isEnabled = clearCoatIntensity > 0;
+  material.clearCoat.intensity = clearCoatIntensity;
+  material.clearCoat.roughness =
+    options.clearCoatRoughness ?? 0.14;
+
+  const translucent = options.translucent ?? false;
+  material.subSurface.isTranslucencyEnabled = translucent;
+
+  if (translucent) {
+    material.subSurface.tintColor = (
+      options.tintColor ?? albedoColor
+    ).clone();
+  }
+
+  return material;
 }

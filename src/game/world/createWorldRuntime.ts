@@ -23,6 +23,7 @@ import {
   Vector3,
 } from "@babylonjs/core";
 import type { QualitySettings } from "../quality";
+import { createNextGenGraphicsController } from "../graphicsPipeline";
 import { isTextEntryElement } from "../ui/focusManagement";
 import {
   CHARACTER_DEFINITIONS,
@@ -320,6 +321,15 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
   sun.intensity = 0.42;
   sun.diffuse = new Color3(1.0, .89, .74);
   sun.specular = new Color3(1.0, .94, .84);
+
+  const graphics = createNextGenGraphicsController(
+    scene,
+    camera,
+    sun,
+    {
+      environmentUrl: "./assets/environment/studio.env",
+    },
+  );
 
   const materials = createWorldMaterials(scene);
   const {
@@ -3691,6 +3701,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     enhancedLighting = settings.enhancedLighting;
     sun.intensity = enhancedLighting ? 0.58 : 0.35;
     applyActiveRoomLighting();
+    graphics.setQuality(settings);
     for (const mesh of detailMeshes) mesh.setEnabled(settings.decorativeDetails);
     interiorFurniture.setQualityEnabled(settings.decorativeDetails);
     // High-detail Meshy hero characters remain disabled on Low. Procedural
@@ -3769,6 +3780,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       for (const productionVisual of Object.values(npcProductionVisuals)) {
         productionVisual?.dispose();
       }
+      graphics.dispose();
       disposables.dispose();
       interiorFurniture.dispose();
       locationRegistry.dispose();
