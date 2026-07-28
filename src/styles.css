@@ -2705,3 +2705,685 @@ a[href]:focus-visible,
     min-height: 44px;
   }
 }
+
+/* UX.4 detached desktop HUD, navigation proportions, and playfield safety */
+:root {
+  --hud-playfield-top: 0px;
+  --hud-playfield-right: 0px;
+  --hud-playfield-bottom: 0px;
+  --hud-playfield-left: 0px;
+  --hud-panel-shadow:
+    0 8px 20px rgba(63, 39, 89, .14),
+    0 2px 0 rgba(83, 49, 132, .06);
+}
+
+.has-detached-hud {
+  background:
+    linear-gradient(
+      180deg,
+      #d7e9f1 0,
+      #d7e9f1 var(--hud-playfield-top),
+      #c7dee8 var(--hud-playfield-top),
+      #c7dee8 calc(100% - var(--hud-playfield-bottom)),
+      #d7e9f1 calc(100% - var(--hud-playfield-bottom)),
+      #d7e9f1 100%
+    );
+}
+
+.has-detached-hud #game-canvas {
+  position: absolute;
+  top: calc(var(--hud-playfield-top) + var(--safe-top));
+  left: calc(var(--hud-playfield-left) + var(--safe-left));
+  right: auto;
+  bottom: auto;
+  width: calc(
+    100%
+    - var(--hud-playfield-left)
+    - var(--hud-playfield-right)
+    - var(--safe-left)
+    - var(--safe-right)
+  );
+  height: calc(
+    100%
+    - var(--hud-playfield-top)
+    - var(--hud-playfield-bottom)
+    - var(--safe-top)
+    - var(--safe-bottom)
+  );
+  min-width: 0;
+  min-height: 0;
+  max-width: none;
+  max-height: none;
+  border-radius: 22px;
+  background: #d9ebf2;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, .72),
+    0 10px 24px rgba(60, 45, 76, .13);
+  clip-path: inset(
+    var(--dollhouse-mask-top, 0%)
+    var(--dollhouse-mask-right, 0%)
+    var(--dollhouse-mask-bottom, 0%)
+    var(--dollhouse-mask-left, 0%)
+    round 20px
+  );
+}
+
+@media (min-width: 1100px) and (min-height: 580px) {
+  .has-detached-hud .top-bar {
+    top: calc(var(--safe-top) + 10px);
+    right: calc(var(--safe-right) + 14px);
+    left: calc(var(--safe-left) + 14px);
+    height: 62px;
+    align-items: center;
+  }
+
+  .has-detached-hud .brand,
+  .has-detached-hud .round-button,
+  .has-detached-hud .location-tray,
+  .has-detached-hud .play-tray,
+  .has-detached-hud .character-selector {
+    border-width: 2px;
+    box-shadow: var(--hud-panel-shadow);
+    backdrop-filter: none;
+  }
+
+  .has-detached-hud .brand {
+    min-width: 126px;
+    padding: 8px 13px 9px;
+    border-radius: 18px;
+    transform: none;
+  }
+
+  .has-detached-hud .brand::after {
+    display: none;
+  }
+
+  .has-detached-hud .brand-khadija {
+    font-size: 1.18rem;
+    line-height: .9;
+  }
+
+  .has-detached-hud .brand-world {
+    font-size: .92rem;
+  }
+
+  .has-detached-hud .top-actions {
+    gap: 8px;
+  }
+
+  .has-detached-hud .round-button {
+    width: 46px;
+    min-width: 46px;
+    height: 46px;
+    min-height: 46px;
+    font-size: 1.34rem;
+  }
+
+  .has-detached-hud .round-button:hover {
+    transform: translateY(-1px);
+  }
+
+  .has-detached-hud .location-tray {
+    top: calc(var(--safe-top) + 8px);
+    right: auto;
+    left: calc(var(--safe-left) + 330px);
+    gap: 0;
+    padding: 6px 8px;
+    border-radius: 19px;
+    background: rgba(255, 250, 239, .98);
+    transform: none;
+  }
+
+  .has-detached-hud .tray-title {
+    display: none;
+  }
+
+  .has-detached-hud .location-list {
+    gap: 2px;
+    overflow: visible;
+  }
+
+  .has-detached-hud .map-path {
+    display: grid;
+    place-items: center;
+    width: 10px;
+    height: 26px;
+    margin: 0;
+    color: #c3b2d2;
+    background: none;
+  }
+
+  .has-detached-hud .map-path::before {
+    content: "\203A";
+    font-size: .95rem;
+    font-weight: 1000;
+    line-height: 1;
+  }
+
+  .has-detached-hud .location-button {
+    min-width: 62px;
+    min-height: 58px;
+    padding: 4px 5px;
+    border-radius: 14px;
+  }
+
+  .has-detached-hud .location-button:hover {
+    transform: none;
+  }
+
+  .has-detached-hud .location-button.is-active {
+    box-shadow:
+      inset 0 0 0 2px rgba(255, 255, 255, .45),
+      0 3px 8px rgba(89, 55, 145, .18);
+    transform: none;
+  }
+
+  .has-detached-hud .location-button.is-active::after {
+    display: none;
+  }
+
+  .has-detached-hud .location-icon {
+    width: 28px;
+    height: 28px;
+    border-width: 1px;
+    border-radius: 9px;
+    font-size: 1.05rem;
+  }
+
+  .has-detached-hud .location-name {
+    font-size: .68rem;
+  }
+
+  .has-detached-hud .character-selector {
+    top: calc(var(--safe-top) + 10px);
+    left: calc(var(--safe-left) + 150px);
+    width: 168px;
+    padding: 5px;
+    border-radius: 18px;
+  }
+
+  .has-detached-hud .character-selector-title {
+    display: none;
+  }
+
+  .has-detached-hud .character-button {
+    grid-template-columns: 38px minmax(0, 1fr);
+    gap: 7px;
+    min-height: 50px;
+    padding: 4px 8px 4px 4px;
+    border-radius: 14px;
+  }
+
+  .has-detached-hud .character-button:hover {
+    transform: none;
+  }
+
+  .has-detached-hud .character-portrait {
+    width: 38px;
+    height: 38px;
+    font-size: 1.24rem;
+  }
+
+  .has-detached-hud .character-copy strong {
+    font-size: .72rem;
+  }
+
+  .has-detached-hud .character-copy small {
+    font-size: .59rem;
+  }
+
+  .has-detached-hud .play-tray {
+    bottom: calc(var(--safe-bottom) + 10px);
+    gap: 8px;
+    min-height: 70px;
+    padding: 7px 9px;
+    border-radius: 21px;
+    overflow: visible;
+    background: rgba(255, 250, 239, .98);
+  }
+
+  .has-detached-hud .held-item {
+    min-width: 130px;
+    gap: 7px;
+    padding-right: 5px;
+  }
+
+  .has-detached-hud .held-item-icon {
+    width: 42px;
+    height: 42px;
+    flex-basis: 42px;
+    border-radius: 13px;
+    font-size: 1.2rem;
+  }
+
+  .has-detached-hud .held-item-copy small {
+    font-size: .55rem;
+  }
+
+  .has-detached-hud .held-item-copy output {
+    max-width: 92px;
+    font-size: .75rem;
+  }
+
+  .has-detached-hud .item-actions {
+    gap: 6px;
+    padding: 0 8px;
+  }
+
+  .has-detached-hud .use-item-button,
+  .has-detached-hud .drop-item-button,
+  .has-detached-hud .together-button {
+    min-height: 46px;
+    border-radius: 14px;
+  }
+
+  .has-detached-hud .use-item-button {
+    min-width: 132px;
+    padding-inline: 12px;
+  }
+
+  .has-detached-hud .drop-item-button {
+    min-width: 74px;
+  }
+
+  .has-detached-hud .together-button {
+    min-width: 80px;
+  }
+
+  .has-detached-hud .outfit-controls {
+    min-width: 92px;
+  }
+
+  .has-detached-hud .outfit-heading,
+  .has-detached-hud .expression-heading {
+    font-size: .58rem;
+  }
+
+  .has-detached-hud .outfit-button,
+  .has-detached-hud .expression-button {
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    min-height: 28px;
+    border-radius: 9px;
+  }
+
+  .has-detached-hud .expression-options {
+    gap: 3px;
+  }
+
+  .has-detached-hud .action-message {
+    bottom: calc(var(--safe-bottom) + var(--hud-playfield-bottom) + 9px);
+  }
+
+  .has-detached-hud .feedback-sparkles {
+    bottom: calc(var(--safe-bottom) + var(--hud-playfield-bottom) + 31px);
+  }
+
+  .has-detached-hud .onboarding-card {
+    bottom: calc(var(--safe-bottom) + var(--hud-playfield-bottom) + 16px);
+  }
+
+  .has-detached-hud .save-status,
+  .has-detached-hud .debug-panel {
+    bottom: calc(var(--safe-bottom) + var(--hud-playfield-bottom) + 10px);
+  }
+
+  .has-detached-hud .popover {
+    top: calc(var(--safe-top) + var(--hud-playfield-top) + 7px);
+  }
+}
+
+/* UX.4 unified header proportions */
+@media (min-width: 1100px) and (min-height: 580px) {
+  .has-detached-hud .top-bar {
+    top: calc(var(--safe-top) + 8px);
+    height: 64px;
+    align-items: center;
+  }
+
+  .has-detached-hud .brand,
+  .has-detached-hud .character-selector,
+  .has-detached-hud .location-tray {
+    height: 64px;
+    min-height: 64px;
+    border-radius: 16px;
+    background: rgba(255, 250, 239, .98);
+  }
+
+  .has-detached-hud .brand {
+    align-content: center;
+    padding: 7px 13px;
+  }
+
+  .has-detached-hud .character-selector {
+    top: calc(var(--safe-top) + 8px);
+    padding: 4px;
+  }
+
+  .has-detached-hud .character-button {
+    height: 52px;
+    min-height: 52px;
+    border-radius: 12px;
+  }
+
+  .has-detached-hud .location-tray {
+    top: calc(var(--safe-top) + 8px);
+    padding: 4px 7px;
+  }
+
+  .has-detached-hud .location-list {
+    height: 100%;
+  }
+
+  .has-detached-hud .location-button {
+    height: 52px;
+    min-height: 52px;
+    padding: 3px 5px;
+    border-radius: 12px;
+  }
+
+  .has-detached-hud .location-button.is-active {
+    box-shadow:
+      inset 0 0 0 2px rgba(255, 255, 255, .42),
+      0 3px 7px rgba(89, 55, 145, .17);
+  }
+
+  .has-detached-hud .location-icon {
+    width: 25px;
+    height: 25px;
+    border-radius: 8px;
+    font-size: 1rem;
+  }
+
+  .has-detached-hud .location-name {
+    font-size: .64rem;
+  }
+
+  .has-detached-hud .map-path {
+    height: 20px;
+  }
+}
+
+/* UX.4 definitive desktop left rail */
+
+/* There is one playable character, so a selector adds no useful choice. */
+.character-selector {
+  display: none !important;
+}
+
+@media (min-width: 1100px) and (min-height: 580px) {
+  .has-detached-hud .top-bar {
+    position: absolute;
+    z-index: 10;
+    top: calc(var(--safe-top) + 10px);
+    right: auto;
+    bottom: auto;
+    left: calc(var(--safe-left) + 10px);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: 108px;
+    height: auto;
+  }
+
+  .has-detached-hud .brand {
+    box-sizing: border-box;
+    width: 108px;
+    min-width: 0;
+    height: 58px;
+    min-height: 58px;
+    padding: 7px 8px;
+    border-width: 2px;
+    border-radius: 15px;
+    align-content: center;
+    transform: none;
+  }
+
+  .has-detached-hud .brand::after {
+    display: none;
+  }
+
+  .has-detached-hud .brand-khadija {
+    font-size: 1rem;
+    line-height: .92;
+  }
+
+  .has-detached-hud .brand-world {
+    font-size: .76rem;
+  }
+
+  .has-detached-hud .top-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    width: 108px;
+  }
+
+  .has-detached-hud .round-button {
+    display: grid;
+    grid-template-columns: 23px minmax(0, 1fr);
+    align-items: center;
+    justify-items: start;
+    column-gap: 6px;
+    width: 108px;
+    min-width: 108px;
+    height: 40px;
+    min-height: 40px;
+    padding: 0 9px;
+    border-width: 2px;
+    border-radius: 12px;
+    color: #5e4675;
+    background: rgba(255, 250, 239, .98);
+    font-size: .82rem;
+    font-weight: 1000;
+    line-height: 1;
+    box-shadow: var(--hud-panel-shadow);
+  }
+
+  .has-detached-hud .round-button:hover {
+    transform: translateX(2px);
+  }
+
+  .has-detached-hud .round-button span {
+    display: grid;
+    place-items: center;
+    width: 23px;
+    font-size: 1.05rem;
+  }
+
+  .has-detached-hud .menu-button::after {
+    content: "Menu";
+  }
+
+  .has-detached-hud .help-button::after {
+    content: "Help";
+  }
+
+  .has-detached-hud .settings-button::after {
+    content: "Settings";
+  }
+
+  .has-detached-hud .menu-button span {
+    color: #796889;
+  }
+
+  .has-detached-hud .help-button span {
+    color: #2089bd;
+  }
+
+  .has-detached-hud .settings-button span {
+    color: #cc3c94;
+  }
+
+  .has-detached-hud .location-tray {
+    position: absolute;
+    z-index: 9;
+    top: calc(var(--safe-top) + 214px);
+    right: auto;
+    bottom: auto;
+    left: calc(var(--safe-left) + 10px);
+    display: block;
+    box-sizing: border-box;
+    width: 108px;
+    height: auto;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    transform: none;
+  }
+
+  .has-detached-hud .tray-title,
+  .has-detached-hud .map-path {
+    display: none;
+  }
+
+  .has-detached-hud .location-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 5px;
+    width: 108px;
+    height: auto;
+    overflow: visible;
+  }
+
+  .has-detached-hud .location-button {
+    position: relative;
+    display: grid;
+    grid-template-columns: 27px minmax(0, 1fr) 8px;
+    align-items: center;
+    gap: 5px;
+    box-sizing: border-box;
+    width: 108px;
+    min-width: 108px;
+    height: 44px;
+    min-height: 44px;
+    padding: 4px 6px;
+    border: 2px solid rgba(255, 255, 255, .9);
+    border-radius: 12px;
+    color: #5e4675;
+    background: rgba(255, 250, 239, .98);
+    text-align: left;
+    box-shadow: var(--hud-panel-shadow);
+    transform: none;
+  }
+
+  .has-detached-hud .location-button:hover {
+    background: #f7effb;
+    transform: translateX(2px);
+  }
+
+  .has-detached-hud .location-button.is-active {
+    color: #5c358d;
+    background: #f1e5fb;
+    box-shadow:
+      inset 0 0 0 1px rgba(116, 71, 184, .28),
+      var(--hud-panel-shadow);
+    transform: none;
+  }
+
+  .has-detached-hud .location-button::after,
+  .has-detached-hud .location-button.is-active::after {
+    content: "\203A";
+    position: static;
+    display: block;
+    width: auto;
+    height: auto;
+    color: #a48ab7;
+    background: none;
+    font-size: 1rem;
+    font-weight: 1000;
+    line-height: 1;
+    transform: none;
+  }
+
+  .has-detached-hud .location-icon {
+    width: 27px;
+    height: 27px;
+    border-width: 1px;
+    border-radius: 8px;
+    font-size: .98rem;
+  }
+
+  .has-detached-hud .location-name {
+    display: block;
+    max-width: none;
+    overflow: hidden;
+    font-size: .61rem;
+    line-height: 1.05;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .has-detached-hud .play-tray {
+    right: calc(
+      var(--hud-playfield-right)
+      + var(--safe-right)
+    );
+    left: calc(
+      var(--hud-playfield-left)
+      + var(--safe-left)
+    );
+    width: fit-content;
+    max-width: calc(
+      100%
+      - var(--hud-playfield-left)
+      - var(--hud-playfield-right)
+      - var(--safe-left)
+      - var(--safe-right)
+    );
+    margin-right: auto;
+    margin-left: auto;
+    transform: none;
+  }
+}
+
+/* UX.4 larger desktop play area */
+@media (min-width: 1100px) and (min-height: 580px) {
+  .has-detached-hud .top-bar,
+  .has-detached-hud .location-tray {
+    left: calc(var(--safe-left) + 6px);
+  }
+
+  .has-detached-hud .top-bar,
+  .has-detached-hud .top-actions,
+  .has-detached-hud .location-tray,
+  .has-detached-hud .location-list,
+  .has-detached-hud .brand,
+  .has-detached-hud .round-button,
+  .has-detached-hud .location-button {
+    width: 102px;
+  }
+
+  .has-detached-hud .brand {
+    height: 54px;
+    min-height: 54px;
+  }
+
+  .has-detached-hud .round-button {
+    min-width: 102px;
+    height: 38px;
+    min-height: 38px;
+  }
+
+  .has-detached-hud .location-tray {
+    top: calc(var(--safe-top) + 202px);
+  }
+
+  .has-detached-hud .location-button {
+    min-width: 102px;
+    height: 42px;
+    min-height: 42px;
+  }
+
+  .has-detached-hud .play-tray {
+    bottom: calc(var(--safe-bottom) + 6px);
+    min-height: 62px;
+    padding-block: 5px;
+  }
+}

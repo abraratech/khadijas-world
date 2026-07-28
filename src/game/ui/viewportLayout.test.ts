@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 import { measureViewportLayout } from "./viewportLayout";
 
-describe("mobile viewport layout", () => {
-  it("uses the layout viewport when the visual viewport API is unavailable", () => {
+describe("responsive viewport layout", () => {
+  it("reserves a compact desktop left rail and bottom dock", () => {
     expect(measureViewportLayout(1280, 720)).toEqual({
       width: 1280,
       height: 720,
@@ -10,10 +10,71 @@ describe("mobile viewport layout", () => {
       offsetTop: 0,
       keyboardInset: 0,
       compactLandscape: false,
+      detachedHud: true,
+      hudSafeArea: {
+        top: 6,
+        right: 8,
+        bottom: 74,
+        left: 120,
+      },
     });
   });
 
-  it("tracks the visible area when a software keyboard reduces viewport height", () => {
+  it("uses slightly roomier margins on large desktop displays", () => {
+    expect(measureViewportLayout(1707, 960)).toMatchObject({
+      detachedHud: true,
+      hudSafeArea: {
+        top: 8,
+        right: 10,
+        bottom: 82,
+        left: 124,
+      },
+    });
+  });
+
+  it("supports scaled desktop displays with reduced CSS height", () => {
+    expect(measureViewportLayout(1280, 614)).toMatchObject({
+      detachedHud: true,
+      hudSafeArea: {
+        top: 6,
+        right: 6,
+        bottom: 72,
+        left: 116,
+      },
+    });
+  });
+
+  it("ignores fractional visual viewport rounding", () => {
+    expect(measureViewportLayout(1536, 730, {
+      width: 1536,
+      height: 729.5999755859375,
+      offsetLeft: 0,
+      offsetTop: 0,
+    })).toMatchObject({
+      keyboardInset: 0,
+      detachedHud: true,
+      hudSafeArea: {
+        top: 6,
+        right: 8,
+        bottom: 74,
+        left: 120,
+      },
+    });
+  });
+
+  it("keeps the overlay HUD on narrower screens", () => {
+    expect(measureViewportLayout(1024, 768)).toMatchObject({
+      detachedHud: false,
+      hudSafeArea: {
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+      },
+    });
+  });
+
+  it("tracks a software keyboard reduction", () => {
     expect(measureViewportLayout(390, 844, {
       width: 390,
       height: 522,
@@ -24,10 +85,11 @@ describe("mobile viewport layout", () => {
       height: 522,
       keyboardInset: 322,
       compactLandscape: false,
+      detachedHud: false,
     });
   });
 
-  it("preserves visual viewport offsets used while the visible area is shifted", () => {
+  it("preserves shifted visual viewport offsets", () => {
     expect(measureViewportLayout(430, 932, {
       width: 410,
       height: 620,
@@ -39,12 +101,20 @@ describe("mobile viewport layout", () => {
       offsetLeft: 10,
       offsetTop: 42,
       keyboardInset: 270,
+      detachedHud: false,
     });
   });
 
-  it("recognizes short landscape layouts without classifying normal desktop windows", () => {
-    expect(measureViewportLayout(844, 390).compactLandscape).toBe(true);
-    expect(measureViewportLayout(1280, 720).compactLandscape).toBe(false);
+  it("recognizes short landscape layouts", () => {
+    expect(measureViewportLayout(844, 390)).toMatchObject({
+      compactLandscape: true,
+      detachedHud: false,
+    });
+
+    expect(measureViewportLayout(1280, 720)).toMatchObject({
+      compactLandscape: false,
+      detachedHud: true,
+    });
   });
 
   it("sanitizes unusable viewport measurements", () => {
@@ -60,6 +130,13 @@ describe("mobile viewport layout", () => {
       offsetTop: 0,
       keyboardInset: 0,
       compactLandscape: false,
+      detachedHud: false,
+      hudSafeArea: {
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+      },
     });
   });
 });

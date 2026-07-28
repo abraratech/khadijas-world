@@ -370,7 +370,30 @@ const applyViewportLayout = (): void => {
   rootStyle.setProperty("--viewport-offset-left", `${currentViewportLayout.offsetLeft}px`);
   rootStyle.setProperty("--viewport-offset-top", `${currentViewportLayout.offsetTop}px`);
   rootStyle.setProperty("--keyboard-inset", `${currentViewportLayout.keyboardInset}px`);
-  app.classList.toggle("is-compact-landscape", currentViewportLayout.compactLandscape);
+  rootStyle.setProperty(
+    "--hud-playfield-top",
+    `${currentViewportLayout.hudSafeArea.top}px`,
+  );
+  rootStyle.setProperty(
+    "--hud-playfield-right",
+    `${currentViewportLayout.hudSafeArea.right}px`,
+  );
+  rootStyle.setProperty(
+    "--hud-playfield-bottom",
+    `${currentViewportLayout.hudSafeArea.bottom}px`,
+  );
+  rootStyle.setProperty(
+    "--hud-playfield-left",
+    `${currentViewportLayout.hudSafeArea.left}px`,
+  );
+  app.classList.toggle(
+    "is-compact-landscape",
+    currentViewportLayout.compactLandscape,
+  );
+  app.classList.toggle(
+    "has-detached-hud",
+    currentViewportLayout.detachedHud,
+  );
 };
 
 applyViewportLayout();

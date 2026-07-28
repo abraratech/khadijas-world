@@ -1,4 +1,4 @@
-export interface DollhouseOrthoFrame {
+﻿export interface DollhouseOrthoFrame {
   verticalHalfSpan: number;
   horizontalHalfSpan: number;
 }
@@ -11,7 +11,11 @@ export interface DollhouseViewportMask {
 }
 
 const DEFAULT_ASPECT = 16 / 9;
-const DESKTOP_VERTICAL_HALF_SPAN = 4.65;
+const DESKTOP_VERTICAL_HALF_SPAN = 4.35;
+const DESKTOP_HORIZONTAL_HALF_SPAN = (
+  DESKTOP_VERTICAL_HALF_SPAN * DEFAULT_ASPECT
+);
+const DETACHED_HUD_MINIMUM_VERTICAL_HALF_SPAN = 3.55;
 const ROOM_HALF_WIDTH_WITH_MARGIN = 6.15;
 
 // Screen-space matte bounds for the common 12 x 8 dollhouse shell. The mask
@@ -41,18 +45,25 @@ function projectWorldVertical(y: number, z: number): number {
 }
 
 /**
- * Keeps the complete dollhouse visible on narrow screens while allowing the
- * room to fill more of a wide desktop viewport than the original fixed 5.2
- * vertical span.
+ * Keeps the complete dollhouse visible on narrow screens while retaining a
+ * stable apparent room width when the detached HUD makes the canvas wider.
  */
-export function calculateDollhouseOrthoFrame(rawAspect: number): DollhouseOrthoFrame {
+export function calculateDollhouseOrthoFrame(
+  rawAspect: number,
+): DollhouseOrthoFrame {
   const aspect = Number.isFinite(rawAspect) && rawAspect > 0
     ? rawAspect
     : DEFAULT_ASPECT;
-  const verticalHalfSpan = Math.max(
-    DESKTOP_VERTICAL_HALF_SPAN,
-    ROOM_HALF_WIDTH_WITH_MARGIN / aspect,
-  );
+
+  const verticalHalfSpan = aspect > DEFAULT_ASPECT
+    ? Math.max(
+      DETACHED_HUD_MINIMUM_VERTICAL_HALF_SPAN,
+      DESKTOP_HORIZONTAL_HALF_SPAN / aspect,
+    )
+    : Math.max(
+      DESKTOP_VERTICAL_HALF_SPAN,
+      ROOM_HALF_WIDTH_WITH_MARGIN / aspect,
+    );
 
   return {
     verticalHalfSpan,
@@ -62,19 +73,30 @@ export function calculateDollhouseOrthoFrame(rawAspect: number): DollhouseOrthoF
 
 /**
  * Converts the fixed dollhouse shell bounds into a responsive CSS inset mask.
- * Clipping the canvas (rather than deleting meshes) preserves every room's
- * gameplay geometry while presenting a clean dollhouse window on screen.
+ * Clipping the canvas preserves every room's gameplay geometry while
+ * presenting a clean dollhouse window on screen.
  */
 export function calculateDollhouseViewportMask(
   rawAspect: number,
 ): DollhouseViewportMask {
   const frame = calculateDollhouseOrthoFrame(rawAspect);
   const topProjection = projectWorldVertical(MASK_TOP_Y, MASK_TOP_Z);
-  const bottomProjection = projectWorldVertical(MASK_BOTTOM_Y, MASK_BOTTOM_Z);
-  const leftEdge = 50 - (MASK_HALF_WIDTH / frame.horizontalHalfSpan) * 50;
-  const rightEdge = 50 + (MASK_HALF_WIDTH / frame.horizontalHalfSpan) * 50;
-  const topEdge = 50 - (topProjection / frame.verticalHalfSpan) * 50;
-  const bottomEdge = 50 - (bottomProjection / frame.verticalHalfSpan) * 50;
+  const bottomProjection = projectWorldVertical(
+    MASK_BOTTOM_Y,
+    MASK_BOTTOM_Z,
+  );
+  const leftEdge = (
+    50 - (MASK_HALF_WIDTH / frame.horizontalHalfSpan) * 50
+  );
+  const rightEdge = (
+    50 + (MASK_HALF_WIDTH / frame.horizontalHalfSpan) * 50
+  );
+  const topEdge = (
+    50 - (topProjection / frame.verticalHalfSpan) * 50
+  );
+  const bottomEdge = (
+    50 - (bottomProjection / frame.verticalHalfSpan) * 50
+  );
 
   return {
     topPercent: clampPercent(topEdge),
