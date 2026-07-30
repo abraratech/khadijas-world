@@ -46,6 +46,8 @@ import {
 } from "../assets/characterAssets";
 import { createProductionCharacterVisual, type ProductionCharacterVisual } from "../assets/productionCharacterVisual";
 import { applyHeroCharacterPolish } from "../characters/applyHeroCharacterPolish";
+import { applyNpcToyOverhaul, applyToyCharacterOverhaul } from "../characters/applyNpcToyOverhaul";
+import { companionSceneScale, npcSceneScale } from "../characters/castScaleNormalization";
 import { applyKhadijaSculptedHero } from "../characters/applyKhadijaSculptedHero";
 import { COMPANION_HERO_PROFILES, NPC_HERO_PROFILES } from "../characters/heroCharacterProfiles";
 import {
@@ -494,7 +496,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     benchHotspot: streetBenchHotspot,
     scooterHotspot: streetScooterHotspot,
   } = streetBuild;
-  // WORLD.2 Sunny Café interior.
+  // WORLD.2 Sunny CafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© interior.
   const cafeBuild = buildCafe({
     scene, materials, detailMeshes, contentState,
     position: cafePosition,
@@ -638,7 +640,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     ["bedroom desk", bedroomPosition(4.2, 1.24, 2.82)],
     ["bedroom window", bedroomPosition(-0.9, 0.22, 2.95)],
     ["street bench", streetPosition(-2.75, 0.82, 1.12)],
-    ["café window", cafePosition(-4.85, 0.22, 2.75)],
+    ["cafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© window", cafePosition(-4.85, 0.22, 2.75)],
   ]);
   const teddyTargets = makeTargets([
     ["rug", new Vector3(-1.2, 0.38, -0.6)],
@@ -649,8 +651,8 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     ["bedroom rug", bedroomPosition(0.4, 0.38, -0.45)],
     ["toy shelf", bedroomPosition(0.45, 1.45, 3.0)],
     ["street bench", streetPosition(-1.8, 0.92, 1.12)],
-    ["café toy shelf", cafePosition(-4.7, 1.35, 2.82)],
-    ["café rug", cafePosition(-2.6, 0.38, -0.55)],
+    ["cafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© toy shelf", cafePosition(-4.7, 1.35, 2.82)],
+    ["cafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© rug", cafePosition(-2.6, 0.38, -0.55)],
   ]);
   const bookTargets = makeTargets([
     ["coffee table", new Vector3(-3.1, 0.86, -1.72)],
@@ -660,8 +662,8 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     ["bedroom desk", bedroomPosition(3.55, 1.18, 2.8)],
     ["bed", bedroomPosition(-3.7, 1.2, 0.2)],
     ["street bench", streetPosition(-2.25, 0.85, 1.12)],
-    ["café table", cafePosition(-3.5, 1.08, 0.95)],
-    ["café counter", cafePosition(2.85, 1.36, 1.92)],
+    ["cafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© table", cafePosition(-3.5, 1.08, 0.95)],
+    ["cafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© counter", cafePosition(2.85, 1.36, 1.92)],
   ]);
   const foodTargets = makeTargets([
     ["kitchen island", new Vector3(3.2, 1.42, 0.55)],
@@ -671,7 +673,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     ["bedroom desk", bedroomPosition(4.05, 1.24, 2.8)],
     ["bedside", bedroomPosition(-1.2, 0.25, 0.95)],
     ["street bench", streetPosition(-2.15, 0.88, 1.12)],
-    ["café table", cafePosition(-3.25, 1.08, 0.92)],
+    ["cafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© table", cafePosition(-3.25, 1.08, 0.92)],
     ["pastry counter", cafePosition(4.2, 1.28, 0.55)],
   ]);
   const cupTargets = makeTargets([
@@ -682,8 +684,8 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     ["bedroom desk", bedroomPosition(4.45, 1.28, 2.8)],
     ["bedside", bedroomPosition(-1.45, 0.26, 1.05)],
     ["street bench", streetPosition(-1.85, 0.9, 1.12)],
-    ["café table", cafePosition(-3.75, 1.12, 0.98)],
-    ["café counter", cafePosition(3.0, 1.38, 1.9)],
+    ["cafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© table", cafePosition(-3.75, 1.12, 0.98)],
+    ["cafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© counter", cafePosition(3.0, 1.38, 1.9)],
   ]);
 
   const placementTargets = [
@@ -800,6 +802,13 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     const companionHeroProfile = COMPANION_HERO_PROFILES[characterId];
     if (companionHeroProfile) {
       applyHeroCharacterPolish(scene, rig, companionHeroProfile);
+      applyToyCharacterOverhaul(scene, rig, companionHeroProfile);
+      rig.root.scaling.scaleInPlace(
+        companionSceneScale(characterId),
+      );
+      rig.root.scaling.scaleInPlace(
+        companionSceneScale(characterId),
+      );
     }
     characterRigs[characterId] = rig;
   }
@@ -901,9 +910,20 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     // Mama now remains procedural on every quality tier because her archived
     // Meshy GLB has no true idle/talk animation and reads as static in play.
     applyHeroCharacterPolish(scene, rig, NPC_HERO_PROFILES[npcId]);
+    applyNpcToyOverhaul(scene, rig, NPC_HERO_PROFILES[npcId]);
+    rig.root.scaling.scaleInPlace(
+      npcSceneScale(npcId),
+    );
+    rig.root.scaling.scaleInPlace(
+      npcSceneScale(npcId),
+    );
     const bounds = npcBounds[npcId];
     rig.setBounds(bounds.minX, bounds.maxX, bounds.minZ, bounds.maxZ);
     rig.root.rotation.y = state.rotationY;
+    if (npcId === "cafe-worker") {
+      state.rotationY = 0;
+      rig.root.rotation.y = 0;
+    }
     rig.setExpression(
       npcId === "cafe-worker" || npcId === "shopkeeper" || npcId === "park-keeper"
         ? "happy"
@@ -1362,7 +1382,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     home: "the family home",
     bedroom: "Khadija's bedroom",
     street: "the neighborhood street",
-    cafe: "Sunny Café",
+    cafe: "Sunny CafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©",
     park: "the neighborhood park",
     grocery: "the grocery shop",
   };
@@ -1536,7 +1556,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     gesture: "eat",
     consumable: true,
     respawnPosition: cafePosition(4.95, 1.12, 0.5),
-    respawnMessage: "A fresh sandwich appeared in the café display",
+    respawnMessage: "A fresh sandwich appeared in the cafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© display",
   });
 
   type ItemOwnerId = CharacterId | NpcId | `world:${string}`;
@@ -1914,7 +1934,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
   const finishRecipe = (station: StationId): void => {
     const recipe = recipeSystem.completed(station);
     if (!recipe) return;
-    options.onAction("Mixing something lovely…", combinationSound(recipe.sound));
+    options.onAction("Mixing something lovelyÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦", combinationSound(recipe.sound));
     const appliance = recipe.appliance ? applianceVisuals[recipe.appliance] : null;
     if (appliance) {
       Animation.CreateAndStartAnimation(
@@ -2098,12 +2118,12 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     } else if (targetId === "brush-teeth") {
       hygiene.teethBrushed = true;
       selectedRig().playUseGesture("eat");
-      options.onAction("Brush, brush—what a shiny smile!", "clean");
+      options.onAction("Brush, brushÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Âwhat a shiny smile!", "clean");
     } else if (targetId === "bath-time") {
       hygiene.bathBubblesReady = true;
       hygiene.towelDry = false;
       selectedRig().playUseGesture("hug");
-      options.onAction("Bubble bath time—cozy clothes stay on!", "water");
+      options.onAction("Bubble bath timeÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Âcozy clothes stay on!", "water");
     } else if (targetId === "use-towel") {
       hygiene.towelDry = true;
       selectedRig().playUseGesture("hug");
@@ -2121,7 +2141,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       if (targetId === "clean-table") everydayState.cleaning.homeTableClean = true;
       else everydayState.cleaning.kitchenCounterClean = true;
       selectedRig().playUseGesture("hug");
-      options.onAction("Swish, wipe, sparkle—lovely and clean!", "clean");
+      options.onAction("Swish, wipe, sparkleÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Âlovely and clean!", "clean");
     } else if (targetId === "wash-dish") {
       const heldId = selectedState().heldItem;
       if (heldId !== "cup" && heldId !== "prep-plate" && heldId !== "mixing-bowl") {
@@ -2130,7 +2150,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       }
       everydayState.dishClean[heldId] = true;
       selectedRig().playUseGesture("hug");
-      options.onAction("Bubbles away—the dish is clean!", "water");
+      options.onAction("Bubbles awayÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Âthe dish is clean!", "water");
     } else if (targetId === "bin-rubbish") {
       if (selectedState().heldItem !== "rubbish") {
         options.onAction("Bring the little wrapper to the bin.", "invalid");
@@ -2219,7 +2239,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     syncEverydayVisuals();
     reactNpc("shopkeeper", "excited");
     rememberForRoomNpcs("activity", "shopping");
-    options.onAction("Beep! Pretend checkout complete—the groceries are packed!", "bell");
+    options.onAction("Beep! Pretend checkout completeÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Âthe groceries are packed!", "bell");
     emitPlayState();
   };
 
@@ -2322,7 +2342,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       rig.playUseGesture("drink");
       reactNpc("park-keeper", "excited");
       rememberForRoomNpcs("event", "watering-flowers");
-      options.onAction("Sprinkle, sparkle—the flowers look refreshed!", "water");
+      options.onAction("Sprinkle, sparkleÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Âthe flowers look refreshed!", "water");
       return;
     }
     if (targetId === "park-birds") {
@@ -2759,7 +2779,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       ? "work"
       : "relax";
     npcRigs[npcId].setTarget(new Vector3(station.x, 0, station.z), () => {
-      npcRigs[npcId].root.rotation.y = npcId === "cafe-worker" || npcId === "shopkeeper"
+      npcRigs[npcId].root.rotation.y = npcId === "shopkeeper"
         ? Math.PI
         : 0;
       persistNpc(npcId);
@@ -3112,70 +3132,70 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
   };
 
   const interactionNames: Record<string, { label: string; hint: string; icon: string }> = {
-    "home-to-bedroom-door": { label: "Khadija's bedroom", hint: "Tap to go to the bedroom", icon: "🚪" },
-    "home-to-street-door": { label: "Neighborhood", hint: "Tap to go outside", icon: "🚪" },
-    "bedroom-to-home-door": { label: "Family home", hint: "Tap to return home", icon: "🚪" },
-    "street-to-home-door": { label: "Family home", hint: "Tap to go inside", icon: "🏠" },
-    "street-to-cafe-door": { label: "Sunny Café", hint: "Tap to enter the café", icon: "☕" },
-    "cafe-to-street-door": { label: "Neighborhood", hint: "Tap to go outside", icon: "🚪" },
-    "street-to-park-gate": { label: "Neighborhood park", hint: "Tap to visit the park", icon: "🌳" },
-    "street-to-grocery-door": { label: "Sunny Basket Grocery", hint: "Tap to visit the shop", icon: "🛒" },
-    "park-exit-door": { label: "Neighborhood", hint: "Tap to leave the park", icon: "🚪" },
-    "grocery-exit-door": { label: "Neighborhood", hint: "Tap to leave the shop", icon: "🚪" },
-    "lamp-shade": { label: "Living-room lamp", hint: "Tap to switch the light", icon: "💡" },
-    "bedroom-lamp-shade": { label: "Bedside lamp", hint: "Tap to switch the light", icon: "💡" },
-    "cafe-counter-bell": { label: "Counter bell", hint: "Tap to ring the bell", icon: "🔔" },
-    "cafe-menu-board": { label: "Café menu", hint: "Tap to hear today's special", icon: "📋" },
-    "cafe-pastry-hotspot": { label: "Pastry display", hint: "Tap to choose a treat", icon: "🧁" },
-    "cafe-drink-hotspot": { label: "Hot drinks", hint: "Tap to order a drink", icon: "☕" },
-    "cafe-seat-hotspot": { label: "Café chair", hint: "Tap to sit down", icon: "🪑" },
-    "sofa-seat-hotspot": { label: "Family sofa", hint: "Tap to sit down", icon: "🛋️" },
-    "bed-hotspot": { label: "Khadija's bed", hint: "Tap to rest or sleep", icon: "🛏️" },
-    "street-bench-hotspot": { label: "Neighborhood bench", hint: "Tap to sit down", icon: "🪑" },
-    "street-scooter-hotspot": { label: "Scooter", hint: "Tap to take a little ride", icon: "🛴" },
+    "home-to-bedroom-door": { label: "Khadija's bedroom", hint: "Tap to go to the bedroom", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âª" },
+    "home-to-street-door": { label: "Neighborhood", hint: "Tap to go outside", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âª" },
+    "bedroom-to-home-door": { label: "Family home", hint: "Tap to return home", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âª" },
+    "street-to-home-door": { label: "Family home", hint: "Tap to go inside", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â " },
+    "street-to-cafe-door": { label: "Sunny CafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©", hint: "Tap to enter the cafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¹Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢" },
+    "cafe-to-street-door": { label: "Neighborhood", hint: "Tap to go outside", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âª" },
+    "street-to-park-gate": { label: "Neighborhood park", hint: "Tap to visit the park", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³" },
+    "street-to-grocery-door": { label: "Sunny Basket Grocery", hint: "Tap to visit the shop", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂºÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢" },
+    "park-exit-door": { label: "Neighborhood", hint: "Tap to leave the park", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âª" },
+    "grocery-exit-door": { label: "Neighborhood", hint: "Tap to leave the shop", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âª" },
+    "lamp-shade": { label: "Living-room lamp", hint: "Tap to switch the light", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡" },
+    "bedroom-lamp-shade": { label: "Bedside lamp", hint: "Tap to switch the light", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡" },
+    "cafe-counter-bell": { label: "Counter bell", hint: "Tap to ring the bell", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â" },
+    "cafe-menu-board": { label: "CafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© menu", hint: "Tap to hear today's special", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¹" },
+    "cafe-pastry-hotspot": { label: "Pastry display", hint: "Tap to choose a treat", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" },
+    "cafe-drink-hotspot": { label: "Hot drinks", hint: "Tap to order a drink", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¹Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢" },
+    "cafe-seat-hotspot": { label: "CafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© chair", hint: "Tap to sit down", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂªÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œ" },
+    "sofa-seat-hotspot": { label: "Family sofa", hint: "Tap to sit down", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂºÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¹ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" },
+    "bed-hotspot": { label: "Khadija's bed", hint: "Tap to rest or sleep", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂºÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" },
+    "street-bench-hotspot": { label: "Neighborhood bench", hint: "Tap to sit down", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂªÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œ" },
+    "street-scooter-hotspot": { label: "Scooter", hint: "Tap to take a little ride", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂºÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â´" },
   };
 
   const everydayLabels: Record<string, { label: string; hint: string; icon: string }> = {
-    toaster: { label: "Toaster", hint: "Bring an ingredient and tap", icon: "🍞" },
-    blender: { label: "Blender", hint: "Bring ingredients and tap", icon: "🥤" },
-    kettle: { label: "Kettle", hint: "Bring a cup or tea and tap", icon: "🫖" },
-    oven: { label: "Oven", hint: "Bring an ingredient and tap", icon: "♨️" },
-    "prep-plate": { label: "Preparation plate", hint: "Place recipe ingredients here", icon: "🍽️" },
-    "mixing-bowl": { label: "Mixing bowl", hint: "Add ingredients for a recipe", icon: "🥣" },
-    "fridge-shelves": { label: "Fridge", hint: "Tap to open the food shelves", icon: "🧊" },
-    "kitchen-drawer": { label: "Kitchen drawer", hint: "Tap to look inside", icon: "🧽" },
-    "kitchen-cupboard": { label: "Kitchen cupboard", hint: "Tap to look inside", icon: "🚪" },
-    "cafe-display": { label: "Café display", hint: "Tap to choose a treat", icon: "🧁" },
-    "return-tray": { label: "Return tray", hint: "Bring used dishes here", icon: "🍽️" },
-    "wash-hands": { label: "Sink", hint: "Tap to wash hands", icon: "🫧" },
-    "brush-teeth": { label: "Toothbrush", hint: "Tap to brush teeth", icon: "🪥" },
-    "bath-time": { label: "Bath", hint: "Tap for bubble-bath play", icon: "🛁" },
-    "use-towel": { label: "Towel", hint: "Tap to get warm and dry", icon: "🧺" },
-    "mirror-smile": { label: "Mirror", hint: "Tap to make a happy face", icon: "🪞" },
-    "wardrobe-shelves": { label: "Wardrobe", hint: "Tap to open the clothes", icon: "👗" },
-    "toy-box": { label: "Toy box", hint: "Tap to look for a toy", icon: "🧸" },
-    "clean-table": { label: "Coffee table", hint: "Bring the sponge and tap to clean", icon: "✨" },
-    "clean-counter": { label: "Kitchen counter", hint: "Bring the sponge and tap to clean", icon: "✨" },
-    "wash-dish": { label: "Kitchen sink", hint: "Bring a dish and tap to wash", icon: "🫧" },
-    "bin-rubbish": { label: "Kitchen bin", hint: "Bring rubbish here", icon: "🗑️" },
-    "tidy-books": { label: "Book shelf", hint: "Bring the book back here", icon: "📚" },
-    "tidy-clothes": { label: "Wardrobe", hint: "Bring folded clothes here", icon: "👕" },
+    toaster: { label: "Toaster", hint: "Bring an ingredient and tap", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¾" },
+    blender: { label: "Blender", hint: "Bring ingredients and tap", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¥ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¤" },
+    kettle: { label: "Kettle", hint: "Bring a cup or tea and tap", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â«ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ" },
+    oven: { label: "Oven", hint: "Bring an ingredient and tap", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" },
+    "prep-plate": { label: "Preparation plate", hint: "Place recipe ingredients here", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" },
+    "mixing-bowl": { label: "Mixing bowl", hint: "Add ingredients for a recipe", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¥ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£" },
+    "fridge-shelves": { label: "Fridge", hint: "Tap to open the food shelves", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â " },
+    "kitchen-drawer": { label: "Kitchen drawer", hint: "Tap to look inside", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½" },
+    "kitchen-cupboard": { label: "Kitchen cupboard", hint: "Tap to look inside", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âª" },
+    "cafe-display": { label: "CafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© display", hint: "Tap to choose a treat", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" },
+    "return-tray": { label: "Return tray", hint: "Bring used dishes here", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" },
+    "wash-hands": { label: "Sink", hint: "Tap to wash hands", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â«ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§" },
+    "brush-teeth": { label: "Toothbrush", hint: "Tap to brush teeth", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂªÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¥" },
+    "bath-time": { label: "Bath", hint: "Tap for bubble-bath play", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂºÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" },
+    "use-towel": { label: "Towel", hint: "Tap to get warm and dry", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âº" },
+    "mirror-smile": { label: "Mirror", hint: "Tap to make a happy face", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂªÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¾" },
+    "wardrobe-shelves": { label: "Wardrobe", hint: "Tap to open the clothes", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â" },
+    "toy-box": { label: "Toy box", hint: "Tap to look for a toy", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸" },
+    "clean-table": { label: "Coffee table", hint: "Bring the sponge and tap to clean", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨" },
+    "clean-counter": { label: "Kitchen counter", hint: "Bring the sponge and tap to clean", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨" },
+    "wash-dish": { label: "Kitchen sink", hint: "Bring a dish and tap to wash", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â«ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§" },
+    "bin-rubbish": { label: "Kitchen bin", hint: "Bring rubbish here", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" },
+    "tidy-books": { label: "Book shelf", hint: "Bring the book back here", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡" },
+    "tidy-clothes": { label: "Wardrobe", hint: "Bring folded clothes here", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢" },
   };
 
   const worldActionLabels: Record<string, { label: string; hint: string; icon: string }> = {
-    "grocery-checkout": { label: "Checkout", hint: "Bring your basket and tap", icon: "🛒" },
-    "grocery-stock": { label: "Store shelves", hint: "Tap to restock the shop", icon: "📦" },
-    "park-bench-left": { label: "Park bench", hint: "Tap to sit down", icon: "🪑" },
-    "park-bench-right": { label: "Park bench", hint: "Tap to sit down", icon: "🪑" },
-    "park-picnic": { label: "Picnic blanket", hint: "Tap to enjoy a picnic", icon: "🧺" },
-    "park-slide": { label: "Slide", hint: "Tap to play on the slide", icon: "🛝" },
-    "park-swings": { label: "Swings", hint: "Tap to swing", icon: "🎠" },
-    "park-sandbox": { label: "Sandbox", hint: "Tap to build a sandcastle", icon: "🏖️" },
-    "park-fountain": { label: "Drinking fountain", hint: "Tap for a cool drink", icon: "⛲" },
-    "park-bin": { label: "Park bin", hint: "Bring rubbish here", icon: "🗑️" },
-    "park-sign": { label: "Park sign", hint: "Tap to read the park message", icon: "🪧" },
-    "park-flowers": { label: "Flower bed", hint: "Bring the watering can", icon: "🌷" },
-    "park-birds": { label: "Friendly birds", hint: "Bring a little fruit or bread", icon: "🐦" },
+    "grocery-checkout": { label: "Checkout", hint: "Bring your basket and tap", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂºÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢" },
+    "grocery-stock": { label: "Store shelves", hint: "Tap to restock the shop", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦" },
+    "park-bench-left": { label: "Park bench", hint: "Tap to sit down", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂªÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œ" },
+    "park-bench-right": { label: "Park bench", hint: "Tap to sit down", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂªÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œ" },
+    "park-picnic": { label: "Picnic blanket", hint: "Tap to enjoy a picnic", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âº" },
+    "park-slide": { label: "Slide", hint: "Tap to play on the slide", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂºÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" },
+    "park-swings": { label: "Swings", hint: "Tap to swing", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â½ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â " },
+    "park-sandbox": { label: "Sandbox", hint: "Tap to build a sandcastle", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" },
+    "park-fountain": { label: "Drinking fountain", hint: "Tap for a cool drink", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂºÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â²" },
+    "park-bin": { label: "Park bin", hint: "Bring rubbish here", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" },
+    "park-sign": { label: "Park sign", hint: "Tap to read the park message", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂªÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§" },
+    "park-flowers": { label: "Flower bed", hint: "Bring the watering can", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·" },
+    "park-birds": { label: "Friendly birds", hint: "Bring a little fruit or bread", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦" },
   };
 
   // Add readable interaction names without replacing any existing metadata or
@@ -3195,7 +3215,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       setInteraction(mesh, {
         label: held?.label ?? humanizeInteractionId(holdableId),
         hint: groceryProduct ? "Pick up or add to the shopping basket" : "Pick up or drag to a new place",
-        icon: held?.gesture === "eat" ? "🍎" : held?.gesture === "drink" ? "🥤" : held?.gesture === "read" ? "📖" : "🧸",
+        icon: held?.gesture === "eat" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â½" : held?.gesture === "drink" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¥ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¤" : held?.gesture === "read" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ" : "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸",
         room: metadata?.room as RoomId | undefined,
       });
       continue;
@@ -3205,7 +3225,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       setInteraction(mesh, {
         label: NPC_DEFINITIONS[npcId].displayName,
         hint: "Talk, give a gift, or receive an item",
-        icon: npcId === "parent" ? "💬" : "👋",
+        icon: npcId === "parent" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬" : "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¹",
         room: NPC_DEFINITIONS[npcId].homeLocation,
       });
       continue;
@@ -3215,7 +3235,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       setInteraction(mesh, {
         label: CHARACTER_DEFINITIONS[characterId].shortName,
         hint: "Tap to play together, or drag to move",
-        icon: characterId === "sister" ? "🧒" : "👦",
+        icon: characterId === "sister" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢" : "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦",
         room: characters[characterId].room,
       });
       continue;
@@ -3225,7 +3245,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       const definition = everydayLabels[everydayId] ?? {
         label: humanizeInteractionId(everydayId),
         hint: "Tap to use",
-        icon: "✨",
+        icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨",
       };
       setInteraction(mesh, { ...definition, room: metadata?.room as RoomId | undefined });
       continue;
@@ -3235,7 +3255,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       const definition = worldActionLabels[worldAction] ?? {
         label: humanizeInteractionId(worldAction),
         hint: "Tap to play",
-        icon: "✨",
+        icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨",
       };
       setInteraction(mesh, { ...definition, room: metadata?.room as RoomId | undefined });
       continue;
@@ -3245,7 +3265,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       setInteraction(mesh, {
         label: humanizeInteractionId(groceryProduct),
         hint: "Pick up or add to the shopping basket",
-        icon: "🛒",
+        icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂºÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢",
         room: "grocery",
       });
       continue;
@@ -3255,7 +3275,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       setInteraction(mesh, {
         label: `${humanizeInteractionId(outfit)} outfit`,
         hint: "Tap to change Khadija's clothes",
-        icon: "👗",
+        icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
         room: "home",
       });
       continue;
@@ -3276,7 +3296,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       setInteraction(mesh, {
         label: cleanedName || "Interactive object",
         hint: "Tap to interact",
-        icon: "✨",
+        icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨",
         room: metadata?.room as RoomId | undefined,
       });
     }
@@ -3607,12 +3627,17 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     } else if (action === "use-item" && state.heldItem) {
       const held = holdables.get(state.heldItem);
       if (held) rig.playUseGesture(held.gesture);
+    } else if (action === "work" && npcId === "cafe-worker") {
+      rig.lookAt(null);
+      rig.root.rotation.y = 0;
+      state.rotationY = 0;
+      rig.playUseGesture("drink");
     } else {
       const playerPosition = characters[selectedCharacterId].room === activeRoom
         ? selectedRig().root.position
         : null;
       rig.lookAt(playerPosition);
-      if (action === "work") rig.playUseGesture(npcId === "cafe-worker" ? "drink" : "read");
+      if (action === "work") rig.playUseGesture("read");
     }
     scheduleNextDecision(controller, now, 4300, 8800);
   };

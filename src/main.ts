@@ -42,6 +42,7 @@ import {
 } from "./game/storage";
 import { RELEASE } from "./game/release";
 import type { InteractionHint } from "./game/readability/interactionReadability";
+import { readableUiIcon } from "./game/ui/readableUiIcon";
 import {
   ONBOARDING_STEP_IDS,
   completeOnboardingStep,
@@ -586,7 +587,7 @@ const renderOnboarding = (): void => {
   const copy = onboardingStepCopy(step, onboardingInputMode);
   const stepIndex = ONBOARDING_STEP_IDS.indexOf(step);
   onboardingProgress.textContent = `Tip ${stepIndex + 1} of ${ONBOARDING_STEP_IDS.length}`;
-  onboardingIcon.textContent = copy.icon;
+  onboardingIcon.textContent = readableUiIcon(copy.icon);
   onboardingTitle.textContent = copy.title;
   onboardingMessage.textContent = copy.message;
   onboardingCard.hidden = false;
@@ -829,7 +830,7 @@ const updateInteractionLabel = (hint: InteractionHint | null): void => {
     if (interactionLabel) interactionLabel.hidden = true;
     return;
   }
-  interactionLabelIcon.textContent = hint.icon;
+  interactionLabelIcon.textContent = readableUiIcon(hint.icon);
   interactionLabelName.textContent = hint.label;
   interactionLabelHint.textContent = hint.hint;
   interactionLabel.hidden = false;
@@ -1027,7 +1028,7 @@ const updatePlayState = (state: PlayState): void => {
 
   if (lastRoom && lastRoom !== state.activeRoom) {
     recordOnboardingStep("travel");
-    transitionIcon.textContent = roomIcons[state.activeRoom];
+    transitionIcon.textContent = readableUiIcon(roomIcons[state.activeRoom]);
     transitionTitle.textContent = roomLabels[state.activeRoom];
     announceStatus(`Now at ${roomLabels[state.activeRoom]}.`);
     app.classList.add("is-room-changing");
@@ -1307,7 +1308,7 @@ importSaveButton.addEventListener("click", () => importSaveInput.click());
 importSaveInput.addEventListener("change", async () => {
   const file = importSaveInput.files?.[0];
   if (!file) return;
-  parentResult.textContent = "Checking that saveâ€¦";
+  parentResult.textContent = "Checking that saveÃ¢â‚¬Â¦";
   const raw = await file.text();
   const preview = previewWorldSaveImport(raw);
   if (!preview.accepted) {
@@ -1688,8 +1689,8 @@ let saveStatusTimer = 0;
 window.addEventListener("khadijas-world:save-status", (event) => {
   const saved = (event as CustomEvent<{ saved: boolean }>).detail.saved;
   window.clearTimeout(saveStatusTimer);
-  saveStatus.textContent = "Savingâ€¦";
-  pauseSaveStatus.textContent = "Savingâ€¦";
+  saveStatus.textContent = "SavingÃ¢â‚¬Â¦";
+  pauseSaveStatus.textContent = "SavingÃ¢â‚¬Â¦";
   saveStatus.classList.add("is-visible");
   saveStatusTimer = window.setTimeout(() => {
     const message = saved ? "Saved" : "Saving is unavailable";

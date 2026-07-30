@@ -206,7 +206,7 @@ export function createDefaultNpcStates(): Record<NpcId, StoredNpcState> {
       id,
       room: definition.homeLocation,
       position: { ...definition.position },
-      rotationY: id === "cafe-worker" || id === "shopkeeper" ? Math.PI : 0,
+      rotationY: id === "shopkeeper" ? Math.PI : 0,
       heldItem: null,
       stationId: definition.workStation ?? null,
       activity: id === "cafe-worker" || id === "shopkeeper" || id === "park-keeper"
@@ -262,9 +262,11 @@ export function normalizeNpcStates(
       id,
       room: NPC_DEFINITIONS[id].homeLocation,
       position: safeNpcPosition(id, candidate.position),
-      rotationY: typeof candidate.rotationY === "number" && Number.isFinite(candidate.rotationY)
-        ? candidate.rotationY
-        : defaults[id].rotationY,
+      rotationY: id === "cafe-worker"
+        ? 0
+        : typeof candidate.rotationY === "number" && Number.isFinite(candidate.rotationY)
+          ? candidate.rotationY
+          : defaults[id].rotationY,
       heldItem: typeof candidate.heldItem === "string" ? candidate.heldItem : null,
       stationId: candidate.stationId
         && (candidate.stationId === NPC_DEFINITIONS[id].workStation
