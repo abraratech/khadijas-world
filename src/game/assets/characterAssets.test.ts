@@ -12,11 +12,30 @@ import {
 } from "./characterAssets";
 
 describe("ART.1G production character registry", () => {
-  it("keeps Khadija as the only active imported character visual", () => {
-    expect(Object.keys(PRODUCTION_CHARACTER_ASSETS)).toEqual(["khadija"]);
-    expect(Object.keys(PRODUCTION_NPC_ASSETS)).toEqual([]);
-    expect(PRODUCTION_CHARACTER_ASSETS.khadija).toBe(KHADIJA_PRODUCTION_ASSET);
-    expect(PRODUCTION_NPC_ASSETS.parent).toBeUndefined();
+  it("keeps imported character visuals inactive during CHAR.1", () => {
+    expect(
+      Object.keys(PRODUCTION_CHARACTER_ASSETS),
+    ).toEqual([]);
+
+    expect(
+      Object.keys(PRODUCTION_NPC_ASSETS),
+    ).toEqual([]);
+
+    expect(
+      PRODUCTION_CHARACTER_ASSETS.khadija,
+    ).toBeUndefined();
+
+    expect(
+      PRODUCTION_NPC_ASSETS.parent,
+    ).toBeUndefined();
+
+    // The archived definition remains available for audit and rollback.
+    expect(KHADIJA_PRODUCTION_ASSET).toMatchObject({
+      id: "khadija",
+      fallback: "procedural",
+      triangleCount: 168_908,
+      materialCount: 1,
+    });
   });
 
   it("retains inactive Quaternius definitions for audit and rollback only", () => {

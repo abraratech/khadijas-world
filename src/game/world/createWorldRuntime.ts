@@ -40,13 +40,13 @@ import {
   type UseGesture,
 } from "../characters/createCharacterVisual";
 import {
-  KHADIJA_PRODUCTION_ASSET,
   PRODUCTION_CHARACTER_ASSETS,
   PRODUCTION_NPC_ASSETS,
   isProductionAssetAllowed,
 } from "../assets/characterAssets";
 import { createProductionCharacterVisual, type ProductionCharacterVisual } from "../assets/productionCharacterVisual";
 import { applyHeroCharacterPolish } from "../characters/applyHeroCharacterPolish";
+import { applyKhadijaSculptedHero } from "../characters/applyKhadijaSculptedHero";
 import { COMPANION_HERO_PROFILES, NPC_HERO_PROFILES } from "../characters/heroCharacterProfiles";
 import {
   findAvailableSeat,
@@ -791,6 +791,10 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       roomDefinition.bounds.minZ,
       roomDefinition.bounds.maxZ,
     );
+    if (characterId === "khadija") {
+      applyKhadijaSculptedHero(scene, rig);
+    }
+
     rig.setExpression(state.expression);
     rig.setSelected(characterId === selectedCharacterId);
     const companionHeroProfile = COMPANION_HERO_PROFILES[characterId];
@@ -828,13 +832,30 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     characterProductionVisuals[characterId] = productionVisual;
   }
 
-  const khadijaProductionVisual = characterProductionVisuals.khadija
-    ?? createProductionCharacterVisual(
-      scene,
-      characterRigs.khadija,
-      KHADIJA_PRODUCTION_ASSET,
-      false,
-    );
+  const khadijaProductionVisual: ProductionCharacterVisual = {
+    status: "idle",
+    error: null,
+
+    setQualityEnabled(): void {
+      // CHAR.1 keeps procedural Khadija active on every quality level.
+    },
+
+    setOutfit(): void {
+      // CharacterRig applies procedural outfit changes.
+    },
+
+    setExpression(): void {
+      // CharacterRig applies procedural facial expressions.
+    },
+
+    update(): void {
+      // CharacterRig handles movement, activity, and interaction poses.
+    },
+
+    dispose(): void {
+      // No imported Khadija resources were created.
+    },
+  };
 
   const npcStates: Record<NpcId, StoredNpcState> = save.npcs;
   const npcRigs = {} as Record<NpcId, CharacterRig>;
