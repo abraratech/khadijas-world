@@ -1,5 +1,6 @@
 import {
   type Mesh,
+  MeshBuilder,
   type Scene,
   StandardMaterial,
   TransformNode,
@@ -60,21 +61,96 @@ export function buildGroceryLocation(scene: Scene, groceryOffsetX: number, mater
   box(scene, "grocery-back-wall", new Vector3(12, 4.2, .2), grocery(0, 2, 4), materials.mint);
   box(scene, "grocery-left-wall", new Vector3(.2, 4.2, 8), grocery(-6, 2, 0), materials.white);
   box(scene, "grocery-sign", new Vector3(3.6, .75, .14), grocery(0, 3.35, 3.82), materials.pink);
+  for (const [index, x] of [-3.55, 0, 3.55].entries()) {
+    const lightBar = box(
+      scene,
+      `grocery-ceiling-light-${index}`,
+      new Vector3(2.25, .10, .20),
+      grocery(x, 3.55, 1.15),
+      materials.white,
+    );
+    lightBar.isPickable = false;
+    detailMeshes.push(lightBar);
+  }
   for (const [index, z] of [2.8, 1.55, .3].entries()) {
     box(scene, `grocery-shelf-${index}`, new Vector3(3.4, 1.7, .55), grocery(-2.6, .85, z), materials.wood);
     for (const y of [.5, 1.05, 1.58]) {
       box(scene, `grocery-shelf-line-${index}-${y}`, new Vector3(3.45, .08, .62), grocery(-2.6, y, z), materials.white);
     }
   }
+  for (const [index, z, signMaterial] of [
+    [0, 2.8, materials.teal],
+    [1, 1.55, materials.pink],
+    [2, .3, materials.yellow],
+  ] as const) {
+    box(
+      scene,
+      `grocery-aisle-sign-${index}`,
+      new Vector3(1.45, .34, .12),
+      grocery(-2.6, 2.05, z),
+      signMaterial,
+    ).isPickable = false;
+
+    for (const [productIndex, x] of [-3.55, -2.85, -2.15, -1.45].entries()) {
+      const stock = box(
+        scene,
+        `grocery-shelf-stock-${index}-${productIndex}`,
+        new Vector3(.38, .34, .34),
+        grocery(x, 1.28, z - .34),
+        productIndex % 2 === 0 ? materials.pink : materials.teal,
+      );
+      stock.isPickable = false;
+      detailMeshes.push(stock);
+    }
+  }
+
+  for (const [index, x] of [-2.6, .20, 3.55].entries()) {
+    const aisleMarker = box(
+      scene,
+      `grocery-aisle-marker-${index}`,
+      new Vector3(1.85, .025, .18),
+      grocery(x, .012, -1.10),
+      index === 0 ? materials.pink : index === 1 ? materials.teal : materials.yellow,
+    );
+    aisleMarker.isPickable = false;
+    detailMeshes.push(aisleMarker);
+  }
+
   box(scene, "grocery-fridge", new Vector3(2.5, 2.55, .75), grocery(4.45, 1.28, 2.9), materials.blue);
   box(scene, "grocery-fridge-glass", new Vector3(2.15, 2.1, .06), grocery(4.45, 1.3, 2.48), materials.glass);
   box(scene, "grocery-produce-table", new Vector3(2.8, .9, 1.2), grocery(3.55, .45, .35), materials.green);
+  for (const [index, x, productMaterial] of [
+    [0, 2.80, materials.yellow],
+    [1, 3.55, materials.pink],
+    [2, 4.30, materials.green],
+  ] as const) {
+    box(
+      scene,
+      `grocery-produce-crate-${index}`,
+      new Vector3(.62, .18, .68),
+      grocery(x, .95, .35),
+      materials.wood,
+    ).isPickable = false;
+    for (const [fruitIndex, localX] of [-.18, 0, .18].entries()) {
+      const fruit = MeshBuilder.CreateSphere(
+        `grocery-produce-${index}-${fruitIndex}`,
+        { diameter: .20, segments: 8 },
+        scene,
+      );
+      fruit.position.copyFrom(grocery(x + localX, 1.10, .35));
+      fruit.material = productMaterial;
+      fruit.isPickable = false;
+      detailMeshes.push(fruit);
+    }
+  }
   box(scene, "grocery-bakery", new Vector3(2.5, 1.5, .75), grocery(-4.5, .75, -2.7), materials.yellow);
   box(scene, "grocery-household", new Vector3(2.4, 1.8, .62), grocery(4.45, .9, -2.6), materials.teal);
   box(scene, "grocery-checkout", new Vector3(3.4, 1.05, 1.1), grocery(.8, .52, -2.55), materials.mint);
   box(scene, "grocery-counter-top", new Vector3(3.55, .14, 1.2), grocery(.8, 1.08, -2.55), materials.white);
   const register = box(scene, "grocery-register", new Vector3(.75, .5, .55), grocery(1.65, 1.38, -2.5), materials.dark);
   register.isPickable = false;
+  box(scene, "grocery-conveyor", new Vector3(1.55, .10, .62), grocery(-.10, 1.18, -2.55), materials.dark).isPickable = false;
+  box(scene, "grocery-bag-rack", new Vector3(.55, .72, .22), grocery(2.20, .72, -2.10), materials.yellow).isPickable = false;
   addHotspot("grocery-checkout", "grocery", grocery(.8, 1.2, -2.55), new Vector3(3.7, 1.2, 1.5));
   addHotspot("grocery-stock", "grocery", grocery(5.25, 1.2, 2.85), new Vector3(1.1, 2.6, 1.0));
   const groceryToStreet = box(scene, "grocery-exit-door", new Vector3(.75, 2.5, .3), grocery(-5.65, 1.25, -3.2), materials.teal);

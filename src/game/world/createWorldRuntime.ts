@@ -49,6 +49,13 @@ import { applyHeroCharacterPolish } from "../characters/applyHeroCharacterPolish
 import { applyNpcToyOverhaul, applyToyCharacterOverhaul } from "../characters/applyNpcToyOverhaul";
 import { companionSceneScale, npcSceneScale } from "../characters/castScaleNormalization";
 import { applyKhadijaSculptedHero } from "../characters/applyKhadijaSculptedHero";
+import {
+  createAvatarCustomizer,
+  loadAvatarCustomization,
+  saveAvatarCustomization,
+  sanitizeAvatarCustomization,
+  type AvatarCustomization,
+} from "../characters/avatarCustomization";
 import { COMPANION_HERO_PROFILES, NPC_HERO_PROFILES } from "../characters/heroCharacterProfiles";
 import {
   findAvailableSeat,
@@ -114,6 +121,8 @@ import {
   type SnapTarget,
 } from "../shared/placementHelpers";
 import { buildFamilyHome } from "../locations/familyHome/buildFamilyHome";
+import { setFamilyHomeFridgeOpen } from "../locations/familyHome/familyHomeFridge";
+import { createHomeIngredientVisual } from "../locations/familyHome/createHomeIngredientVisual";
 import { buildBedroom } from "../locations/bedroom/buildBedroom";
 import { buildStreet } from "../locations/street/buildStreet";
 import { buildCafe } from "../locations/cafe/buildCafe";
@@ -148,7 +157,14 @@ import {
   calculateDollhouseOrthoFrame,
   calculateDollhouseViewportMask,
 } from "./cameraFraming";
+import {
+  FAST_TRACK_NPC_STATIONS,
+  resolveWorldWalkablePoint,
+  resolveWorldWalkableStep,
+} from "./worldWalkability";
 import { applyWorldReadabilityPass } from "../readability/applyWorldReadabilityPass";
+import { fastTrackDetailEnabled } from "../locations/shared/applyFastTrackSceneCleanup";
+import { setStreetGroceryRefreshQuality } from "../locations/shared/applyStreetGroceryRefresh";
 import { createInteriorFurniturePlacements } from "../assets/interiorFurnitureAssets";
 import { createSelectiveInteriorFurnitureManager } from "../assets/productionFurnitureVisual";
 import {
@@ -158,7 +174,16 @@ import {
   type InteractionDescriptor,
 } from "../readability/interactionReadability";
 
-export function createWorldRuntime(engine: Engine, options: RoomOptions): PrototypeRoom {
+type AvatarPrototypeRoom = PrototypeRoom & {
+  getAvatarCustomization(): AvatarCustomization;
+  setAvatarCustomization(customization: AvatarCustomization): void;
+  resetAvatarCustomization(): void;
+};
+
+export function createWorldRuntime(
+  engine: Engine,
+  options: RoomOptions,
+): AvatarPrototypeRoom {
   const save = loadSave();
   const contentState = save.content;
   const everydayState = save.everyday;
@@ -166,7 +191,12 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
   const storageController = new EverydayStorageController(everydayState);
   const containerController = new ContainerController(everydayState);
   const recipeSystem = new RecipeSystem(everydayState);
-  const livingSettings: LivingSettings = { ...save.livingSettings };
+  const livingSettings: LivingSettings = {
+    ...save.livingSettings,
+    // SCENE.FAST.1 starts from stable staging. The player can still enable
+    // small movements from Settings after the room is loaded.
+    smallMovements: false,
+  };
   const bedroomOffsetX = 22;
   const streetOffsetX = 44;
   const cafeOffsetX = 66;
@@ -233,6 +263,27 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       },
     },
   };
+
+  const clampPlayerPoint = (
+    room: RoomId,
+    point: Vector3,
+    radius = .10,
+  ): Vector3 => {
+    const bounds = roomDefinitions[room].bounds;
+
+    return new Vector3(
+      Math.max(
+        bounds.minX + radius,
+        Math.min(bounds.maxX - radius, point.x),
+      ),
+      0,
+      Math.max(
+        bounds.minZ + radius,
+        Math.min(bounds.maxZ - radius, point.z),
+      ),
+    );
+  };
+
   let activeRoom: RoomId = save.activeRoom;
 
   const setInteraction = (mesh: AbstractMesh, descriptor: InteractionDescriptor): void => {
@@ -389,11 +440,22 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     contentState,
     onAction: options.onAction,
   });
-  const { doorPivot, cupboardDoor } = homeBuild;
+  const {
+    doorPivot,
+    cupboardDoor,
+    fridge,
+  } = homeBuild;
   let cupboardOpen = save.cupboardOpen;
   let lampOn = save.lampOn;
   let bedroomLampOn = save.bedroomLampOn;
   let enhancedLighting = false;
+
+  setFamilyHomeFridgeOpen(
+    scene,
+    fridge,
+    everydayState.appliances.fridgeOpen,
+    false,
+  );
 
   const applyActiveRoomLighting = (): void => {
     if (activeRoom === "street" || activeRoom === "park") {
@@ -495,8 +557,10 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
   const {
     benchHotspot: streetBenchHotspot,
     scooterHotspot: streetScooterHotspot,
+    scooterRoot: streetScooterRoot,
+    scooterWheels: streetScooterWheels,
   } = streetBuild;
-  // WORLD.2 Sunny CafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© interior.
+  // WORLD.2 Sunny Cafe interior.
   const cafeBuild = buildCafe({
     scene, materials, detailMeshes, contentState,
     position: cafePosition,
@@ -640,7 +704,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     ["bedroom desk", bedroomPosition(4.2, 1.24, 2.82)],
     ["bedroom window", bedroomPosition(-0.9, 0.22, 2.95)],
     ["street bench", streetPosition(-2.75, 0.82, 1.12)],
-    ["cafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© window", cafePosition(-4.85, 0.22, 2.75)],
+    ["cafe window", cafePosition(-4.85, 0.22, 2.75)],
   ]);
   const teddyTargets = makeTargets([
     ["rug", new Vector3(-1.2, 0.38, -0.6)],
@@ -651,8 +715,8 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     ["bedroom rug", bedroomPosition(0.4, 0.38, -0.45)],
     ["toy shelf", bedroomPosition(0.45, 1.45, 3.0)],
     ["street bench", streetPosition(-1.8, 0.92, 1.12)],
-    ["cafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© toy shelf", cafePosition(-4.7, 1.35, 2.82)],
-    ["cafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© rug", cafePosition(-2.6, 0.38, -0.55)],
+    ["cafe toy shelf", cafePosition(-4.7, 1.35, 2.82)],
+    ["cafe rug", cafePosition(-2.6, 0.38, -0.55)],
   ]);
   const bookTargets = makeTargets([
     ["coffee table", new Vector3(-3.1, 0.86, -1.72)],
@@ -662,8 +726,8 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     ["bedroom desk", bedroomPosition(3.55, 1.18, 2.8)],
     ["bed", bedroomPosition(-3.7, 1.2, 0.2)],
     ["street bench", streetPosition(-2.25, 0.85, 1.12)],
-    ["cafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© table", cafePosition(-3.5, 1.08, 0.95)],
-    ["cafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© counter", cafePosition(2.85, 1.36, 1.92)],
+    ["cafe table", cafePosition(-3.5, 1.08, 0.95)],
+    ["cafe counter", cafePosition(2.85, 1.36, 1.92)],
   ]);
   const foodTargets = makeTargets([
     ["kitchen island", new Vector3(3.2, 1.42, 0.55)],
@@ -673,7 +737,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     ["bedroom desk", bedroomPosition(4.05, 1.24, 2.8)],
     ["bedside", bedroomPosition(-1.2, 0.25, 0.95)],
     ["street bench", streetPosition(-2.15, 0.88, 1.12)],
-    ["cafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© table", cafePosition(-3.25, 1.08, 0.92)],
+    ["cafe table", cafePosition(-3.25, 1.08, 0.92)],
     ["pastry counter", cafePosition(4.2, 1.28, 0.55)],
   ]);
   const cupTargets = makeTargets([
@@ -684,8 +748,8 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     ["bedroom desk", bedroomPosition(4.45, 1.28, 2.8)],
     ["bedside", bedroomPosition(-1.45, 0.26, 1.05)],
     ["street bench", streetPosition(-1.85, 0.9, 1.12)],
-    ["cafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© table", cafePosition(-3.75, 1.12, 0.98)],
-    ["cafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© counter", cafePosition(3.0, 1.38, 1.9)],
+    ["cafe table", cafePosition(-3.75, 1.12, 0.98)],
+    ["cafe counter", cafePosition(3.0, 1.38, 1.9)],
   ]);
 
   const placementTargets = [
@@ -738,21 +802,10 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
   restoreProp(book);
   makeDraggable(book, .09, bookTargets, options.onAction);
 
-  // Wardrobe benchmark: three low-cost outfit choices, usable in-world or from the HUD.
-  box(scene, "wardrobe-body", new Vector3(1.75, 2.7, 0.72), new Vector3(4.95, 1.35, -2.95), wood);
-  box(scene, "wardrobe-inside", new Vector3(1.5, 2.42, 0.12), new Vector3(4.95, 1.38, -3.34), dark);
-  box(scene, "wardrobe-rail", new Vector3(1.3, 0.07, 0.08), new Vector3(4.95, 2.3, -3.43), white);
-  const wardrobeOutfits: Array<[OutfitId, Color3, number]> = [
-    ["pink", colors.pink, 4.5],
-    ["teal", colors.teal, 4.95],
-    ["yellow", colors.yellow, 5.4],
-  ];
-  const wardrobeButtons = wardrobeOutfits.map(([outfit, outfitColor, x]) => {
-    const shirt = box(scene, `wardrobe-${outfit}`, new Vector3(0.34, 0.72, 0.18), new Vector3(x, 1.72, -3.47), material(scene, `wardrobe-${outfit}-mat`, outfitColor));
-    shirt.metadata = { outfit };
-    return shirt;
-  });
-  box(scene, "wardrobe-drawer", new Vector3(1.35, 0.48, 0.42), new Vector3(4.95, 0.45, -3.38), mint);
+  // AVATAR.1 will replace the former family-room color cabinet with a
+  // dedicated customization screen. Keep this empty collection so existing
+  // runtime wiring remains safe until the menu lands.
+  const wardrobeButtons: Mesh[] = [];
 
   // ART.1A keeps the family state records for save compatibility, but Khadija
   // is now the only player-controlled character. Her siblings remain living
@@ -772,15 +825,36 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     const state = characters[characterId];
     const characterDefinition = CHARACTER_DEFINITIONS[characterId];
     const roomDefinition = roomDefinitions[state.room];
-    const savedPosition = new Vector3(state.position.x, 0, state.position.z);
-    const positionIsValid = savedPosition.x >= roomDefinition.bounds.minX
-      && savedPosition.x <= roomDefinition.bounds.maxX
-      && savedPosition.z >= roomDefinition.bounds.minZ
-      && savedPosition.z <= roomDefinition.bounds.maxZ;
+    const savedPosition =
+      new Vector3(
+        state.position.x,
+        0,
+        state.position.z,
+      );
+
+    const safeInitialPosition =
+      characterId === "khadija"
+        ? clampPlayerPoint(
+            state.room,
+            savedPosition,
+          )
+        : resolveWorldWalkablePoint(
+            state.room,
+            savedPosition,
+            .31,
+            roomDefinition.spawn,
+          );
+
+    state.position = {
+      x: safeInitialPosition.x,
+      y: 0,
+      z: safeInitialPosition.z,
+    };
+
     const rig = createCharacter(
       scene,
       characterId,
-      positionIsValid ? savedPosition : roomDefinition.spawn.clone(),
+      safeInitialPosition,
       outfitColors[state.outfit],
       characterDefinition.scale,
       true,
@@ -806,12 +880,56 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       rig.root.scaling.scaleInPlace(
         companionSceneScale(characterId),
       );
-      rig.root.scaling.scaleInPlace(
-        companionSceneScale(characterId),
-      );
     }
     characterRigs[characterId] = rig;
   }
+
+  const avatarCustomizer = createAvatarCustomizer(
+    scene,
+    characterRigs.khadija,
+  );
+
+  let avatarCustomization = avatarCustomizer.apply(
+    loadAvatarCustomization("khadija"),
+  );
+
+  const getAvatarCustomization = (): AvatarCustomization => ({
+    ...avatarCustomization,
+  });
+
+  const setAvatarCustomization = (
+    customization: AvatarCustomization,
+  ): void => {
+    avatarCustomization = avatarCustomizer.apply(
+      sanitizeAvatarCustomization(customization),
+    );
+
+    saveAvatarCustomization(
+      avatarCustomization,
+      "khadija",
+    );
+
+    options.onAction(
+      "Khadija's new look is ready!",
+      "success",
+    );
+  };
+
+  const resetAvatarCustomization = (): void => {
+    avatarCustomization = avatarCustomizer.apply(
+      sanitizeAvatarCustomization(undefined),
+    );
+
+    saveAvatarCustomization(
+      avatarCustomization,
+      "khadija",
+    );
+
+    options.onAction(
+      "Khadija is back in her classic look.",
+      "tap",
+    );
+  };
 
   let mediumHighProductionEnabled = save.qualityPreset !== "low";
   const characterProductionVisuals: Partial<
@@ -886,22 +1004,31 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     minZ: number;
     maxZ: number;
   }> = {
-    parent: { minX: 1.25, maxX: 2.25, minZ: .8, maxZ: 1.9 },
-    neighbor: { minX: 39.1, maxX: 41.05, minZ: -1.55, maxZ: .35 },
-    "cafe-worker": { minX: 68.6, maxX: 70.35, minZ: 2.25, maxZ: 3.25 },
-    "park-keeper": { minX: 83.4, maxX: 86.15, minZ: .55, maxZ: 2.2 },
-    "park-parent": { minX: 90.3, maxX: 92.0, minZ: -.7, maxZ: .65 },
-    shopkeeper: { minX: 110.8, maxX: 112.6, minZ: -2.65, maxZ: -1.25 },
-    "grocery-shopper": { minX: 106.15, maxX: 108.2, minZ: -.75, maxZ: 1.0 },
+    parent: { minX: 1.45, maxX: 2.55, minZ: 1.45, maxZ: 2.05 },
+    neighbor: { minX: 39.10, maxX: 41.05, minZ: -1.55, maxZ: .20 },
+    "cafe-worker": { minX: 68.60, maxX: 70.35, minZ: 2.25, maxZ: 3.25 },
+    "park-keeper": { minX: 84.25, maxX: 85.65, minZ: .55, maxZ: 1.45 },
+    "park-parent": { minX: 90.20, maxX: 91.45, minZ: -1.55, maxZ: -.75 },
+    shopkeeper: { minX: 110.80, maxX: 112.60, minZ: -2.35, maxZ: -1.20 },
+    "grocery-shopper": { minX: 109.30, maxX: 110.80, minZ: .20, maxZ: 1.55 },
   };
 
   for (const npcId of NPC_IDS) {
     const definition = NPC_DEFINITIONS[npcId];
     const state = npcStates[npcId];
+    const station =
+      FAST_TRACK_NPC_STATIONS[npcId];
+
+    state.position = {
+      x: station.x,
+      y: 0,
+      z: station.z,
+    };
+
     const rig = createCharacter(
       scene,
       `npc-${npcId}`,
-      new Vector3(state.position.x, 0, state.position.z),
+      station.clone(),
       npcOutfitColors[definition.outfit],
       definition.scale,
       true,
@@ -911,9 +1038,6 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     // Meshy GLB has no true idle/talk animation and reads as static in play.
     applyHeroCharacterPolish(scene, rig, NPC_HERO_PROFILES[npcId]);
     applyNpcToyOverhaul(scene, rig, NPC_HERO_PROFILES[npcId]);
-    rig.root.scaling.scaleInPlace(
-      npcSceneScale(npcId),
-    );
     rig.root.scaling.scaleInPlace(
       npcSceneScale(npcId),
     );
@@ -1142,32 +1266,107 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
   everydayTarget("oven", "home", new Vector3(5.15, .72, 2.48), new Vector3(1.0, 1.25, .7));
   everydayTarget("prep-plate", "home", new Vector3(4.28, 1.57, .55), new Vector3(.78, .35, .72));
   everydayTarget("mixing-bowl", "home", new Vector3(2.52, 1.62, .55), new Vector3(.78, .45, .72));
-  everydayTarget("fridge-shelves", "home", new Vector3(2.3, 1.45, 2.32), new Vector3(1.55, 2.9, .45));
+  // Keep the invisible interaction strip on the handle side so the opened
+  // fridge contents remain directly pickable.
+  everydayTarget(
+    "fridge-shelves",
+    "home",
+    new Vector3(1.72, 1.45, 2.25),
+    new Vector3(.30, 2.85, .16),
+  );
   everydayTarget("kitchen-drawer", "home", new Vector3(4.45, .62, 2.55), new Vector3(.85, .55, .35));
   everydayTarget("kitchen-cupboard", "home", new Vector3(4.85, 1.9, 3.34), new Vector3(1.8, 1.7, .5));
   everydayTarget("cafe-display", "cafe", cafePosition(4.55, 1.35, .45), new Vector3(1.8, 1.45, .7));
   everydayTarget("return-tray", "cafe", cafePosition(2.45, 1.42, 1.75), new Vector3(1.0, .35, .7));
 
-  // Bedroom hygiene nook: characters stay fully clothed and use bubbles and towels.
-  const bathroomFloor = box(scene, "bedroom-bath-mat", new Vector3(2.75, .06, 1.55), bedroomPosition(2.55, .03, -1.82), sky);
+  // The ensuite nook is separated from the bedroom by the partition built
+  // in buildBedroom. Water and bubbles stay hidden until bathing begins.
+  const bathroomFloor = box(
+    scene,
+    "bedroom-bath-mat",
+    new Vector3(2.75, .06, 1.55),
+    bedroomPosition(2.55, .03, -1.82),
+    sky,
+  );
   bathroomFloor.isPickable = false;
-  cylinder(scene, "bedroom-bath-sink", .92, .22, bedroomPosition(3.55, 1.02, -1.55), white, 18);
-  box(scene, "bedroom-bath", new Vector3(1.65, .68, .9), bedroomPosition(2.2, .36, -1.95), white);
-  const bathroomMirror = box(scene, "bedroom-bath-mirror", new Vector3(.9, 1.15, .06), bedroomPosition(3.55, 1.92, -1.25), glass);
+
+  cylinder(
+    scene,
+    "bedroom-bath-sink",
+    .92,
+    .22,
+    bedroomPosition(3.55, 1.02, -1.55),
+    white,
+    18,
+  );
+
+  const bathTub = box(
+    scene,
+    "bedroom-bath",
+    new Vector3(1.78, .72, 1.02),
+    bedroomPosition(2.2, .36, -1.95),
+    white,
+  );
+
+  const bathWater = box(
+    scene,
+    "bedroom-bath-water",
+    new Vector3(1.48, .06, .76),
+    bedroomPosition(2.2, .69, -1.95),
+    sky,
+  );
+  bathWater.isPickable = false;
+  bathWater.setEnabled(false);
+
+  const bathroomMirror = box(
+    scene,
+    "bedroom-bath-mirror",
+    new Vector3(.9, 1.15, .06),
+    bedroomPosition(3.55, 1.92, -1.25),
+    glass,
+  );
   bathroomMirror.isPickable = false;
-  box(scene, "bedroom-toy-box", new Vector3(1.35, .62, .82), bedroomPosition(.9, .31, -.55), pink);
-  for (let index = 0; index < 5; index += 1) {
-    const bubble = MeshBuilder.CreateSphere(`bath-bubble-${index}`, { diameter: .22 + (index % 2) * .08, segments: 7 }, scene);
-    bubble.position.copyFrom(bedroomPosition(1.7 + index * .25, .72 + (index % 2) * .12, -1.95));
+
+  box(
+    scene,
+    "bedroom-toy-box",
+    new Vector3(1.35, .62, .82),
+    bedroomPosition(-.15, .31, -.55),
+    pink,
+  );
+
+  const bathBubbles: Mesh[] = [];
+
+  for (let index = 0; index < 9; index += 1) {
+    const bubble = MeshBuilder.CreateSphere(
+      `bath-bubble-${index}`,
+      {
+        diameter: .18 + (index % 3) * .06,
+        segments: 8,
+      },
+      scene,
+    );
+
+    bubble.position.copyFrom(
+      bedroomPosition(
+        1.62 + (index % 5) * .27,
+        .75 + (index % 2) * .10,
+        -2.12 + Math.floor(index / 5) * .30,
+      ),
+    );
     bubble.material = white;
     bubble.isPickable = false;
+    bubble.setEnabled(false);
+    bathBubbles.push(bubble);
   }
+
+  void bathTub;
   everydayTarget("wash-hands", "bedroom", bedroomPosition(3.55, 1.15, -1.55), new Vector3(1.0, 1.1, .8));
   everydayTarget("brush-teeth", "bedroom", bedroomPosition(3.82, 1.72, -1.28), new Vector3(.5, .8, .38));
   everydayTarget("bath-time", "bedroom", bedroomPosition(2.2, .65, -1.95), new Vector3(1.8, 1.1, 1.1));
   everydayTarget("use-towel", "bedroom", bedroomPosition(1.2, 1.35, -1.62), new Vector3(.55, 1.5, .5));
   everydayTarget("mirror-smile", "bedroom", bedroomPosition(3.55, 2.0, -1.28), new Vector3(1.0, 1.3, .35));
-  everydayTarget("wardrobe-shelves", "bedroom", bedroomPosition(4.85, 1.45, -3.12), new Vector3(1.9, 2.9, .45));
+  everydayTarget("wardrobe-shelves", "bedroom", bedroomPosition(5.0, 1.45, 2.32), new Vector3(1.9, 2.9, .45));
   everydayTarget("toy-box", "bedroom", bedroomPosition(.9, .55, -.55), new Vector3(1.5, .9, 1.0));
 
   everydayTarget("clean-table", "home", new Vector3(-2.6, .86, -1.8), new Vector3(2.4, .5, 1.35));
@@ -1175,7 +1374,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
   everydayTarget("wash-dish", "home", new Vector3(4.0, 1.28, 3.05), new Vector3(.9, .65, .8));
   everydayTarget("bin-rubbish", "home", new Vector3(5.05, .45, .72), new Vector3(.75, .9, .7));
   everydayTarget("tidy-books", "bedroom", bedroomPosition(1.0, 1.05, 2.72), new Vector3(2.4, 1.5, .8));
-  everydayTarget("tidy-clothes", "bedroom", bedroomPosition(4.85, 1.45, -3.2), new Vector3(2.0, 2.9, .5));
+  everydayTarget("tidy-clothes", "bedroom", bedroomPosition(5.0, 1.45, 2.25), new Vector3(2.0, 2.9, .5));
 
   const ingredientDefinitions: Array<[string, string, Vector3, StandardMaterial, number]> = [
     ["bread", "bread", new Vector3(2.05, 1.65, 2.28), white, .16],
@@ -1191,13 +1390,14 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     ["toy-block", "toy block", bedroomPosition(.2, .22, -.45), yellow, .18],
   ];
   for (const [id, label, position, itemMaterial, radius] of ingredientDefinitions) {
-    const mesh = id === "bread" || id === "towel"
-      ? box(scene, `draggable-${id}`, new Vector3(.45, .14, .35), position, itemMaterial)
-      : MeshBuilder.CreateSphere(`draggable-${id}`, { diameter: radius * 2, segments: 8 }, scene);
-    if (!(id === "bread" || id === "towel")) {
-      mesh.position.copyFrom(position);
-      mesh.material = itemMaterial;
-    }
+    const mesh = createHomeIngredientVisual(
+      scene,
+      id,
+      position,
+      itemMaterials,
+      itemMaterial,
+    );
+
     holdables.set(id, {
       id,
       label,
@@ -1363,6 +1563,21 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     current.outfit = outfit;
     selectedRig().setOutfitColor(outfitColors[outfit]);
     khadijaProductionVisual.setOutfit(outfit);
+
+    avatarCustomization = avatarCustomizer.apply({
+      ...avatarCustomization,
+      outfitColor: outfit === "pink"
+        ? "rose"
+        : outfit === "teal"
+          ? "teal"
+          : "sunshine",
+    });
+
+    saveAvatarCustomization(
+      avatarCustomization,
+      "khadija",
+    );
+
     persistCharacter(selectedCharacterId);
     options.onAction(`${CHARACTER_DEFINITIONS[selectedCharacterId].shortName} chose the ${outfit} outfit!`, "success");
     emitPlayState();
@@ -1382,7 +1597,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     home: "the family home",
     bedroom: "Khadija's bedroom",
     street: "the neighborhood street",
-    cafe: "Sunny CafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©",
+    cafe: "Sunny Cafe",
     park: "the neighborhood park",
     grocery: "the grocery shop",
   };
@@ -1417,10 +1632,20 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       definition.bounds.minZ,
       definition.bounds.maxZ,
     );
-    const arrivalPosition = definition.spawn.clone();
-    arrivalPosition.z += arrivalOffsetZ[selectedCharacterId];
-    rig.placeAt(arrivalPosition);
-    playableAnchors[selectedCharacterId].copyFrom(arrivalPosition);
+    const arrivalPosition =
+      definition.spawn.clone();
+
+    arrivalPosition.z +=
+      arrivalOffsetZ[selectedCharacterId];
+
+    const safeArrival =
+      clampPlayerPoint(
+        activeRoom,
+        arrivalPosition,
+      );
+
+    rig.placeAt(safeArrival);
+    playableAnchors[selectedCharacterId].copyFrom(safeArrival);
     rig.root.rotation.y = activeRoom === "home" || activeRoom === "street" || activeRoom === "park"
       ? -Math.PI / 2
       : Math.PI / 2;
@@ -1556,7 +1781,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     gesture: "eat",
     consumable: true,
     respawnPosition: cafePosition(4.95, 1.12, 0.5),
-    respawnMessage: "A fresh sandwich appeared in the cafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© display",
+    respawnMessage: "A fresh sandwich appeared in the cafe display",
   });
 
   type ItemOwnerId = CharacterId | NpcId | `world:${string}`;
@@ -1855,18 +2080,18 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
         new Vector3(4.76, .72, 2.38),
       ],
       "fridge-shelves": [
-        new Vector3(1.95, 2.15, 2.28),
-        new Vector3(2.3, 2.15, 2.28),
-        new Vector3(2.65, 2.15, 2.28),
-        new Vector3(1.95, 1.65, 2.28),
-        new Vector3(2.3, 1.65, 2.28),
-        new Vector3(2.65, 1.65, 2.28),
-        new Vector3(1.95, 1.35, 2.28),
-        new Vector3(2.3, 1.35, 2.28),
-        new Vector3(2.65, 1.35, 2.28),
-        new Vector3(1.95, 1.05, 2.28),
-        new Vector3(2.3, 1.05, 2.28),
-        new Vector3(2.65, 1.05, 2.28),
+        new Vector3(1.95, 2.15, 2.60),
+        new Vector3(2.3, 2.15, 2.60),
+        new Vector3(2.65, 2.15, 2.60),
+        new Vector3(1.95, 1.65, 2.60),
+        new Vector3(2.3, 1.65, 2.60),
+        new Vector3(2.65, 1.65, 2.60),
+        new Vector3(1.95, 1.35, 2.60),
+        new Vector3(2.3, 1.35, 2.60),
+        new Vector3(2.65, 1.35, 2.60),
+        new Vector3(1.95, 1.05, 2.60),
+        new Vector3(2.3, 1.05, 2.60),
+        new Vector3(2.65, 1.05, 2.60),
       ],
       "wardrobe-shelves": [
         bedroomPosition(4.45, 1.95, -3.3),
@@ -1934,7 +2159,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
   const finishRecipe = (station: StationId): void => {
     const recipe = recipeSystem.completed(station);
     if (!recipe) return;
-    options.onAction("Mixing something lovelyÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦", combinationSound(recipe.sound));
+    options.onAction("Mixing something lovely!", combinationSound(recipe.sound));
     const appliance = recipe.appliance ? applianceVisuals[recipe.appliance] : null;
     if (appliance) {
       Animation.CreateAndStartAnimation(
@@ -2051,12 +2276,46 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     }
     if (!everydayState.storageOpen[storageId]) {
       storageController.toggle(storageId);
-      if (storageId === "fridge-shelves") everydayState.appliances.fridgeOpen = true;
+
+      if (storageId === "fridge-shelves") {
+        everydayState.appliances.fridgeOpen = true;
+        setFamilyHomeFridgeOpen(
+          scene,
+          fridge,
+          true,
+        );
+      }
+
       saveEverydayState(everydayState);
       syncEverydayVisuals();
-      options.onAction("Opened! Look at all those useful things.", "storage");
+      options.onAction(
+        storageId === "fridge-shelves"
+          ? "The fridge is open. Tap the food you want."
+          : "Opened! Look at all those useful things.",
+        "storage",
+      );
       return;
     }
+
+    if (storageId === "fridge-shelves") {
+      storageController.toggle(storageId);
+      everydayState.appliances.fridgeOpen = false;
+
+      setFamilyHomeFridgeOpen(
+        scene,
+        fridge,
+        false,
+      );
+
+      saveEverydayState(everydayState);
+      syncEverydayVisuals();
+      options.onAction(
+        "The fridge door closes with a soft click.",
+        "storage",
+      );
+      return;
+    }
+
     const itemId = storageController.take(storageId);
     if (itemId && holdables.has(itemId)) {
       holdItem(itemId, selectedCharacterId, false);
@@ -2067,7 +2326,6 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       return;
     }
     storageController.toggle(storageId);
-    if (storageId === "fridge-shelves") everydayState.appliances.fridgeOpen = false;
     saveEverydayState(everydayState);
     syncEverydayVisuals();
     options.onAction("Closed and tidy.", "storage");
@@ -2118,12 +2376,160 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     } else if (targetId === "brush-teeth") {
       hygiene.teethBrushed = true;
       selectedRig().playUseGesture("eat");
-      options.onAction("Brush, brushÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Âwhat a shiny smile!", "clean");
+      options.onAction("Brush, brush - what a shiny smile!", "clean");
     } else if (targetId === "bath-time") {
-      hygiene.bathBubblesReady = true;
-      hygiene.towelDry = false;
-      selectedRig().playUseGesture("hug");
-      options.onAction("Bubble bath timeÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Âcozy clothes stay on!", "water");
+      const rig = selectedRig();
+      const state = selectedState();
+      const bathApproach =
+        bedroomPosition(1.18, 0, -1.55);
+      const bathPosition =
+        bedroomPosition(2.18, 0, -1.92);
+
+      const beginBath = (): void => {
+        rig.cancelMovement();
+        rig.stand();
+        rig.placeAt(bathPosition);
+        rig.root.rotation.y = 0;
+        rig.root.position.y = .18;
+        rig.setActivityPose("bath");
+
+        hygiene.bathBubblesReady = true;
+        hygiene.towelDry = false;
+        state.activity = "sitting";
+        state.sleeping = false;
+        state.seatId = null;
+
+        bathWater.setEnabled(true);
+
+        for (const bubble of bathBubbles) {
+          bubble.setEnabled(true);
+        }
+
+        const bathStartedAt =
+          performance.now();
+
+        const bathObserver =
+          scene.onBeforeRenderObservable.add(
+            () => {
+              const elapsed =
+                (
+                  performance.now() -
+                  bathStartedAt
+                ) / 1000;
+
+              rig.root.position.y =
+                .18 +
+                Math.sin(
+                  elapsed * 3.2,
+                ) * .025;
+
+              bathWater.scaling.y =
+                1 +
+                Math.sin(
+                  elapsed * 2.4,
+                ) * .08;
+
+              for (
+                let index = 0;
+                index < bathBubbles.length;
+                index += 1
+              ) {
+                const bubble =
+                  bathBubbles[index];
+
+                bubble.position.y =
+                  .76 +
+                  (index % 2) * .10 +
+                  Math.sin(
+                    elapsed * 2.8 +
+                    index * .72,
+                  ) * .08;
+
+                const pulse =
+                  1 +
+                  Math.sin(
+                    elapsed * 3.4 +
+                    index,
+                  ) * .10;
+
+                bubble.scaling.setAll(pulse);
+              }
+            },
+          );
+
+        persistCharacter(
+          selectedCharacterId,
+        );
+        saveEverydayState(
+          everydayState,
+        );
+
+        options.onAction(
+          "Bubbles up! Khadija is splashing in the ensuite bath.",
+          "water",
+        );
+        emitPlayState();
+
+        window.setTimeout(
+          () => {
+            scene.onBeforeRenderObservable.remove(
+              bathObserver,
+            );
+
+            bathWater.setEnabled(false);
+            bathWater.scaling.setAll(1);
+
+            for (const bubble of bathBubbles) {
+              bubble.setEnabled(false);
+              bubble.scaling.setAll(1);
+            }
+
+            rig.setActivityPose(null);
+            rig.stand();
+            rig.placeAt(bathApproach);
+
+            state.activity = "standing";
+            state.sleeping = false;
+            state.seatId = null;
+
+            persistCharacter(
+              selectedCharacterId,
+            );
+            emitPlayState();
+
+            options.onAction(
+              "Bath time is finished. Time for a warm towel!",
+              "clean",
+            );
+          },
+          3600,
+        );
+      };
+
+      if (
+        Vector3.Distance(
+          rig.root.position,
+          bathApproach,
+        ) > .72
+      ) {
+        guidedMovementUntil =
+          performance.now() + 7200;
+
+        rig.setTarget(
+          bathApproach,
+          beginBath,
+        );
+
+        options.onAction(
+          "Khadija is walking into the ensuite bathroom.",
+          "travel",
+        );
+        emitPlayState();
+        return;
+      }
+
+      beginBath();
+      return;
     } else if (targetId === "use-towel") {
       hygiene.towelDry = true;
       selectedRig().playUseGesture("hug");
@@ -2141,7 +2547,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       if (targetId === "clean-table") everydayState.cleaning.homeTableClean = true;
       else everydayState.cleaning.kitchenCounterClean = true;
       selectedRig().playUseGesture("hug");
-      options.onAction("Swish, wipe, sparkleÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Âlovely and clean!", "clean");
+      options.onAction("Swish, wipe, sparkle - lovely and clean!", "clean");
     } else if (targetId === "wash-dish") {
       const heldId = selectedState().heldItem;
       if (heldId !== "cup" && heldId !== "prep-plate" && heldId !== "mixing-bowl") {
@@ -2150,7 +2556,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       }
       everydayState.dishClean[heldId] = true;
       selectedRig().playUseGesture("hug");
-      options.onAction("Bubbles awayÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Âthe dish is clean!", "water");
+      options.onAction("Bubbles away - the dish is clean!", "water");
     } else if (targetId === "bin-rubbish") {
       if (selectedState().heldItem !== "rubbish") {
         options.onAction("Bring the little wrapper to the bin.", "invalid");
@@ -2239,7 +2645,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     syncEverydayVisuals();
     reactNpc("shopkeeper", "excited");
     rememberForRoomNpcs("activity", "shopping");
-    options.onAction("Beep! Pretend checkout completeÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Âthe groceries are packed!", "bell");
+    options.onAction("Beep! Pretend checkout complete - the groceries are packed!", "bell");
     emitPlayState();
   };
 
@@ -2267,47 +2673,297 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       return;
     }
     if (targetId === "park-slide") {
-      world3State.park.playgroundUses = Math.min(999, world3State.park.playgroundUses + 1);
-      rig.cancelMovement();
-      rig.placeAt(parkPosition(3.4, 0, -1.1));
-      Animation.CreateAndStartAnimation(
-        "park-slide-ride",
-        rig.root,
-        "position.z",
-        30,
-        24,
-        rig.root.position.z,
-        parkPosition(3.4, 0, -3.0).z,
-        Animation.ANIMATIONLOOPMODE_CONSTANT,
+      world3State.park.playgroundUses =
+        Math.min(
+          999,
+          world3State.park.playgroundUses + 1,
+        );
+
+      const stairBase =
+        parkPosition(3.4, 0, -.48);
+
+      const climbPoints = [
+        parkPosition(3.4, .28, -.75),
+        parkPosition(3.4, .58, -1.02),
+        parkPosition(3.4, .88, -1.29),
+        parkPosition(3.4, 1.18, -1.56),
+        parkPosition(3.4, 1.52, -1.82),
+      ];
+
+      const slideEnd =
+        parkPosition(3.4, 0, -3.12);
+
+      const startSlide = (): void => {
+        rig.cancelMovement();
+
+        const faceSlideForward = (
+          lean = 0,
+        ): void => {
+          // Direct position animations do not update the character yaw.
+          // Lock Khadija toward the stair and slide travel direction.
+          rig.lookAt(null);
+          rig.root.rotation.x = lean;
+          rig.root.rotation.y = 0;
+          rig.root.rotation.z = 0;
+        };
+
+        faceSlideForward();
+
+        let pointIndex = 0;
+
+        const climbNext = (): void => {
+          const nextPoint =
+            climbPoints[pointIndex];
+
+          if (!nextPoint) {
+            faceSlideForward(-.22);
+
+            Animation.CreateAndStartAnimation(
+              "park-slide-down",
+              rig.root,
+              "position",
+              30,
+              30,
+              rig.root.position.clone(),
+              slideEnd,
+              Animation.ANIMATIONLOOPMODE_CONSTANT,
+              undefined,
+              () => {
+                rig.stand();
+                rig.placeAt(slideEnd);
+                faceSlideForward();
+                persistCharacter(selectedCharacterId);
+                emitPlayState();
+              },
+            );
+
+            options.onAction(
+              "Wheee! Down the slide!",
+              "shared",
+            );
+            return;
+          }
+
+          faceSlideForward();
+
+          Animation.CreateAndStartAnimation(
+            `park-slide-climb-${pointIndex}`,
+            rig.root,
+            "position",
+            30,
+            10,
+            rig.root.position.clone(),
+            nextPoint,
+            Animation.ANIMATIONLOOPMODE_CONSTANT,
+            undefined,
+            () => {
+              pointIndex += 1;
+              climbNext();
+            },
+          );
+        };
+
+        climbNext();
+      };
+
+      guidedMovementUntil =
+        performance.now() + 7000;
+
+      rig.stand();
+      rig.setTarget(
+        stairBase,
+        startSlide,
       );
-      rig.playUseGesture("hug");
-      recordWorld3Event(world3State, "used_slide");
+
+      recordWorld3Event(
+        world3State,
+        "used_slide",
+      );
       saveWorld3State(world3State);
-      rememberForRoomNpcs("activity", "playground");
-      options.onAction("Wheee! A gentle slide to the bottom!", "shared");
+      rememberForRoomNpcs(
+        "activity",
+        "playground",
+      );
+      options.onAction(
+        "Khadija is walking to the slide stairs.",
+        "travel",
+      );
+      emitPlayState();
       return;
     }
     if (targetId === "park-swings") {
-      world3State.park.playgroundUses = Math.min(999, world3State.park.playgroundUses + 1);
-      rig.placeAt(parkPosition(2.0, 0, 2.15));
-      Animation.CreateAndStartAnimation(
-        "park-swing-play",
-        rig.root,
-        "rotation.x",
-        30,
-        26,
-        -.12,
-        .12,
-        Animation.ANIMATIONLOOPMODE_CYCLE,
+      const parkSwing =
+        world3Build.locations.park;
+
+      const swingRoot =
+        parkSwing.swingRideRoot;
+
+      const swingApproach =
+        parkSwing.swingApproach;
+
+      const swingExit =
+        parkSwing.swingExit;
+
+      const startSwing = (): void => {
+        const state =
+          selectedState();
+
+        const originalParent =
+          rig.root.parent;
+
+        rig.cancelMovement();
+        rig.stand();
+
+        scene.stopAnimation(
+          swingRoot,
+        );
+
+        swingRoot.rotation.setAll(0);
+
+        rig.root.parent =
+          swingRoot;
+
+        rig.root.position.set(
+          0,
+          -1.18,
+          -.03,
+        );
+
+        rig.root.rotation.set(
+          0,
+          0,
+          0,
+        );
+
+        rig.setActivityPose(
+          "swing",
+        );
+
+        state.activity = "sitting";
+        state.sleeping = false;
+        state.seatId = null;
+
+        const swingAnimation =
+          new Animation(
+            "park-swing-arc",
+            "rotation.x",
+            30,
+            Animation.ANIMATIONTYPE_FLOAT,
+            Animation.ANIMATIONLOOPMODE_CYCLE,
+          );
+
+        swingAnimation.setKeys([
+          {
+            frame: 0,
+            value: 0,
+          },
+          {
+            frame: 18,
+            value: .30,
+          },
+          {
+            frame: 36,
+            value: 0,
+          },
+          {
+            frame: 54,
+            value: -.30,
+          },
+          {
+            frame: 72,
+            value: 0,
+          },
+        ]);
+
+        scene.beginDirectAnimation(
+          swingRoot,
+          [swingAnimation],
+          0,
+          72,
+          true,
+        );
+
+        options.onAction(
+          "Khadija holds the ropes and swings back and forth!",
+          "shared",
+        );
+        emitPlayState();
+
+        window.setTimeout(
+          () => {
+            scene.stopAnimation(
+              swingRoot,
+            );
+
+            swingRoot.rotation.setAll(
+              0,
+            );
+
+            rig.root.parent =
+              originalParent;
+
+            rig.setActivityPose(
+              null,
+            );
+            rig.stand();
+            rig.placeAt(
+              swingExit,
+            );
+
+            state.activity = "standing";
+            state.sleeping = false;
+            state.seatId = null;
+
+            persistCharacter(
+              selectedCharacterId,
+            );
+            emitPlayState();
+          },
+          4200,
+        );
+      };
+
+      guidedMovementUntil =
+        performance.now() + 8200;
+
+      if (
+        Vector3.Distance(
+          rig.root.position,
+          swingApproach,
+        ) > .70
+      ) {
+        rig.stand();
+        rig.setTarget(
+          swingApproach,
+          startSwing,
+        );
+
+        options.onAction(
+          "Khadija is walking to the swing seat.",
+          "travel",
+        );
+      } else {
+        startSwing();
+      }
+
+      world3State.park.playgroundUses =
+        Math.min(
+          999,
+          world3State.park.playgroundUses + 1,
+        );
+
+      recordWorld3Event(
+        world3State,
+        "used_swings",
       );
-      window.setTimeout(() => {
-        scene.stopAnimation(rig.root);
-        rig.root.rotation.x = 0;
-      }, 1000);
-      recordWorld3Event(world3State, "used_swings");
-      saveWorld3State(world3State);
-      rememberForRoomNpcs("activity", "playground");
-      options.onAction("Back and forth on the friendly swing!", "shared");
+      saveWorld3State(
+        world3State,
+      );
+      rememberForRoomNpcs(
+        "activity",
+        "playground",
+      );
+      emitPlayState();
       return;
     }
     if (targetId === "park-sandbox") {
@@ -2342,7 +2998,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       rig.playUseGesture("drink");
       reactNpc("park-keeper", "excited");
       rememberForRoomNpcs("event", "watering-flowers");
-      options.onAction("Sprinkle, sparkleÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Âthe flowers look refreshed!", "water");
+      options.onAction("Sprinkle, sparkle - the flowers look refreshed!", "water");
       return;
     }
     if (targetId === "park-birds") {
@@ -2595,25 +3251,226 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     options.onAction("The barista prepared a warm drink!");
   }));
 
-  streetScooterHotspot.actionManager = new ActionManager(scene);
-  streetScooterHotspot.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => {
-    if (activeRoom !== "street") return;
-    const characterId = selectedCharacterId;
-    const state = characters[characterId];
-    const rig = characterRigs[characterId];
-    rig.stand();
-    state.activity = "standing";
-    state.sleeping = false;
-    state.seatId = null;
-    rig.setTarget(streetPosition(1.0, 0, -0.55), () => {
-      options.onAction(`${CHARACTER_DEFINITIONS[characterId].shortName} rings the bell and rides!`, "bell");
-      rig.setTarget(streetPosition(3.4, 0, -1.25), () => {
-        rig.setTarget(streetPosition(1.0, 0, -0.55), () => persistCharacter(characterId));
-      });
-    });
-    options.onAction(`${CHARACTER_DEFINITIONS[characterId].shortName} is heading to the scooter!`, "travel");
-    emitPlayState();
-  }));
+  let guidedMovementUntil = 0;
+
+  streetScooterHotspot.actionManager =
+    new ActionManager(scene);
+
+  streetScooterHotspot.actionManager.registerAction(
+    new ExecuteCodeAction(
+      ActionManager.OnPickTrigger,
+      () => {
+        if (activeRoom !== "street") return;
+
+        const characterId =
+          selectedCharacterId;
+        const state =
+          characters[characterId];
+        const rig =
+          characterRigs[characterId];
+
+        const scooterStart =
+          streetScooterRoot.position.clone();
+
+        const scooterTurn =
+          scooterStart.add(
+            new Vector3(3.05, 0, -.72),
+          );
+
+        const riderExit =
+          streetPosition(
+            1.0,
+            0,
+            -.62,
+          );
+
+        let originalParent:
+          Node | null = null;
+
+        const stopWheelSpin = (): void => {
+          for (
+            const wheel of
+            streetScooterWheels
+          ) {
+            scene.stopAnimation(
+              wheel,
+            );
+          }
+        };
+
+        const startWheelSpin = (): void => {
+          for (
+            const wheel of
+            streetScooterWheels
+          ) {
+            Animation.CreateAndStartAnimation(
+              `${wheel.name}-ride-spin`,
+              wheel,
+              "rotation.z",
+              30,
+              24,
+              wheel.rotation.z,
+              wheel.rotation.z +
+                Math.PI * 2,
+              Animation.ANIMATIONLOOPMODE_CYCLE,
+            );
+          }
+        };
+
+        const finishRide = (): void => {
+          stopWheelSpin();
+
+          scene.stopAnimation(
+            streetScooterRoot,
+          );
+
+          streetScooterRoot.position.copyFrom(
+            scooterStart,
+          );
+          streetScooterRoot.rotation.setAll(
+            0,
+          );
+
+          rig.root.parent =
+            originalParent;
+
+          rig.setActivityPose(
+            null,
+          );
+          rig.stand();
+          rig.placeAt(
+            riderExit,
+          );
+
+          state.activity = "standing";
+          state.sleeping = false;
+          state.seatId = null;
+
+          persistCharacter(
+            characterId,
+          );
+          emitPlayState();
+
+          options.onAction(
+            "The scooter ride is finished!",
+            "success",
+          );
+        };
+
+        const returnRide = (): void => {
+          // The scooter has completed a visible turn. It now travels
+          // forward in its new direction instead of replaying backward.
+          Animation.CreateAndStartAnimation(
+            "street-scooter-return",
+            streetScooterRoot,
+            "position",
+            30,
+            48,
+            streetScooterRoot.position.clone(),
+            scooterStart,
+            Animation.ANIMATIONLOOPMODE_CONSTANT,
+            undefined,
+            finishRide,
+          );
+        };
+
+        const turnScooter = (): void => {
+          Animation.CreateAndStartAnimation(
+            "street-scooter-turnaround",
+            streetScooterRoot,
+            "rotation.y",
+            30,
+            18,
+            0,
+            Math.PI,
+            Animation.ANIMATIONLOOPMODE_CONSTANT,
+            undefined,
+            returnRide,
+          );
+
+          options.onAction(
+            "Khadija turns the scooter around for the ride home.",
+            "bell",
+          );
+        };
+
+        const beginRide = (): void => {
+          rig.cancelMovement();
+          rig.stand();
+
+          originalParent =
+            rig.root.parent;
+
+          rig.root.parent =
+            streetScooterRoot;
+
+          rig.root.position.set(
+            -.08,
+            .18,
+            0,
+          );
+
+          rig.root.rotation.set(
+            0,
+            -Math.PI / 2,
+            0,
+          );
+
+          rig.setActivityPose(
+            "scooter",
+          );
+
+          state.activity = "sitting";
+          state.sleeping = false;
+          state.seatId = null;
+
+          streetScooterRoot.rotation.setAll(
+            0,
+          );
+
+          startWheelSpin();
+
+          Animation.CreateAndStartAnimation(
+            "street-scooter-outbound",
+            streetScooterRoot,
+            "position",
+            30,
+            48,
+            scooterStart,
+            scooterTurn,
+            Animation.ANIMATIONLOOPMODE_CONSTANT,
+            undefined,
+            turnScooter,
+          );
+
+          options.onAction(
+            "Ring-ring! Khadija is riding the scooter.",
+            "bell",
+          );
+          emitPlayState();
+        };
+
+        guidedMovementUntil =
+          performance.now() + 7600;
+
+        rig.stand();
+        rig.setTarget(
+          streetPosition(
+            1.0,
+            0,
+            -.62,
+          ),
+          beginRide,
+        );
+
+        options.onAction(
+          "Khadija is walking to the scooter.",
+          "travel",
+        );
+        emitPlayState();
+      },
+    ),
+  );
 
   for (const wardrobeButton of wardrobeButtons) {
     wardrobeButton.actionManager = new ActionManager(scene);
@@ -2623,11 +3480,38 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     }));
   }
 
-  const standCharacter = (characterId: CharacterId, position?: Vector3): void => {
+  const standCharacter = (
+    characterId: CharacterId,
+    position?: Vector3,
+  ): void => {
     const state = characters[characterId];
     const rig = characterRigs[characterId];
+    const currentSeat =
+      getSeatById(seats, state.seatId);
+
+    const requestedPosition =
+      position
+      ?? currentSeat?.approach;
+
     rig.stand();
-    if (position) rig.placeAt(position);
+
+    if (requestedPosition) {
+      const safePosition =
+        characterId === "khadija"
+          ? clampPlayerPoint(
+              state.room,
+              requestedPosition,
+            )
+          : resolveWorldWalkablePoint(
+              state.room,
+              requestedPosition,
+              .31,
+              rig.root.position,
+            );
+
+      rig.placeAt(safePosition);
+    }
+
     state.activity = "standing";
     state.sleeping = false;
     state.seatId = null;
@@ -2672,7 +3556,16 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     }
 
     standCharacter(characterId);
-    characterRigs[characterId].setTarget(seat.approach, () => {
+
+    guidedMovementUntil =
+      performance.now() + 5000;
+
+    characterRigs[characterId].setTarget(
+      clampPlayerPoint(
+        activeRoom,
+        seat.approach,
+      ),
+      () => {
       placeCharacterInSeat(characterId, seat);
       for (const otherId of CHARACTER_IDS) {
         if (otherId === characterId || characters[otherId].room !== state.room) continue;
@@ -2944,9 +3837,33 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
         (mesh) => mesh.metadata?.walkable === true && mesh.metadata?.room === activeRoom,
       );
       if (floorPick?.hit && floorPick.pickedPoint) {
-        characterRigs[characterDrag.characterId].placeAt(
-          new Vector3(floorPick.pickedPoint.x, 0, floorPick.pickedPoint.z),
-        );
+        const dragRig =
+          characterRigs[
+            characterDrag.characterId
+          ];
+
+        const requestedDragTarget =
+          new Vector3(
+            floorPick.pickedPoint.x,
+            0,
+            floorPick.pickedPoint.z,
+          );
+
+        const dragTarget =
+          characterDrag.characterId
+            === "khadija"
+            ? clampPlayerPoint(
+                activeRoom,
+                requestedDragTarget,
+              )
+            : resolveWorldWalkablePoint(
+                activeRoom,
+                requestedDragTarget,
+                .31,
+                dragRig.root.position,
+              );
+
+        dragRig.placeAt(dragTarget);
       }
       return;
     }
@@ -3005,7 +3922,18 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     if (!pick?.hit || !pick.pickedPoint || !pick.pickedMesh?.metadata?.walkable) return;
     if (pick.pickedMesh.metadata.room !== activeRoom) return;
     standCharacter(selectedCharacterId);
-    selectedRig().setTarget(new Vector3(pick.pickedPoint.x, 0, pick.pickedPoint.z));
+
+    const safeTarget =
+      clampPlayerPoint(
+        activeRoom,
+        new Vector3(
+          pick.pickedPoint.x,
+          0,
+          pick.pickedPoint.z,
+        ),
+      );
+
+    selectedRig().setTarget(safeTarget);
     selectedState().interaction = "walking";
     emitPlayState();
     options.onAction("Off we go!");
@@ -3131,71 +4059,83 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     }, 1150);
   };
 
-  const interactionNames: Record<string, { label: string; hint: string; icon: string }> = {
-    "home-to-bedroom-door": { label: "Khadija's bedroom", hint: "Tap to go to the bedroom", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âª" },
-    "home-to-street-door": { label: "Neighborhood", hint: "Tap to go outside", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âª" },
-    "bedroom-to-home-door": { label: "Family home", hint: "Tap to return home", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âª" },
-    "street-to-home-door": { label: "Family home", hint: "Tap to go inside", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â " },
-    "street-to-cafe-door": { label: "Sunny CafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©", hint: "Tap to enter the cafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¹Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢" },
-    "cafe-to-street-door": { label: "Neighborhood", hint: "Tap to go outside", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âª" },
-    "street-to-park-gate": { label: "Neighborhood park", hint: "Tap to visit the park", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³" },
-    "street-to-grocery-door": { label: "Sunny Basket Grocery", hint: "Tap to visit the shop", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂºÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢" },
-    "park-exit-door": { label: "Neighborhood", hint: "Tap to leave the park", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âª" },
-    "grocery-exit-door": { label: "Neighborhood", hint: "Tap to leave the shop", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âª" },
-    "lamp-shade": { label: "Living-room lamp", hint: "Tap to switch the light", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡" },
-    "bedroom-lamp-shade": { label: "Bedside lamp", hint: "Tap to switch the light", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡" },
-    "cafe-counter-bell": { label: "Counter bell", hint: "Tap to ring the bell", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â" },
-    "cafe-menu-board": { label: "CafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© menu", hint: "Tap to hear today's special", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¹" },
-    "cafe-pastry-hotspot": { label: "Pastry display", hint: "Tap to choose a treat", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" },
-    "cafe-drink-hotspot": { label: "Hot drinks", hint: "Tap to order a drink", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¹Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢" },
-    "cafe-seat-hotspot": { label: "CafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© chair", hint: "Tap to sit down", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂªÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œ" },
-    "sofa-seat-hotspot": { label: "Family sofa", hint: "Tap to sit down", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂºÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¹ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" },
-    "bed-hotspot": { label: "Khadija's bed", hint: "Tap to rest or sleep", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂºÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" },
-    "street-bench-hotspot": { label: "Neighborhood bench", hint: "Tap to sit down", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂªÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œ" },
-    "street-scooter-hotspot": { label: "Scooter", hint: "Tap to take a little ride", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂºÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â´" },
+  const interactionNames: Record<string, {
+    label: string;
+    hint: string;
+    icon: string;
+  }> = {
+    "home-to-bedroom-door": { label: "Khadija's bedroom", hint: "Tap to go to the bedroom", icon: "B" },
+    "home-to-street-door": { label: "Neighborhood", hint: "Tap to go outside", icon: ">" },
+    "bedroom-to-home-door": { label: "Family home", hint: "Tap to return home", icon: "H" },
+    "street-to-home-door": { label: "Family home", hint: "Tap to go inside", icon: "H" },
+    "street-to-cafe-door": { label: "Sunny Cafe", hint: "Tap to enter the cafe", icon: "C" },
+    "cafe-to-street-door": { label: "Neighborhood", hint: "Tap to go outside", icon: ">" },
+    "street-to-park-gate": { label: "Neighborhood park", hint: "Tap to visit the park", icon: "P" },
+    "street-to-grocery-door": { label: "Sunny Basket Grocery", hint: "Tap to visit the shop", icon: "G" },
+    "park-exit-door": { label: "Neighborhood", hint: "Tap to leave the park", icon: ">" },
+    "grocery-exit-door": { label: "Neighborhood", hint: "Tap to leave the shop", icon: ">" },
+    "lamp-shade": { label: "Living-room lamp", hint: "Tap to switch the light", icon: "L" },
+    "bedroom-lamp-shade": { label: "Bedside lamp", hint: "Tap to switch the light", icon: "L" },
+    "cafe-counter-bell": { label: "Counter bell", hint: "Tap to ring the bell", icon: "!" },
+    "cafe-menu-board": { label: "Cafe menu", hint: "Tap to hear today's special", icon: "M" },
+    "cafe-pastry-hotspot": { label: "Pastry display", hint: "Tap to choose a treat", icon: "F" },
+    "cafe-drink-hotspot": { label: "Hot drinks", hint: "Tap to order a drink", icon: "D" },
+    "cafe-seat-hotspot": { label: "Cafe chair", hint: "Tap to sit down", icon: "S" },
+    "sofa-seat-hotspot": { label: "Family sofa", hint: "Tap to sit down", icon: "S" },
+    "bed-hotspot": { label: "Khadija's bed", hint: "Tap to lie down and rest", icon: "Z" },
+    "street-bench-hotspot": { label: "Neighborhood bench", hint: "Tap to sit down", icon: "S" },
+    "street-scooter-hotspot": { label: "Scooter", hint: "Tap to take a ride", icon: "R" },
   };
 
-  const everydayLabels: Record<string, { label: string; hint: string; icon: string }> = {
-    toaster: { label: "Toaster", hint: "Bring an ingredient and tap", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¾" },
-    blender: { label: "Blender", hint: "Bring ingredients and tap", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¥ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¤" },
-    kettle: { label: "Kettle", hint: "Bring a cup or tea and tap", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â«ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ" },
-    oven: { label: "Oven", hint: "Bring an ingredient and tap", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" },
-    "prep-plate": { label: "Preparation plate", hint: "Place recipe ingredients here", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" },
-    "mixing-bowl": { label: "Mixing bowl", hint: "Add ingredients for a recipe", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¥ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£" },
-    "fridge-shelves": { label: "Fridge", hint: "Tap to open the food shelves", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â " },
-    "kitchen-drawer": { label: "Kitchen drawer", hint: "Tap to look inside", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½" },
-    "kitchen-cupboard": { label: "Kitchen cupboard", hint: "Tap to look inside", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âª" },
-    "cafe-display": { label: "CafÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© display", hint: "Tap to choose a treat", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" },
-    "return-tray": { label: "Return tray", hint: "Bring used dishes here", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" },
-    "wash-hands": { label: "Sink", hint: "Tap to wash hands", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â«ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§" },
-    "brush-teeth": { label: "Toothbrush", hint: "Tap to brush teeth", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂªÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¥" },
-    "bath-time": { label: "Bath", hint: "Tap for bubble-bath play", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂºÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" },
-    "use-towel": { label: "Towel", hint: "Tap to get warm and dry", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âº" },
-    "mirror-smile": { label: "Mirror", hint: "Tap to make a happy face", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂªÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¾" },
-    "wardrobe-shelves": { label: "Wardrobe", hint: "Tap to open the clothes", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â" },
-    "toy-box": { label: "Toy box", hint: "Tap to look for a toy", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸" },
-    "clean-table": { label: "Coffee table", hint: "Bring the sponge and tap to clean", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨" },
-    "clean-counter": { label: "Kitchen counter", hint: "Bring the sponge and tap to clean", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨" },
-    "wash-dish": { label: "Kitchen sink", hint: "Bring a dish and tap to wash", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â«ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§" },
-    "bin-rubbish": { label: "Kitchen bin", hint: "Bring rubbish here", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" },
-    "tidy-books": { label: "Book shelf", hint: "Bring the book back here", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡" },
-    "tidy-clothes": { label: "Wardrobe", hint: "Bring folded clothes here", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢" },
+  const everydayLabels: Record<string, {
+    label: string;
+    hint: string;
+    icon: string;
+  }> = {
+    toaster: { label: "Toaster", hint: "Bring an ingredient and tap", icon: "T" },
+    blender: { label: "Blender", hint: "Bring ingredients and tap", icon: "B" },
+    kettle: { label: "Kettle", hint: "Bring a cup or tea and tap", icon: "K" },
+    oven: { label: "Oven", hint: "Bring an ingredient and tap", icon: "O" },
+    "prep-plate": { label: "Preparation plate", hint: "Place recipe ingredients here", icon: "P" },
+    "mixing-bowl": { label: "Mixing bowl", hint: "Add ingredients for a recipe", icon: "M" },
+    "fridge-shelves": { label: "Fridge", hint: "Tap the handle to open or close", icon: "F" },
+    "kitchen-drawer": { label: "Kitchen drawer", hint: "Tap to look inside", icon: "D" },
+    "kitchen-cupboard": { label: "Kitchen cupboard", hint: "Tap to look inside", icon: "C" },
+    "cafe-display": { label: "Cafe display", hint: "Tap to choose a treat", icon: "F" },
+    "return-tray": { label: "Return tray", hint: "Bring used dishes here", icon: "R" },
+    "wash-hands": { label: "Sink", hint: "Tap to wash hands", icon: "W" },
+    "brush-teeth": { label: "Toothbrush", hint: "Tap to brush teeth", icon: "T" },
+    "bath-time": { label: "Bubble bath", hint: "Tap to walk over and bathe", icon: "B" },
+    "use-towel": { label: "Towel", hint: "Tap to get warm and dry", icon: "T" },
+    "mirror-smile": { label: "Mirror", hint: "Tap to make a happy face", icon: ":)" },
+    "wardrobe-shelves": { label: "Wardrobe", hint: "Tap to open the clothes", icon: "W" },
+    "toy-box": { label: "Toy box", hint: "Tap to look for a toy", icon: "T" },
+    "clean-table": { label: "Coffee table", hint: "Bring the sponge and tap to clean", icon: "C" },
+    "clean-counter": { label: "Kitchen counter", hint: "Bring the sponge and tap to clean", icon: "C" },
+    "wash-dish": { label: "Kitchen sink", hint: "Bring a dish and tap to wash", icon: "W" },
+    "bin-rubbish": { label: "Kitchen bin", hint: "Bring rubbish here", icon: "B" },
+    "tidy-books": { label: "Book shelf", hint: "Bring the book back here", icon: "B" },
+    "tidy-clothes": { label: "Wardrobe", hint: "Bring folded clothes here", icon: "W" },
   };
 
-  const worldActionLabels: Record<string, { label: string; hint: string; icon: string }> = {
-    "grocery-checkout": { label: "Checkout", hint: "Bring your basket and tap", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂºÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢" },
-    "grocery-stock": { label: "Store shelves", hint: "Tap to restock the shop", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦" },
-    "park-bench-left": { label: "Park bench", hint: "Tap to sit down", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂªÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œ" },
-    "park-bench-right": { label: "Park bench", hint: "Tap to sit down", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂªÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œ" },
-    "park-picnic": { label: "Picnic blanket", hint: "Tap to enjoy a picnic", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âº" },
-    "park-slide": { label: "Slide", hint: "Tap to play on the slide", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂºÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" },
-    "park-swings": { label: "Swings", hint: "Tap to swing", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â½ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â " },
-    "park-sandbox": { label: "Sandbox", hint: "Tap to build a sandcastle", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" },
-    "park-fountain": { label: "Drinking fountain", hint: "Tap for a cool drink", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂºÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â²" },
-    "park-bin": { label: "Park bin", hint: "Bring rubbish here", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â" },
-    "park-sign": { label: "Park sign", hint: "Tap to read the park message", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂªÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§" },
-    "park-flowers": { label: "Flower bed", hint: "Bring the watering can", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·" },
-    "park-birds": { label: "Friendly birds", hint: "Bring a little fruit or bread", icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦" },
+  const worldActionLabels: Record<string, {
+    label: string;
+    hint: string;
+    icon: string;
+  }> = {
+    "grocery-checkout": { label: "Checkout", hint: "Bring your basket and tap", icon: "$" },
+    "grocery-stock": { label: "Store shelves", hint: "Tap to restock the shop", icon: "S" },
+    "park-bench-left": { label: "Park bench", hint: "Tap to sit down", icon: "S" },
+    "park-bench-right": { label: "Park bench", hint: "Tap to sit down", icon: "S" },
+    "park-picnic": { label: "Picnic blanket", hint: "Tap to enjoy a picnic", icon: "P" },
+    "park-slide": { label: "Slide", hint: "Tap to climb the stairs and slide", icon: "V" },
+    "park-swings": { label: "Swings", hint: "Tap to swing", icon: "W" },
+    "park-sandbox": { label: "Sandbox", hint: "Tap to build a sandcastle", icon: "S" },
+    "park-fountain": { label: "Drinking fountain", hint: "Tap for a cool drink", icon: "D" },
+    "park-bin": { label: "Park bin", hint: "Bring rubbish here", icon: "B" },
+    "park-sign": { label: "Park sign", hint: "Tap to read the park message", icon: "i" },
+    "park-flowers": { label: "Flower bed", hint: "Bring the watering can", icon: "F" },
+    "park-birds": { label: "Friendly birds", hint: "Bring a little fruit or bread", icon: "B" },
   };
 
   // Add readable interaction names without replacing any existing metadata or
@@ -3215,7 +4155,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       setInteraction(mesh, {
         label: held?.label ?? humanizeInteractionId(holdableId),
         hint: groceryProduct ? "Pick up or add to the shopping basket" : "Pick up or drag to a new place",
-        icon: held?.gesture === "eat" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â½" : held?.gesture === "drink" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¥ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¤" : held?.gesture === "read" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ" : "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸",
+        icon: held?.gesture === "eat" ? "F" : held?.gesture === "drink" ? "D" : "I",
         room: metadata?.room as RoomId | undefined,
       });
       continue;
@@ -3225,7 +4165,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       setInteraction(mesh, {
         label: NPC_DEFINITIONS[npcId].displayName,
         hint: "Talk, give a gift, or receive an item",
-        icon: npcId === "parent" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬" : "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¹",
+        icon: npcId === "parent" ? "M" : "N",
         room: NPC_DEFINITIONS[npcId].homeLocation,
       });
       continue;
@@ -3235,7 +4175,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       setInteraction(mesh, {
         label: CHARACTER_DEFINITIONS[characterId].shortName,
         hint: "Tap to play together, or drag to move",
-        icon: characterId === "sister" ? "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢" : "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦",
+        icon: characterId === "sister" ? "S" : "B",
         room: characters[characterId].room,
       });
       continue;
@@ -3245,7 +4185,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       const definition = everydayLabels[everydayId] ?? {
         label: humanizeInteractionId(everydayId),
         hint: "Tap to use",
-        icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨",
+        icon: "*",
       };
       setInteraction(mesh, { ...definition, room: metadata?.room as RoomId | undefined });
       continue;
@@ -3255,7 +4195,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       const definition = worldActionLabels[worldAction] ?? {
         label: humanizeInteractionId(worldAction),
         hint: "Tap to play",
-        icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨",
+        icon: "*",
       };
       setInteraction(mesh, { ...definition, room: metadata?.room as RoomId | undefined });
       continue;
@@ -3265,7 +4205,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       setInteraction(mesh, {
         label: humanizeInteractionId(groceryProduct),
         hint: "Pick up or add to the shopping basket",
-        icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂºÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢",
+        icon: "G",
         room: "grocery",
       });
       continue;
@@ -3275,7 +4215,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       setInteraction(mesh, {
         label: `${humanizeInteractionId(outfit)} outfit`,
         hint: "Tap to change Khadija's clothes",
-        icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¹Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â",
+        icon: "O",
         room: "home",
       });
       continue;
@@ -3296,7 +4236,7 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       setInteraction(mesh, {
         label: cleanedName || "Interactive object",
         hint: "Tap to interact",
-        icon: "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨",
+        icon: "*",
         room: metadata?.room as RoomId | undefined,
       });
     }
@@ -3484,7 +4424,14 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
       new Vector3(.18, 0, -.46),
       new Vector3(-.32, 0, -.28),
     ][step];
-    const candidate = anchor.add(offset);
+    const candidate =
+      resolveWorldWalkablePoint(
+        characters[characterId].room,
+        anchor.add(offset),
+        .31,
+        anchor,
+      );
+
     if (!safeAutonomyPoint(characters[characterId].room, candidate)) {
       controller.action = "look-around";
       rig.lookAt(interestingTargets[activeRoom][controller.seed % interestingTargets[activeRoom].length]);
@@ -3564,39 +4511,33 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
 
   const npcSafePoints: Record<NpcId, readonly Vector3[]> = {
     parent: [
-      new Vector3(1.75, 0, 1.45),
-      new Vector3(1.35, 0, 1.1),
-      new Vector3(2.15, 0, 1.7),
+      FAST_TRACK_NPC_STATIONS.parent,
     ],
     neighbor: [
-      streetPosition(-3.65, 0, -.85),
-      streetPosition(-4.25, 0, -.35),
-      streetPosition(-3.05, 0, -.55),
+      FAST_TRACK_NPC_STATIONS.neighbor,
+      streetPosition(-4.20, 0, -1.18),
+      streetPosition(-3.02, 0, -1.08),
     ],
     "cafe-worker": [
-      cafePosition(3.55, 0, 2.75),
-      cafePosition(2.85, 0, 2.7),
-      cafePosition(3.95, 0, 3.05),
+      FAST_TRACK_NPC_STATIONS["cafe-worker"],
     ],
     "park-keeper": [
-      parkPosition(-3.35, 0, 1.45),
-      parkPosition(-4.0, 0, 1.1),
-      parkPosition(-2.8, 0, 1.7),
+      FAST_TRACK_NPC_STATIONS["park-keeper"],
+      parkPosition(-2.55, 0, .85),
+      parkPosition(-3.15, 0, .62),
     ],
     "park-parent": [
-      parkPosition(3.2, 0, -.35),
-      parkPosition(3.8, 0, -.25),
-      parkPosition(3.45, 0, .3),
+      FAST_TRACK_NPC_STATIONS["park-parent"],
+      parkPosition(2.40, 0, -1.30),
+      parkPosition(3.15, 0, -1.42),
     ],
     shopkeeper: [
-      groceryPosition(1.7, 0, -1.9),
-      groceryPosition(1.0, 0, -1.8),
-      groceryPosition(2.15, 0, -2.15),
+      FAST_TRACK_NPC_STATIONS.shopkeeper,
     ],
     "grocery-shopper": [
-      groceryPosition(-2.9, 0, .15),
-      groceryPosition(-3.35, 0, 1.0),
-      groceryPosition(-2.2, 0, 1.65),
+      FAST_TRACK_NPC_STATIONS["grocery-shopper"],
+      groceryPosition(.30, 0, 1.58),
+      groceryPosition(-.15, 0, 1.72),
     ],
   };
 
@@ -3607,17 +4548,50 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     const controller = npcControllers[npcId];
     if (state.room !== activeRoom) return;
 
-    const choices = definition.idleBehaviorSet.filter((choice) => (
-      choice !== "short-wander" || livingSettings.smallMovements
-    ));
+    const choices = definition.idleBehaviorSet.filter(
+      (choice) => choice !== "short-wander",
+    );
     const action = chooseLivingAction(controller, choices);
     controller.action = action;
 
-    if (action === "short-wander" || (action === "work" && livingSettings.smallMovements)) {
+    const npcRoamingEnabled = false;
+    const fixedServiceNpc =
+      npcId === "cafe-worker"
+      || npcId === "shopkeeper";
+
+    if (
+      npcRoamingEnabled
+      && !fixedServiceNpc
+      && (
+        action === "short-wander"
+        || (
+          action === "work"
+          && livingSettings.smallMovements
+        )
+      )
+    ) {
       const points = npcSafePoints[npcId];
-      const target = points[(controller.seed + controller.decisionCount) % points.length];
+      const requestedTarget =
+        points[
+          (
+            controller.seed
+            + controller.decisionCount
+          ) % points.length
+        ];
+
+      const target =
+        resolveWorldWalkablePoint(
+          state.room,
+          requestedTarget,
+          .32,
+          rig.root.position,
+        );
+
       rig.setTarget(target, () => {
-        state.activity = action === "work" ? "work" : "relax";
+        state.activity =
+          action === "work"
+            ? "work"
+            : "relax";
       });
     } else if (action === "social") {
       rig.lookAt(nearestCompanionPosition(activeRoom, rig.root.position));
@@ -3663,7 +4637,29 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
         emitPlayState();
       }
       selectedState().interaction = "walking";
-      selectedRig().moveBy(movementInput, deltaSeconds);
+
+      const movementRig = selectedRig();
+
+      movementRig.moveBy(
+        movementInput,
+        deltaSeconds,
+      );
+
+      const safePosition =
+        clampPlayerPoint(
+          activeRoom,
+          movementRig.root.position,
+        );
+
+      if (
+        !safePosition.equalsWithEpsilon(
+          movementRig.root.position,
+        )
+      ) {
+        movementRig.cancelMovement();
+        movementRig.placeAt(safePosition);
+      }
+
       saveMovementTimer += deltaSeconds;
       if (saveMovementTimer >= 0.5) {
         saveMovementTimer = 0;
@@ -3672,9 +4668,54 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     }
 
     for (const characterId of CHARACTER_IDS) {
-      if (characters[characterId].room !== activeRoom) continue;
-      if (characterId === selectedCharacterId && hasMovementInput) continue;
-      characterRigs[characterId].update(deltaSeconds);
+      if (
+        characters[characterId].room
+        !== activeRoom
+      ) {
+        continue;
+      }
+
+      if (
+        characterId === selectedCharacterId
+        && hasMovementInput
+      ) {
+        continue;
+      }
+
+      const rig = characterRigs[characterId];
+      const previousPosition =
+        rig.root.position.clone();
+
+      rig.update(deltaSeconds);
+
+      const state = characters[characterId];
+      const guidedMovementActive =
+        characterId === selectedCharacterId
+        && performance.now()
+          < guidedMovementUntil;
+
+      if (
+        characterId !== selectedCharacterId
+        && state.activity === "standing"
+        && !guidedMovementActive
+      ) {
+        const safePosition =
+          resolveWorldWalkableStep(
+            activeRoom,
+            previousPosition,
+            rig.root.position,
+            .31,
+          );
+
+        if (
+          !safePosition.equalsWithEpsilon(
+            rig.root.position,
+          )
+        ) {
+          rig.cancelMovement();
+          rig.placeAt(safePosition);
+        }
+      }
     }
 
     const khadijaMoving = hasMovementInput || selectedRig().isMoving();
@@ -3703,8 +4744,42 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     }
 
     for (const npcId of NPC_IDS) {
-      if (npcStates[npcId].room !== activeRoom) continue;
-      npcRigs[npcId].update(deltaSeconds);
+      if (
+        npcStates[npcId].room
+        !== activeRoom
+      ) {
+        continue;
+      }
+
+      const rig = npcRigs[npcId];
+      const previousPosition =
+        rig.root.position.clone();
+
+      rig.update(deltaSeconds);
+
+      const fixedServiceNpc =
+        npcId === "cafe-worker"
+        || npcId === "shopkeeper";
+
+      if (!fixedServiceNpc) {
+        const safePosition =
+          resolveWorldWalkableStep(
+            activeRoom,
+            previousPosition,
+            rig.root.position,
+            .32,
+          );
+
+        if (
+          !safePosition.equalsWithEpsilon(
+            rig.root.position,
+          )
+        ) {
+          rig.cancelMovement();
+          rig.placeAt(safePosition);
+        }
+      }
+
       const productionVisual = npcProductionVisuals[npcId];
       if (!productionVisual) continue;
       const moving = npcRigs[npcId].isMoving();
@@ -3748,7 +4823,20 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     sun.intensity = enhancedLighting ? 0.58 : 0.35;
     applyActiveRoomLighting();
     graphics.setQuality(settings);
-    for (const mesh of detailMeshes) mesh.setEnabled(settings.decorativeDetails);
+    for (const mesh of detailMeshes) {
+      mesh.setEnabled(
+        fastTrackDetailEnabled(
+          mesh,
+          settings.decorativeDetails,
+        ),
+      );
+    }
+
+    setStreetGroceryRefreshQuality(
+      scene,
+      settings.decorativeDetails,
+    );
+
     interiorFurniture.setQualityEnabled(settings.decorativeDetails);
     // High-detail Meshy hero characters remain disabled on Low. Procedural
     // companions and world NPCs remain available on every quality preset.
@@ -3758,8 +4846,11 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
   };
 
   const setLivingSettings = (settings: LivingSettings): void => {
-    livingSettings.idleAnimations = settings.idleAnimations;
-    livingSettings.smallMovements = settings.smallMovements;
+    livingSettings.idleAnimations =
+      settings.idleAnimations;
+
+    livingSettings.smallMovements =
+      settings.smallMovements;
     if (!settings.idleAnimations || !settings.smallMovements) {
       for (const characterId of CHARACTER_IDS) {
         if (characterId !== selectedCharacterId) characterRigs[characterId].cancelMovement();
@@ -3812,6 +4903,9 @@ export function createWorldRuntime(engine: Engine, options: RoomOptions): Protot
     useHeldItem,
     dropHeldItem,
     setOutfit,
+    getAvatarCustomization,
+    setAvatarCustomization,
+    resetAvatarCustomization,
     setExpression,
     selectCharacter,
     switchRoom,

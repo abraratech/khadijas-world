@@ -15,6 +15,7 @@ import { addBlobShadow } from "../shared/meshHelpers";
 
 export type UseGesture = "hug" | "read" | "eat" | "drink";
 export type HeldItemPose = "one-hand" | "two-hand" | "hug" | "read" | "tray";
+export type CharacterActivityPose = "swing" | "scooter" | "bath";
 
 export const CHARACTER_VISUAL_SEMANTIC_KEYS = [
   "root",
@@ -66,6 +67,7 @@ export interface CharacterRig {
   lookAt(target: Vector3 | null): void;
   cancelMovement(): void;
   playUseGesture(gesture: UseGesture): void;
+  setActivityPose(pose: CharacterActivityPose | null): void;
   isSeated(): boolean;
   isSleeping(): boolean;
   isMoving(): boolean;
@@ -386,6 +388,7 @@ export function createCharacterVisual(
   let livingAnimation = true;
   let heldItemAnimation = false;
   let heldItemPose: HeldItemPose | null = null;
+  let activityPose: CharacterActivityPose | null = null;
   let lookTarget: Vector3 | null = null;
   let expression: CharacterExpression = "neutral";
   let idleClock = name.split("").reduce((total, letter) => total + letter.charCodeAt(0), 0) * .071;
@@ -505,9 +508,65 @@ export function createCharacterVisual(
     mouthHighlight.setEnabled(expression === "happy" || expression === "excited");
   };
 
+  const applyActivityPose = (): void => {
+    if (!activityPose) return;
+
+    headPivot.rotation.y = 0;
+    headPivot.rotation.z = 0;
+    visualRoot.rotation.z = 0;
+    visualRoot.scaling.y = 1;
+
+    if (activityPose === "swing") {
+      seated = true;
+      sleeping = false;
+      visualRoot.position.y = -.01;
+      leftLeg.rotation.x = -.58;
+      rightLeg.rotation.x = -.58;
+      leftArm.rotation.x = .52;
+      rightArm.rotation.x = .52;
+      leftArm.rotation.z = .30;
+      rightArm.rotation.z = -.30;
+      return;
+    }
+
+    if (activityPose === "scooter") {
+      seated = false;
+      sleeping = false;
+      visualRoot.position.y = 0;
+      leftLeg.rotation.x = -.10;
+      rightLeg.rotation.x = .52;
+      leftArm.rotation.x = .78;
+      rightArm.rotation.x = .78;
+      leftArm.rotation.z = .18;
+      rightArm.rotation.z = -.18;
+      return;
+    }
+
+    seated = true;
+    sleeping = false;
+    visualRoot.position.y = -.16;
+    leftLeg.rotation.x = -.92;
+    rightLeg.rotation.x = -.92;
+    leftArm.rotation.x = .64;
+    rightArm.rotation.x = .64;
+    leftArm.rotation.z = .34;
+    rightArm.rotation.z = -.34;
+  };
+
   const animateIdle = (deltaSeconds: number): void => {
+    if (activityPose) {
+      applyActivityPose();
+      return;
+    }
+
     if (!livingAnimation || gestureActive || target) {
-      visualRoot.rotation.z *= .72;
+      if (sleeping) {
+        visualRoot.rotation.z += (
+          -Math.PI / 2 - visualRoot.rotation.z
+        ) * .28;
+      } else {
+        visualRoot.rotation.z *= .72;
+      }
       headPivot.rotation.y *= .72;
       headPivot.rotation.z *= .72;
       holdAnchor.rotation.z *= .72;
@@ -516,7 +575,9 @@ export function createCharacterVisual(
     }
     idleClock += deltaSeconds;
     const breath = Math.sin(idleClock * (sleeping ? 1.25 : .82) + idleSeed);
-    visualRoot.rotation.z = breath * (sleeping ? .012 : seated ? .015 : .022);
+    visualRoot.rotation.z = sleeping
+      ? -Math.PI / 2 + breath * .012
+      : breath * (seated ? .015 : .022);
     visualRoot.scaling.y = 1 + breath * (sleeping ? .014 : .004);
     headPivot.rotation.z = Math.sin(idleClock * .37 + idleSeed) * (sleeping ? .009 : .018);
 
@@ -534,8 +595,8 @@ export function createCharacterVisual(
     if (seated && !sleeping) {
       leftArm.rotation.x = -.15 + Math.sin(idleClock * .31 + idleSeed) * .055;
       rightArm.rotation.x = -.15 + Math.sin(idleClock * .29 + idleSeed * 2) * .055;
-      leftLeg.rotation.x = -1.28 + Math.sin(idleClock * .24 + idleSeed) * .035;
-      rightLeg.rotation.x = -1.28 - Math.sin(idleClock * .24 + idleSeed) * .035;
+      leftLeg.rotation.x = -.72 + Math.sin(idleClock * .24 + idleSeed) * .035;
+      rightLeg.rotation.x = -.72 - Math.sin(idleClock * .24 + idleSeed) * .035;
     }
 
     if (sleeping) {
@@ -568,11 +629,13 @@ export function createCharacterVisual(
   const stand = (): void => {
     seated = false;
     sleeping = false;
-    visualRoot.position.y = 0;
-    visualRoot.rotation.z = 0;
+    activityPose = null;
+    visualRoot.position.set(0, 0, 0);
+    visualRoot.rotation.setAll(0);
+    visualRoot.scaling.setAll(1);
     headPivot.rotation.setAll(0);
-    leftLeg.rotation.x = 0;
-    rightLeg.rotation.x = 0;
+    leftLeg.rotation.setAll(0);
+    rightLeg.rotation.setAll(0);
     if (!heldItemPose) {
       leftArm.rotation.setAll(0);
       rightArm.rotation.setAll(0);
@@ -623,31 +686,35 @@ export function createCharacterVisual(
     sitAt(seatPosition: Vector3, rotationY: number): void {
       target = null;
       arrivalAction = null;
+      activityPose = null;
       seated = true;
       sleeping = false;
       root.position.copyFrom(seatPosition);
       root.rotation.y = rotationY;
-      root.position.y = 0.43;
-      visualRoot.position.y = -0.12;
-      leftLeg.rotation.x = -1.28;
-      rightLeg.rotation.x = -1.28;
+      root.position.y = .30;
+      visualRoot.position.y = -.01;
+      leftLeg.rotation.x = -.72;
+      rightLeg.rotation.x = -.72;
       leftArm.rotation.x = -0.15;
       rightArm.rotation.x = -0.15;
     },
     sleepAt(sleepPosition: Vector3, rotationY: number): void {
       target = null;
       arrivalAction = null;
+      activityPose = null;
       seated = true;
       sleeping = true;
       root.position.copyFrom(sleepPosition);
-      root.rotation.y = rotationY;
-      root.position.y = .48;
-      visualRoot.position.y = .15;
-      visualRoot.rotation.z = -Math.PI / 2;
-      leftLeg.rotation.x = -.18;
-      rightLeg.rotation.x = .18;
-      leftArm.rotation.x = .42;
-      rightArm.rotation.x = .42;
+      root.rotation.set(0, rotationY, 0);
+      root.position.y = .78;
+      visualRoot.position.set(-.16, .02, 0);
+      visualRoot.rotation.set(0, 0, -Math.PI / 2);
+      leftLeg.rotation.x = -.08;
+      rightLeg.rotation.x = .08;
+      leftArm.rotation.x = .28;
+      rightArm.rotation.x = .28;
+      leftArm.rotation.z = .12;
+      rightArm.rotation.z = -.12;
     },
     stand,
     placeAt(nextPosition: Vector3): void {
@@ -770,6 +837,25 @@ export function createCharacterVisual(
       };
 
       animatePose(false);
+    },
+    setActivityPose(pose: CharacterActivityPose | null): void {
+      activityPose = pose;
+      target = null;
+      arrivalAction = null;
+
+      if (!pose) {
+        if (sleeping) {
+          visualRoot.rotation.z = -Math.PI / 2;
+        } else if (seated) {
+          leftLeg.rotation.x = -.72;
+          rightLeg.rotation.x = -.72;
+        } else {
+          stand();
+        }
+        return;
+      }
+
+      applyActivityPose();
     },
     isSeated(): boolean {
       return seated;

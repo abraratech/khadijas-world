@@ -51,7 +51,7 @@ export const CHARACTER_DEFINITIONS: Record<CharacterId, CharacterDefinition> = {
     id: "khadija",
     name: "Khadija",
     shortName: "Khadija",
-    scale: 1,
+    scale: .92,
     initialOutfit: "pink",
     initialExpression: "happy",
   },

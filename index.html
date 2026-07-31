@@ -319,6 +319,103 @@
       </section>
 
       <section
+        id="avatar-panel"
+        class="popover avatar-panel"
+        role="dialog"
+        aria-modal="false"
+        aria-labelledby="avatar-heading"
+        hidden
+      >
+        <div class="popover-heading">
+          <div>
+            <span class="eyebrow">Create your look</span>
+            <h2 id="avatar-heading">Khadija's Avatar</h2>
+          </div>
+          <button class="close-button" data-close-popover type="button" aria-label="Close avatar customization">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+
+        <p class="avatar-intro">Mix outfits, shoes, hair, accessories, and lipstick. Your choices are saved automatically.</p>
+
+        <div class="avatar-customization-grid">
+          <fieldset class="avatar-section">
+            <legend><span aria-hidden="true">&#128087;</span> Outfit</legend>
+            <div class="avatar-option-grid">
+              <button data-avatar-field="outfitStyle" data-avatar-value="hoodie" type="button" aria-pressed="true">Hoodie</button>
+              <button data-avatar-field="outfitStyle" data-avatar-value="dress" type="button" aria-pressed="false">Dress</button>
+              <button data-avatar-field="outfitStyle" data-avatar-value="tunic" type="button" aria-pressed="false">Tunic</button>
+              <button data-avatar-field="outfitStyle" data-avatar-value="sport" type="button" aria-pressed="false">Sport</button>
+            </div>
+            <div class="avatar-swatch-grid" aria-label="Outfit color">
+              <button class="avatar-swatch swatch-rose" data-avatar-field="outfitColor" data-avatar-value="rose" type="button" aria-label="Rose outfit" aria-pressed="true"></button>
+              <button class="avatar-swatch swatch-teal" data-avatar-field="outfitColor" data-avatar-value="teal" type="button" aria-label="Teal outfit" aria-pressed="false"></button>
+              <button class="avatar-swatch swatch-sunshine" data-avatar-field="outfitColor" data-avatar-value="sunshine" type="button" aria-label="Sunshine outfit" aria-pressed="false"></button>
+              <button class="avatar-swatch swatch-violet" data-avatar-field="outfitColor" data-avatar-value="violet" type="button" aria-label="Violet outfit" aria-pressed="false"></button>
+              <button class="avatar-swatch swatch-sky" data-avatar-field="outfitColor" data-avatar-value="sky" type="button" aria-label="Sky outfit" aria-pressed="false"></button>
+              <button class="avatar-swatch swatch-mint" data-avatar-field="outfitColor" data-avatar-value="mint" type="button" aria-label="Mint outfit" aria-pressed="false"></button>
+            </div>
+          </fieldset>
+
+          <fieldset class="avatar-section">
+            <legend><span aria-hidden="true">&#128095;</span> Shoes</legend>
+            <div class="avatar-option-grid">
+              <button data-avatar-field="shoeStyle" data-avatar-value="sneakers" type="button" aria-pressed="true">Sneakers</button>
+              <button data-avatar-field="shoeStyle" data-avatar-value="boots" type="button" aria-pressed="false">Boots</button>
+              <button data-avatar-field="shoeStyle" data-avatar-value="flats" type="button" aria-pressed="false">Flats</button>
+            </div>
+            <div class="avatar-swatch-grid" aria-label="Shoe color">
+              <button class="avatar-swatch swatch-berry" data-avatar-field="shoeColor" data-avatar-value="berry" type="button" aria-label="Berry shoes" aria-pressed="true"></button>
+              <button class="avatar-swatch swatch-navy" data-avatar-field="shoeColor" data-avatar-value="navy" type="button" aria-label="Navy shoes" aria-pressed="false"></button>
+              <button class="avatar-swatch swatch-gold" data-avatar-field="shoeColor" data-avatar-value="gold" type="button" aria-label="Gold shoes" aria-pressed="false"></button>
+              <button class="avatar-swatch swatch-white" data-avatar-field="shoeColor" data-avatar-value="white" type="button" aria-label="White shoes" aria-pressed="false"></button>
+              <button class="avatar-swatch swatch-mint" data-avatar-field="shoeColor" data-avatar-value="mint" type="button" aria-label="Mint shoes" aria-pressed="false"></button>
+            </div>
+          </fieldset>
+
+          <fieldset class="avatar-section">
+            <legend><span aria-hidden="true">&#128135;</span> Hair</legend>
+            <div class="avatar-option-grid">
+              <button data-avatar-field="hairStyle" data-avatar-value="curls" type="button" aria-pressed="true">Curls</button>
+              <button data-avatar-field="hairStyle" data-avatar-value="bob" type="button" aria-pressed="false">Bob</button>
+              <button data-avatar-field="hairStyle" data-avatar-value="double-buns" type="button" aria-pressed="false">Double buns</button>
+              <button data-avatar-field="hairStyle" data-avatar-value="ponytail" type="button" aria-pressed="false">Ponytail</button>
+            </div>
+            <div class="avatar-swatch-grid" aria-label="Hair color">
+              <button class="avatar-swatch swatch-espresso" data-avatar-field="hairColor" data-avatar-value="espresso" type="button" aria-label="Espresso hair" aria-pressed="true"></button>
+              <button class="avatar-swatch swatch-black" data-avatar-field="hairColor" data-avatar-value="black" type="button" aria-label="Black hair" aria-pressed="false"></button>
+              <button class="avatar-swatch swatch-chestnut" data-avatar-field="hairColor" data-avatar-value="chestnut" type="button" aria-label="Chestnut hair" aria-pressed="false"></button>
+              <button class="avatar-swatch swatch-auburn" data-avatar-field="hairColor" data-avatar-value="auburn" type="button" aria-label="Auburn hair" aria-pressed="false"></button>
+            </div>
+          </fieldset>
+
+          <fieldset class="avatar-section">
+            <legend><span aria-hidden="true">&#127872;</span> Hair accessory</legend>
+            <div class="avatar-option-grid">
+              <button data-avatar-field="accessory" data-avatar-value="bow" type="button" aria-pressed="true">Bow</button>
+              <button data-avatar-field="accessory" data-avatar-value="headband" type="button" aria-pressed="false">Headband</button>
+              <button data-avatar-field="accessory" data-avatar-value="flowers" type="button" aria-pressed="false">Flowers</button>
+              <button data-avatar-field="accessory" data-avatar-value="none" type="button" aria-pressed="false">None</button>
+            </div>
+          </fieldset>
+
+          <fieldset class="avatar-section avatar-lip-section">
+            <legend><span aria-hidden="true">&#128132;</span> Lipstick</legend>
+            <div class="avatar-option-grid">
+              <button data-avatar-field="lipColor" data-avatar-value="natural" type="button" aria-pressed="true">Natural</button>
+              <button data-avatar-field="lipColor" data-avatar-value="rose" type="button" aria-pressed="false">Rose</button>
+              <button data-avatar-field="lipColor" data-avatar-value="berry" type="button" aria-pressed="false">Berry</button>
+              <button data-avatar-field="lipColor" data-avatar-value="coral" type="button" aria-pressed="false">Coral</button>
+            </div>
+          </fieldset>
+        </div>
+
+        <button id="avatar-reset-button" class="avatar-reset-button" type="button">
+          <span aria-hidden="true">&#8635;</span> Classic Khadija
+        </button>
+      </section>
+
+      <section
         id="settings-panel"
         class="popover settings-panel"
         role="dialog"
@@ -514,13 +611,22 @@
           </button>
         </div>
 
-        <div id="outfit-controls" class="outfit-controls" aria-label="Choose Khadija's outfit">
-          <span class="outfit-heading"><span aria-hidden="true">&#128087;</span> Outfit</span>
-          <div class="outfit-swatches">
-            <button class="outfit-button outfit-pink is-active" data-outfit="pink" type="button" aria-label="Pink outfit" aria-pressed="true"></button>
-            <button class="outfit-button outfit-teal" data-outfit="teal" type="button" aria-label="Teal outfit" aria-pressed="false"></button>
-            <button class="outfit-button outfit-yellow" data-outfit="yellow" type="button" aria-label="Yellow outfit" aria-pressed="false"></button>
-          </div>
+        <button
+          id="avatar-tray-button"
+          class="avatar-tray-button"
+          type="button"
+          aria-label="Open Khadija's avatar customization"
+          aria-controls="avatar-panel"
+          aria-expanded="false"
+        >
+          <span aria-hidden="true">&#128087;</span>
+          <span>Customize</span>
+        </button>
+
+        <div id="outfit-controls" class="outfit-controls" aria-hidden="true" hidden>
+          <button class="outfit-button outfit-pink is-active" data-outfit="pink" type="button" aria-label="Pink outfit" aria-pressed="true"></button>
+          <button class="outfit-button outfit-teal" data-outfit="teal" type="button" aria-label="Teal outfit" aria-pressed="false"></button>
+          <button class="outfit-button outfit-yellow" data-outfit="yellow" type="button" aria-label="Yellow outfit" aria-pressed="false"></button>
         </div>
 
         <div class="expression-controls" aria-label="Choose an expression">
@@ -610,6 +716,7 @@
           <h2 id="pause-heading">Main Menu</h2>
           <div class="parent-actions">
             <button id="resume-button" class="title-primary" type="button">Resume</button>
+            <button id="pause-avatar-button" type="button">Customize Khadija</button>
             <button id="pause-settings-button" type="button">Settings</button>
             <button id="return-title-button" type="button">Return to title screen</button>
             <button id="pause-grown-ups-button" type="button">Grown-Ups</button>
@@ -654,5 +761,12 @@
       </aside>
     </main>
     <script type="module" src="/src/main.ts"></script>
-  </body>
+      <button
+      id="avatar-button"
+      class="avatar-button-bridge"
+      type="button"
+      hidden
+      aria-hidden="true"
+      tabindex="-1"
+    ></button></body>
 </html>

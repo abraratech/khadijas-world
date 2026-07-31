@@ -17,6 +17,10 @@ export interface ParkLocationBuild extends LocationBuildResult {
   hotspots: Record<string, Mesh>;
   containers: { picnicBasket: Mesh; wateringCan: Mesh; camera: Mesh };
   detailMeshes: Mesh[];
+  swingRideRoot: TransformNode;
+  swingRideSeat: Mesh;
+  swingApproach: Vector3;
+  swingExit: Vector3;
 }
 
 function cylinder(scene: Scene, name: string, diameter: number, height: number, position: Vector3, material: StandardMaterial): Mesh {
@@ -103,17 +107,104 @@ export function buildParkLocation(scene: Scene, parkOffsetX: number, materials: 
   box(scene, "park-slide-platform", new Vector3(1.1, .16, .9), new Vector3(0, 1.65, .25), materials.yellow, slideRoot);
   const slideRamp = box(scene, "park-slide-ramp", new Vector3(.8, .12, 2.7), new Vector3(0, .92, -.85), materials.pink, slideRoot);
   slideRamp.rotation.x = -.56;
+  for (const [index, step] of [
+    [0, { y: .18, z: 1.35 }],
+    [1, { y: .46, z: 1.08 }],
+    [2, { y: .74, z: .81 }],
+    [3, { y: 1.02, z: .54 }],
+    [4, { y: 1.30, z: .27 }],
+  ] as const) {
+    box(
+      scene,
+      `park-slide-step-${index}`,
+      new Vector3(.82, .18, .30),
+      new Vector3(0, step.y, step.z),
+      materials.teal,
+      slideRoot,
+    ).isPickable = false;
+  }
+  box(scene, "park-slide-left-rail", new Vector3(.08, 1.55, .08), new Vector3(-.48, .82, .82), materials.dark, slideRoot).rotation.x = -.38;
+  box(scene, "park-slide-right-rail", new Vector3(.08, 1.55, .08), new Vector3(.48, .82, .82), materials.dark, slideRoot).rotation.x = -.38;
   addHotspot("park-slide", "park", park(3.4, 1.0, -2.1), new Vector3(1.5, 2.4, 3.2));
 
   for (const x of [1.1, 2.9]) {
-    box(scene, `park-swing-post-${x}`, new Vector3(.15, 2.55, .15), park(x, 1.28, 2.45), materials.teal);
+    box(
+      scene,
+      `park-swing-post-${x}`,
+      new Vector3(.15, 2.55, .15),
+      park(x, 1.28, 2.45),
+      materials.teal,
+    );
   }
-  box(scene, "park-swing-top", new Vector3(2.0, .14, .14), park(2.0, 2.5, 2.45), materials.teal);
-  for (const x of [1.55, 2.45]) {
-    box(scene, `park-swing-rope-${x}`, new Vector3(.05, 1.45, .05), park(x, 1.68, 2.45), materials.dark);
-    box(scene, `park-swing-seat-${x}`, new Vector3(.55, .1, .38), park(x, .95, 2.45), materials.wood);
-  }
-  addHotspot("park-swings", "park", park(2.0, 1.4, 2.45), new Vector3(2.4, 2.8, 1.1));
+
+  box(
+    scene,
+    "park-swing-top",
+    new Vector3(2.0, .14, .14),
+    park(2.0, 2.5, 2.45),
+    materials.teal,
+  );
+
+  const swingAssemblies = [1.55, 2.45].map(
+    (x, index) => {
+      const swingRoot =
+        new TransformNode(
+          `park-swing-assembly-${index}`,
+          scene,
+        );
+
+      swingRoot.position.copyFrom(
+        park(x, 2.46, 2.45),
+      );
+      swingRoot.parent = root;
+
+      for (const ropeX of [-.20, .20]) {
+        box(
+          scene,
+          `park-swing-${index}-rope-${ropeX}`,
+          new Vector3(.045, 1.48, .045),
+          new Vector3(ropeX, -.75, 0),
+          materials.dark,
+          swingRoot,
+        ).isPickable = false;
+      }
+
+      const seat = box(
+        scene,
+        `park-swing-${index}-seat`,
+        new Vector3(.64, .11, .42),
+        new Vector3(0, -1.49, 0),
+        materials.wood,
+        swingRoot,
+      );
+
+      seat.isPickable = false;
+
+      return {
+        root: swingRoot,
+        seat,
+      };
+    },
+  );
+
+  const swingRideRoot =
+    swingAssemblies[1].root;
+
+  const swingRideSeat =
+    swingAssemblies[1].seat;
+
+  const swingApproach =
+    park(2.45, 0, 1.72);
+
+  const swingExit =
+    park(2.45, 0, 1.62);
+
+  addHotspot(
+    "park-swings",
+    "park",
+    park(2.0, 1.4, 2.45),
+    new Vector3(2.4, 2.8, 1.1),
+  );
 
   cylinder(scene, "park-sandbox", 2.2, .26, park(4.45, .13, .2), materials.yellow);
   addHotspot("park-sandbox", "park", park(4.45, .5, .2), new Vector3(2.3, .8, 2.3));
@@ -197,6 +288,10 @@ export function buildParkLocation(scene: Scene, parkOffsetX: number, materials: 
     hotspots,
     containers: { picnicBasket, wateringCan, camera },
     detailMeshes,
+    swingRideRoot,
+    swingRideSeat,
+    swingApproach,
+    swingExit,
     interactiveMeshes: Object.values(hotspots),
     seats,
     placementSlots: [],

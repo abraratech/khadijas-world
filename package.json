@@ -1,35 +1,36 @@
 {
-  "name": "khadijas-world",
-  "private": true,
-  "version": "0.24.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview",
-    "check": "tsc --noEmit",
-    "test": "vitest run",
-    "deploy:wamp": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-wamp.ps1",
-    "validate:assets": "node scripts/validate-assets.mjs",
-    "check:bundle": "node scripts/check-bundle-size.mjs",
-    "build:verified": "npm run build && npm run check:bundle",
-    "check:qa": "tsc --noEmit -p tsconfig.qa.json",
-    "qa:install": "playwright install chromium",
-    "qa:browser": "playwright test",
-    "qa:perf": "playwright test tests/browser/performance.spec.ts",
-    "qa:browser:headed": "playwright test --headed",
-    "qa:browser:ui": "playwright test --ui",
-    "qa:verified": "npm run validate:assets && npm run check && npm test && npm run check:qa && npm run qa:browser && npm run check:bundle"
-  },
-  "dependencies": {
-    "@babylonjs/core": "9.18.0",
-    "@babylonjs/loaders": "9.18.0"
-  },
-  "devDependencies": {
-    "@playwright/test": "1.61.1",
-    "@types/node": "^26.1.2",
-    "typescript": "^5.9.2",
-    "vite": "8.1.5",
-    "vitest": "^4.1.10"
-  }
+    "name":  "khadijas-world",
+    "private":  true,
+    "version":  "0.24.0",
+    "type":  "module",
+    "scripts":  {
+                    "dev":  "vite",
+                    "build":  "tsc --noEmit \u0026\u0026 vite build",
+                    "preview":  "vite preview",
+                    "check":  "tsc --noEmit",
+                    "test":  "vitest run --config vitest.unit.config.ts",
+                    "deploy:wamp":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-wamp.ps1",
+                    "validate:assets":  "node scripts/validate-assets.mjs",
+                    "check:bundle":  "node scripts/check-bundle-size.mjs",
+                    "build:verified":  "npm run build \u0026\u0026 npm run check:bundle",
+                    "check:qa":  "tsc --noEmit -p tsconfig.qa.json",
+                    "qa:install":  "playwright install chromium",
+                    "qa:browser":  "playwright test",
+                    "qa:perf":  "playwright test tests/browser/performance.spec.ts",
+                    "qa:browser:headed":  "playwright test --headed",
+                    "qa:browser:ui":  "playwright test --ui",
+                    "qa:verified":  "npm run validate:assets \u0026\u0026 npm run check \u0026\u0026 npm test \u0026\u0026 npm run check:qa \u0026\u0026 npm run qa:browser \u0026\u0026 npm run check:bundle",
+                    "build:cloudflare":  "tsc --noEmit \u0026\u0026 vite build --base /"
+                },
+    "dependencies":  {
+                         "@babylonjs/core":  "9.18.0",
+                         "@babylonjs/loaders":  "9.18.0"
+                     },
+    "devDependencies":  {
+                            "@playwright/test":  "1.61.1",
+                            "@types/node":  "^26.1.2",
+                            "typescript":  "^5.9.2",
+                            "vite":  "8.1.5",
+                            "vitest":  "^4.1.10"
+                        }
 }

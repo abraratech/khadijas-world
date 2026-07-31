@@ -69,7 +69,9 @@ export interface NpcDefinition {
 
 export const LIVING_SETTINGS_DEFAULTS: LivingSettings = {
   idleAnimations: true,
-  smallMovements: true,
+  // Stability-first default: characters remain staged unless the player
+  // explicitly enables small autonomous movements.
+  smallMovements: false,
 };
 
 export const NPC_DEFINITIONS: Record<NpcId, NpcDefinition> = {
@@ -221,7 +223,7 @@ export function normalizeLivingSettings(value: unknown): LivingSettings {
   const candidate = value as Partial<LivingSettings>;
   return {
     idleAnimations: candidate.idleAnimations !== false,
-    smallMovements: candidate.smallMovements !== false,
+    smallMovements: candidate.smallMovements === true,
   };
 }
 

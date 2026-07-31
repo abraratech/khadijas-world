@@ -11,6 +11,11 @@ import {
   type CharacterExpression,
   type CharacterId,
 } from "./game/characterState";
+import {
+  DEFAULT_AVATAR_CUSTOMIZATION,
+  type AvatarCustomization,
+  type AvatarCustomizationField,
+} from "./game/characters/avatarCustomization";
 import { applyQuality, type QualityPreset } from "./game/quality";
 import { AdaptiveResolutionController } from "./game/performance/adaptiveResolution";
 import { DialogueController, type DialogueContext } from "./game/dialogue/DialogueController";
@@ -63,6 +68,12 @@ import {
 
 type PlayerQuality = "low" | "medium" | "high";
 
+type AvatarPrototypeRoom = PrototypeRoom & {
+  getAvatarCustomization(): AvatarCustomization;
+  setAvatarCustomization(customization: AvatarCustomization): void;
+  resetAvatarCustomization(): void;
+};
+
 const searchParams = new URLSearchParams(window.location.search);
 const isDebugMode = searchParams.get("debug") === "1";
 const isQaMode = searchParams.get("qa") === "1";
@@ -83,6 +94,13 @@ const helpButton = document.querySelector<HTMLButtonElement>("#help-button");
 const settingsButton = document.querySelector<HTMLButtonElement>("#settings-button");
 const helpCard = document.querySelector<HTMLElement>("#help-card");
 const settingsPanel = document.querySelector<HTMLElement>("#settings-panel");
+const avatarButton = document.querySelector<HTMLButtonElement>("#avatar-button");
+const avatarTrayButton = document.querySelector<HTMLButtonElement>("#avatar-tray-button");
+const avatarPanel = document.querySelector<HTMLElement>("#avatar-panel");
+const avatarResetButton = document.querySelector<HTMLButtonElement>("#avatar-reset-button");
+const avatarOptionButtons = Array.from(
+  document.querySelectorAll<HTMLButtonElement>("[data-avatar-field][data-avatar-value]"),
+);
 const soundToggle = document.querySelector<HTMLButtonElement>("#sound-toggle");
 const musicToggle = document.querySelector<HTMLButtonElement>("#music-toggle");
 const idleAnimationToggle = document.querySelector<HTMLButtonElement>("#idle-animation-toggle");
@@ -184,6 +202,7 @@ const closeReleaseButtons = Array.from(document.querySelectorAll<HTMLButtonEleme
 const menuButton = document.querySelector<HTMLButtonElement>("#menu-button");
 const pausePanel = document.querySelector<HTMLElement>("#pause-panel");
 const resumeButton = document.querySelector<HTMLButtonElement>("#resume-button");
+const pauseAvatarButton = document.querySelector<HTMLButtonElement>("#pause-avatar-button");
 const pauseSettingsButton = document.querySelector<HTMLButtonElement>("#pause-settings-button");
 const returnTitleButton = document.querySelector<HTMLButtonElement>("#return-title-button");
 const pauseGrownUpsButton = document.querySelector<HTMLButtonElement>("#pause-grown-ups-button");
@@ -199,6 +218,7 @@ if (
   || !heldItemValue || !heldItemOwnerLabel || !roomValue
   || !useItemButton || !useItemLabel || !dropItemButton || !togetherButton || !resetButton
   || !helpButton || !settingsButton || !helpCard || !settingsPanel
+  || !avatarButton || !avatarTrayButton || !avatarPanel || !avatarResetButton
   || !soundToggle || !musicToggle || !idleAnimationToggle || !smallMovementToggle
   || !reducedMotionToggle || !largeTextToggle || !highContrastToggle
   || !instantDialogueToggle || !fullscreenButton || !loadingScreen
@@ -214,7 +234,8 @@ if (
   || !onboardingCard || !onboardingProgress || !onboardingIcon || !onboardingTitle
   || !onboardingMessage || !onboardingSkipButton
   || !locationTransition || !transitionIcon || !transitionTitle || !feedbackSparkles
-  || outfitButtons.length === 0 || roomButtons.length === 0 || qualityButtons.length === 0
+  || outfitButtons.length === 0 || avatarOptionButtons.length === 0
+  || roomButtons.length === 0 || qualityButtons.length === 0
   || characterButtons.length === 0 || expressionButtons.length === 0
   || characterLocationLabels.length === 0
   || !titleScreen || !continueButton || !newWorldButton || !titleSettingsButton || !grownUpsButton
@@ -224,7 +245,7 @@ if (
   || !exportSaveButton || !importSaveButton || !importSaveInput || !parentPrivacyButton
   || !parentNoticesButton || !parentCreditsButton || !parentResetButton || !parentResult
   || !creditsPanel || !creditsCopyright || !privacyPanel || !noticesPanel
-  || !menuButton || !pausePanel || !resumeButton || !pauseSettingsButton
+  || !menuButton || !pausePanel || !resumeButton || !pauseAvatarButton || !pauseSettingsButton
   || !returnTitleButton || !pauseGrownUpsButton || !pauseCreditsButton
   || !exitFullscreenButton || !saveStatus || !pauseSaveStatus
   || !chatPrivacyReminder || !chatPrivacyAcknowledge
@@ -853,7 +874,10 @@ const updateInteractionLabel = (hint: InteractionHint | null): void => {
   interactionLabel.style.top = `${top}px`;
 };
 
-let room: PrototypeRoom;
+let room: AvatarPrototypeRoom;
+let avatarCustomization: AvatarCustomization = {
+  ...DEFAULT_AVATAR_CUSTOMIZATION,
+};
 let activeChatNpc: NpcId | null = null;
 let activeChatCharacter: CharacterId | null = null;
 let chatReplyTimer = 0;
@@ -1017,6 +1041,21 @@ const roomIcons: Record<RoomId, string> = {
   grocery: "\u{1F6D2}",
 };
 
+const syncAvatarControls = (): void => {
+  for (const button of avatarOptionButtons) {
+    const field = button.dataset.avatarField as AvatarCustomizationField | undefined;
+    const value = button.dataset.avatarValue;
+    const isActive = Boolean(
+      field
+      && value
+      && avatarCustomization[field] === value
+    );
+
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  }
+};
+
 const updatePlayState = (state: PlayState): void => {
   if (
     activeChatNpc
@@ -1100,6 +1139,7 @@ room = createPrototypeRoom(engine, {
     && chatPanel.hidden
     && helpCard.hidden
     && settingsPanel.hidden
+    && avatarPanel.hidden
     && releasePanels.every((panel) => panel.hidden)
   ),
   onPlayStateChange: updatePlayState,
@@ -1107,8 +1147,10 @@ room = createPrototypeRoom(engine, {
   isNpcChatEnabled: () => dialoguePreferences.npcChat,
   onNpcMemoryEvent: (event) => dialogueController.recordWorldEvent(event),
   onInteractionHint: updateInteractionLabel,
-});
+}) as AvatarPrototypeRoom;
 room.setLivingSettings(livingPreferences);
+avatarCustomization = room.getAvatarCustomization();
+syncAvatarControls();
 
 if (isQaMode) {
   Object.defineProperty(window, "__KHADIJAS_WORLD_QA__", {
@@ -1221,8 +1263,11 @@ let activePopover: {
 function closePopovers(shouldRestoreFocus = true): void {
   helpCard!.hidden = true;
   settingsPanel!.hidden = true;
+  avatarPanel!.hidden = true;
   helpButton!.setAttribute("aria-expanded", "false");
   settingsButton!.setAttribute("aria-expanded", "false");
+  avatarButton!.setAttribute("aria-expanded", "false");
+  avatarTrayButton!.setAttribute("aria-expanded", "false");
 
   const opener = activePopover?.opener ?? null;
   activePopover = null;
@@ -1308,7 +1353,7 @@ importSaveButton.addEventListener("click", () => importSaveInput.click());
 importSaveInput.addEventListener("change", async () => {
   const file = importSaveInput.files?.[0];
   if (!file) return;
-  parentResult.textContent = "Checking that saveÃ¢â‚¬Â¦";
+  parentResult.textContent = "Checking that save…";
   const raw = await file.text();
   const preview = previewWorldSaveImport(raw);
   if (!preview.accepted) {
@@ -1352,6 +1397,10 @@ const openPause = (): void => {
 
 menuButton.addEventListener("click", openPause);
 resumeButton.addEventListener("click", () => enterGame());
+pauseAvatarButton.addEventListener("click", () => {
+  enterGame();
+  openPopover(avatarPanel, avatarButton);
+});
 pauseSettingsButton.addEventListener("click", () => {
   enterGame();
   openPopover(settingsPanel, settingsButton);
@@ -1376,6 +1425,14 @@ pauseCreditsButton.addEventListener("click", () => {
 exitFullscreenButton.addEventListener("click", () => {
   if (document.fullscreenElement) void document.exitFullscreen();
   else showAction("Full screen is already off.", "toggle");
+});
+
+avatarButton.addEventListener("click", () => {
+  togglePopover(avatarPanel, avatarButton);
+});
+
+avatarTrayButton.addEventListener("click", () => {
+  togglePopover(avatarPanel, avatarTrayButton);
 });
 
 helpButton.addEventListener("click", () => {
@@ -1567,6 +1624,29 @@ useItemButton.addEventListener("click", () => room.useHeldItem());
 dropItemButton.addEventListener("click", () => room.dropHeldItem());
 togetherButton.addEventListener("click", () => room.playTogether());
 
+for (const button of avatarOptionButtons) {
+  button.addEventListener("click", () => {
+    const field = button.dataset.avatarField as AvatarCustomizationField | undefined;
+    const value = button.dataset.avatarValue;
+    if (!field || !value) return;
+
+    avatarCustomization = {
+      ...avatarCustomization,
+      [field]: value,
+    } as AvatarCustomization;
+
+    room.setAvatarCustomization(avatarCustomization);
+    avatarCustomization = room.getAvatarCustomization();
+    syncAvatarControls();
+  });
+}
+
+avatarResetButton.addEventListener("click", () => {
+  room.resetAvatarCustomization();
+  avatarCustomization = room.getAvatarCustomization();
+  syncAvatarControls();
+});
+
 for (const button of outfitButtons) {
   button.addEventListener("click", () => {
     const outfit = button.dataset.outfit as OutfitId | undefined;
@@ -1689,8 +1769,8 @@ let saveStatusTimer = 0;
 window.addEventListener("khadijas-world:save-status", (event) => {
   const saved = (event as CustomEvent<{ saved: boolean }>).detail.saved;
   window.clearTimeout(saveStatusTimer);
-  saveStatus.textContent = "SavingÃ¢â‚¬Â¦";
-  pauseSaveStatus.textContent = "SavingÃ¢â‚¬Â¦";
+  saveStatus.textContent = "Saving…";
+  pauseSaveStatus.textContent = "Saving…";
   saveStatus.classList.add("is-visible");
   saveStatusTimer = window.setTimeout(() => {
     const message = saved ? "Saved" : "Saving is unavailable";

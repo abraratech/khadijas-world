@@ -96,12 +96,60 @@ export function buildBedroom({
   bedroomRugInset.isPickable = false;
   detailMeshes.push(bedroomRugInset);
 
-  // Bed and a transparent hotspot used for the relax interaction.
-  box(scene, "bed-frame", new Vector3(3.25, 0.48, 2.15), bedroomPosition(-3.55, 0.34, 0.55), white);
-  box(scene, "bed-mattress", new Vector3(3.05, 0.38, 1.95), bedroomPosition(-3.55, 0.72, 0.52), creamWall);
-  box(scene, "bed-blanket", new Vector3(1.95, 0.18, 1.88), bedroomPosition(-3.0, 0.98, 0.5), lavender);
-  box(scene, "bed-headboard", new Vector3(3.25, 1.55, 0.28), bedroomPosition(-3.55, 1.2, 1.52), pink);
-  box(scene, "bed-pillow", new Vector3(0.95, 0.28, 0.68), bedroomPosition(-4.35, 1.02, 0.9), yellow);
+  // A separate ensuite nook keeps hygiene play visually distinct from
+  // the sleeping and dress-up parts of the bedroom.
+  box(
+    scene,
+    "bedroom-ensuite-wall-back",
+    new Vector3(.16, 2.75, 1.30),
+    bedroomPosition(.72, 1.37, -2.68),
+    creamWall,
+  );
+
+  box(
+    scene,
+    "bedroom-ensuite-wall-front",
+    new Vector3(.16, 2.75, .56),
+    bedroomPosition(.72, 1.37, -.92),
+    creamWall,
+  );
+
+  box(
+    scene,
+    "bedroom-ensuite-door-header",
+    new Vector3(.16, .36, .82),
+    bedroomPosition(.72, 2.56, -1.62),
+    creamWall,
+  );
+
+  box(
+    scene,
+    "bedroom-ensuite-floor",
+    new Vector3(4.75, .035, 2.70),
+    bedroomPosition(3.25, .015, -2.12),
+    sky,
+  ).isPickable = false;
+
+  // A lower, layered bed keeps the sleeping pose readable from the dollhouse camera.
+  box(scene, "bed-frame", new Vector3(3.42, .28, 2.22), bedroomPosition(-3.55, .20, .55), wood);
+  box(scene, "bed-mattress", new Vector3(3.18, .34, 2.02), bedroomPosition(-3.55, .48, .52), creamWall);
+  box(scene, "bed-blanket", new Vector3(2.36, .12, 1.94), bedroomPosition(-3.12, .70, .48), lavender);
+  box(scene, "bed-blanket-fold", new Vector3(.56, .15, 1.96), bedroomPosition(-2.18, .76, .48), pink);
+  box(scene, "bed-headboard", new Vector3(3.42, 1.10, .24), bedroomPosition(-3.55, .78, 1.55), wood);
+  box(scene, "bed-headboard-inset", new Vector3(2.92, .62, .08), bedroomPosition(-3.55, .86, 1.40), pink);
+  box(scene, "bed-pillow-left", new Vector3(.84, .22, .62), bedroomPosition(-4.24, .76, .92), white);
+  box(scene, "bed-pillow-right", new Vector3(.84, .22, .62), bedroomPosition(-3.34, .76, .92), yellow);
+  for (const [index, x] of [-3.75, -3.20, -2.65].entries()) {
+    const quiltStripe = box(
+      scene,
+      `bed-quilt-stripe-${index}`,
+      new Vector3(.045, .025, 1.76),
+      bedroomPosition(x, .775, .40),
+      white,
+    );
+    quiltStripe.isPickable = false;
+    detailMeshes.push(quiltStripe);
+  }
   const bedHotspotMaterial = material(scene, "bed-hotspot-mat", colors.pink);
   bedHotspotMaterial.alpha = 0.025;
   const bedHotspot = box(
@@ -113,19 +161,19 @@ export function buildBedroom({
   );
 
   // Bedroom desk, mirror, wardrobe and toy storage.
-  box(scene, "bedroom-desk-top", new Vector3(2.2, 0.16, 0.9), bedroomPosition(3.8, 1.05, 2.85), wood);
-  for (const x of [3.0, 4.6]) {
+  box(scene, "bedroom-desk-top", new Vector3(2.2, 0.16, 0.9), bedroomPosition(2.75, 1.05, 2.85), wood);
+  for (const x of [1.95, 3.55]) {
     box(scene, `bedroom-desk-leg-${x}`, new Vector3(0.14, 1.0, 0.14), bedroomPosition(x, 0.52, 2.85), white);
   }
-  box(scene, "bedroom-chair-seat", new Vector3(0.85, 0.18, 0.75), bedroomPosition(3.8, 0.58, 1.95), teal);
-  box(scene, "bedroom-chair-back", new Vector3(0.85, 0.9, 0.18), bedroomPosition(3.8, 1.05, 2.25), teal);
-  box(scene, "bedroom-notebook", new Vector3(0.72, 0.08, 0.52), bedroomPosition(3.55, 1.17, 2.8), pink);
+  box(scene, "bedroom-chair-seat", new Vector3(0.85, 0.18, 0.75), bedroomPosition(2.75, 0.58, 1.95), teal);
+  box(scene, "bedroom-chair-back", new Vector3(0.85, 0.9, 0.18), bedroomPosition(2.75, 1.05, 2.25), teal);
+  box(scene, "bedroom-notebook", new Vector3(0.72, 0.08, 0.52), bedroomPosition(2.50, 1.17, 2.8), pink);
 
-  box(scene, "bedroom-wardrobe", new Vector3(1.85, 2.85, 0.72), bedroomPosition(4.85, 1.42, -2.72), wood);
-  box(scene, "bedroom-wardrobe-door-left", new Vector3(0.82, 2.55, 0.08), bedroomPosition(4.4, 1.42, -3.12), mint);
-  box(scene, "bedroom-wardrobe-door-right", new Vector3(0.82, 2.55, 0.08), bedroomPosition(5.3, 1.42, -3.12), mint);
-  box(scene, "bedroom-mirror-frame", new Vector3(1.35, 2.35, 0.12), bedroomPosition(2.45, 1.55, 3.82), wood);
-  const mirror = box(scene, "bedroom-mirror", new Vector3(1.12, 2.08, 0.05), bedroomPosition(2.45, 1.55, 3.72), sky);
+  box(scene, "bedroom-wardrobe", new Vector3(1.85, 2.85, 0.72), bedroomPosition(5.0, 1.42, 2.72), wood);
+  box(scene, "bedroom-wardrobe-door-left", new Vector3(0.82, 2.55, 0.08), bedroomPosition(4.55, 1.42, 2.32), mint);
+  box(scene, "bedroom-wardrobe-door-right", new Vector3(0.82, 2.55, 0.08), bedroomPosition(5.45, 1.42, 2.32), mint);
+  box(scene, "bedroom-mirror-frame", new Vector3(1.35, 2.35, 0.12), bedroomPosition(4.05, 1.55, 3.82), wood);
+  const mirror = box(scene, "bedroom-mirror", new Vector3(1.12, 2.08, 0.05), bedroomPosition(4.05, 1.55, 3.72), sky);
   mirror.isPickable = false;
 
   box(scene, "toy-shelf", new Vector3(2.35, 1.35, 0.72), bedroomPosition(1.0, 0.68, 3.15), wood);
@@ -235,18 +283,18 @@ export function buildBedroom({
       id: "bedroom-bed-1",
       kind: "bed",
       room: "bedroom",
-      position: bedroomPosition(-3.72, 0, .38),
-      approach: bedroomPosition(-2.4, 0, -.5),
-      rotationY: Math.PI / 2,
+      position: bedroomPosition(-3.55, 0, .22),
+      approach: bedroomPosition(-2.30, 0, -.55),
+      rotationY: 0,
       sleeping: true,
     },
     {
       id: "bedroom-bed-2",
       kind: "bed",
       room: "bedroom",
-      position: bedroomPosition(-3.15, 0, .38),
-      approach: bedroomPosition(-2.05, 0, -.15),
-      rotationY: Math.PI / 2,
+      position: bedroomPosition(-3.55, 0, .82),
+      approach: bedroomPosition(-2.30, 0, -.05),
+      rotationY: 0,
       sleeping: true,
     },
   ];
