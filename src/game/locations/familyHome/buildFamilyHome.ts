@@ -22,10 +22,13 @@ import {
   roundedFootprint,
   softCushion,
 } from "./homeVisualHelpers";
+import { buildFamilyHomeFridge, type FamilyHomeFridgeVisual } from "./familyHomeFridge";
+
 
 export interface FamilyHomeBuild extends LocationBuildResult {
   doorPivot: TransformNode;
   cupboardDoor: Mesh;
+  fridge: FamilyHomeFridgeVisual;
 }
 
 export interface FamilyHomeContext {
@@ -214,22 +217,23 @@ export function buildFamilyHome({
     detailMeshes.push(line);
   }
 
-  // Rounded fridge, cabinets and island establish the home production style.
-  addSoftShadow(scene, "fridge-shadow", new Vector3(2.3, .015, 2.95), new Vector3(.84, 1, .66), home.shadow, detailMeshes, root);
-  roundedFootprint(scene, "fridge", new Vector3(1.48, 2.92, 1.18), new Vector3(2.3, 1.46, 2.95), home.fabricMint, .16, root);
-  roundedFootprint(scene, "fridge-top-door", new Vector3(1.24, 1.35, .08), new Vector3(2.3, 2.17, 2.34), mint, .08, root);
-  roundedFootprint(scene, "fridge-bottom-door", new Vector3(1.24, 1.24, .08), new Vector3(2.3, .85, 2.34), mint, .08, root);
-  box(scene, "fridge-divider", new Vector3(1.16, .04, .03), new Vector3(2.3, 1.48, 2.29), white);
-  for (const [name, y] of [["fridge-handle-top", 2.17], ["fridge-handle-bottom", .84]] as const) {
-    const handle = MeshBuilder.CreateCylinder(name, { diameter: .07, height: .58, tessellation: 10 }, scene);
-    handle.position.set(2.81, y, 2.25);
-    handle.material = home.metal;
-    handle.parent = root;
-  }
-  const magnetOne = cylinder(scene, "fridge-magnet-one", .18, .04, new Vector3(1.92, 2.2, 2.25), pink, 12);
-  magnetOne.rotation.x = Math.PI / 2;
-  const magnetTwo = cylinder(scene, "fridge-magnet-two", .16, .04, new Vector3(2.28, 1.9, 2.25), yellow, 12);
-  magnetTwo.rotation.x = Math.PI / 2;
+  // SCENE.1D gives the fridge a readable appliance silhouette, interior,
+  // shelves, handle, dispenser, and a real pivoted door.
+  const fridge = buildFamilyHomeFridge(
+    scene,
+    root,
+    detailMeshes,
+    {
+      body: home.ceramic,
+      door: teal,
+      liner: white,
+      interior: dark,
+      metal: home.metal,
+      accent: pink,
+      secondary: yellow,
+      shadow: home.shadow,
+    },
+  );
 
   roundedFootprint(scene, "counter", new Vector3(4.12, 1, 1.12), new Vector3(4.15, .5, 3.2), mint, .12, root);
   roundedFootprint(scene, "counter-top", new Vector3(4.34, .14, 1.3), new Vector3(4.15, 1.07, 3.2), home.ceramic, .12, root);
@@ -343,6 +347,7 @@ export function buildFamilyHome({
     placementSlots: [],
     doorPivot,
     cupboardDoor,
+    fridge,
     activate: () => undefined,
     deactivate: () => undefined,
     dispose: () => root.dispose(false, false),

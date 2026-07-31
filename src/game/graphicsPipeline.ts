@@ -1,4 +1,8 @@
-﻿import {
+import {
+  createToyMaterialPromotionController,
+} from "./shared/toyMaterialPromotion";
+
+import {
   type AbstractMesh,
   type Camera,
   CascadedShadowGenerator,
@@ -15,6 +19,7 @@ export type GraphicsQualityTier = "low" | "adaptive" | "balanced";
 
 export interface GraphicsQualityProfile {
   tier: GraphicsQualityTier;
+  toyPbrMaterials: boolean;
   environmentIntensity: number;
   cascadedShadows: boolean;
   ssao: boolean;
@@ -34,33 +39,37 @@ export interface NextGenGraphicsOptions {
 
 const LOW_PROFILE: Readonly<GraphicsQualityProfile> = {
   tier: "low",
-  environmentIntensity: 0.3,
+  environmentIntensity: 0.26,
   cascadedShadows: false,
   ssao: false,
   postProcessing: false,
   msaaSamples: 1,
   bloom: false,
+  toyPbrMaterials: false,
 };
 
 const ADAPTIVE_PROFILE: Readonly<GraphicsQualityProfile> = {
   tier: "adaptive",
-  environmentIntensity: 0.48,
+  environmentIntensity: 0.42,
   cascadedShadows: false,
   ssao: false,
   postProcessing: false,
   msaaSamples: 1,
   bloom: false,
+  toyPbrMaterials: false,
 };
 
 const BALANCED_PROFILE: Readonly<GraphicsQualityProfile> = {
   tier: "balanced",
-  environmentIntensity: 0.78,
+  environmentIntensity: 0.82,
   cascadedShadows: true,
   ssao: true,
   postProcessing: true,
-  msaaSamples: 4,
+  msaaSamples: 2,
   bloom: true,
+  toyPbrMaterials: true,
 };
+
 
 export function graphicsProfileForQuality(
   settings: QualitySettings,
@@ -141,6 +150,9 @@ export function createNextGenGraphicsController(
     scene,
   );
 
+  const toyMaterials =
+    createToyMaterialPromotionController(scene);
+
   scene.environmentTexture = environmentTexture;
   scene.environmentIntensity = ADAPTIVE_PROFILE.environmentIntensity;
 
@@ -207,14 +219,15 @@ export function createNextGenGraphicsController(
   ): void => {
     if (!shadowGenerator) {
       shadowGenerator = new CascadedShadowGenerator(
-        1024,
-        sunLight,
-      );
+	  512,
+	  sunLight,
+	);
 
-      shadowGenerator.useContactHardeningShadow = true;
-      shadowGenerator.contactHardeningLightSizeUVRatio = 0.035;
-      shadowGenerator.bias = 0.0008;
-      shadowGenerator.normalBias = 0.015;
+	shadowGenerator.useContactHardeningShadow = true;
+	shadowGenerator.contactHardeningLightSizeUVRatio = 0.03;
+	shadowGenerator.bias = 0.001;
+	shadowGenerator.normalBias = 0.018;
+	shadowGenerator.shadowMaxZ = 26;
 
       // The active dollhouse room is close to the fixed camera. Keeping this
       // depth range restrained improves CSM precision and avoids spending
@@ -234,41 +247,39 @@ export function createNextGenGraphicsController(
         [camera],
       );
 
-      defaultPipeline.samples = profile.msaaSamples;
-      defaultPipeline.fxaaEnabled = false;
+	defaultPipeline.samples = profile.msaaSamples;
+	defaultPipeline.fxaaEnabled = false;
 
-      defaultPipeline.imageProcessingEnabled = true;
-      imageProcessing.toneMappingEnabled = true;
-      imageProcessing.toneMappingType =
-        ImageProcessingConfiguration.TONEMAPPING_ACES;
-      imageProcessing.exposure = 1.04;
-      imageProcessing.contrast = 1.1;
-      imageProcessing.vignetteEnabled = false;
+	defaultPipeline.imageProcessingEnabled = true;
+	imageProcessing.toneMappingEnabled = true;
+	imageProcessing.toneMappingType =
+	  ImageProcessingConfiguration.TONEMAPPING_ACES;
+	imageProcessing.exposure = 1.08;
+	imageProcessing.contrast = 1.06;
+	imageProcessing.vignetteEnabled = false;
 
-      defaultPipeline.bloomEnabled = profile.bloom;
-      defaultPipeline.bloomThreshold = 0.86;
-      defaultPipeline.bloomWeight = 0.14;
-      defaultPipeline.bloomKernel = 32;
-
-      // Gameplay readability takes priority over a cinematic blur effect.
-      // This can later become a separate optional visual setting.
-      defaultPipeline.depthOfFieldEnabled = false;
+	defaultPipeline.bloomEnabled = profile.bloom;
+	defaultPipeline.bloomThreshold = 0.9;
+	defaultPipeline.bloomWeight = 0.1;
+	defaultPipeline.bloomKernel = 24;
+	defaultPipeline.depthOfFieldEnabled = false;
     }
 
     if (!ssaoPipeline) {
-      ssaoPipeline = new SSAO2RenderingPipeline(
-        "gfx1-ssao2",
-        scene,
-        {
-          ssaoRatio: 0.5,
-          blurRatio: 0.5,
-        },
-      );
+	ssaoPipeline = new SSAO2RenderingPipeline(
+	  "gfx1-ssao2",
+	  scene,
+	  {
+		ssaoRatio: 0.35,
+		blurRatio: 0.25,
+	  },
+	);
 
-      ssaoPipeline.radius = 1.25;
-      ssaoPipeline.totalStrength = 0.85;
-      ssaoPipeline.expensiveBlur = false;
-
+	ssaoPipeline.radius = 1.05;
+	ssaoPipeline.totalStrength = 0.7;
+	ssaoPipeline.samples = 8;
+	ssaoPipeline.textureSamples = 1;
+	ssaoPipeline.expensiveBlur = false;
       scene.postProcessRenderPipelineManager
         .attachCamerasToRenderPipeline(
           "gfx1-ssao2",
@@ -278,18 +289,25 @@ export function createNextGenGraphicsController(
   };
 
   const setQuality = (settings: QualitySettings): void => {
-    if (disposed) return;
+  if (disposed) return;
 
-    const profile = graphicsProfileForQuality(settings);
-    scene.environmentIntensity = profile.environmentIntensity;
+  const profile = graphicsProfileForQuality(settings);
 
-    if (profile.postProcessing) {
-      createHighEffects(profile);
-      return;
-    }
+  scene.environmentIntensity =
+    profile.environmentIntensity;
 
-    disposeHighEffects();
-  };
+  toyMaterials.setEnabled(profile.toyPbrMaterials);
+
+  if (profile.postProcessing) {
+    createHighEffects(profile);
+    toyMaterials.refresh();
+    return;
+  }
+
+  disposeHighEffects();
+};
+
+toyMaterials.dispose();
 
   const dispose = (): void => {
     if (disposed) return;

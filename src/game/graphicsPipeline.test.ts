@@ -1,6 +1,6 @@
 ﻿import { describe, expect, it } from "vitest";
-import { QUALITY_SETTINGS } from "./quality";
 import { graphicsProfileForQuality } from "./graphicsPipeline";
+import { QUALITY_SETTINGS } from "./quality";
 
 describe("quality-aware graphics profiles", () => {
   it("keeps expensive rendering disabled on Low", () => {
@@ -13,6 +13,7 @@ describe("quality-aware graphics profiles", () => {
       postProcessing: false,
       msaaSamples: 1,
       bloom: false,
+      toyPbrMaterials: false,
     });
   });
 
@@ -26,10 +27,11 @@ describe("quality-aware graphics profiles", () => {
       postProcessing: false,
       msaaSamples: 1,
       bloom: false,
+      toyPbrMaterials: false,
     });
   });
 
-  it("enables the complete rendering profile for Balanced", () => {
+  it("enables the optimized toy rendering profile for Balanced", () => {
     expect(
       graphicsProfileForQuality(QUALITY_SETTINGS.balanced),
     ).toMatchObject({
@@ -37,8 +39,9 @@ describe("quality-aware graphics profiles", () => {
       cascadedShadows: true,
       ssao: true,
       postProcessing: true,
-      msaaSamples: 4,
+      msaaSamples: 2,
       bloom: true,
+      toyPbrMaterials: true,
     });
   });
 });

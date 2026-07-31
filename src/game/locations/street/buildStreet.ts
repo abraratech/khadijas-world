@@ -19,6 +19,8 @@ import type { LocationBuildResult } from "../../world/LocationBuildResult";
 export interface StreetBuild extends LocationBuildResult {
   benchHotspot: Mesh;
   scooterHotspot: Mesh;
+  scooterRoot: TransformNode;
+  scooterWheels: readonly Mesh[];
 }
 
 export interface StreetContext {
@@ -154,13 +156,25 @@ export function buildStreet({ scene, materials, detailMeshes, contentState, posi
   scooterDeck.isPickable = false;
   box(scene, "street-scooter-stem", new Vector3(0.1, 1.1, 0.1), new Vector3(0.36, 0.72, 0), teal, scooterRoot).isPickable = false;
   box(scene, "street-scooter-handle", new Vector3(0.55, 0.08, 0.08), new Vector3(0.36, 1.28, 0), teal, scooterRoot).isPickable = false;
+  const scooterWheels: Mesh[] = [];
+
   for (const x of [-0.34, 0.34]) {
-    const wheel = MeshBuilder.CreateCylinder(`street-scooter-wheel-${x}`, { diameter: 0.32, height: 0.12, tessellation: 14 }, scene);
+    const wheel = MeshBuilder.CreateCylinder(
+      `street-scooter-wheel-${x}`,
+      {
+        diameter: 0.32,
+        height: 0.12,
+        tessellation: 14,
+      },
+      scene,
+    );
+
     wheel.position.set(x, 0.16, 0);
     wheel.rotation.x = Math.PI / 2;
     wheel.material = dark;
     wheel.parent = scooterRoot;
     wheel.isPickable = false;
+    scooterWheels.push(wheel);
   }
   const scooterHotspotMaterial = material(scene, "scooter-hotspot-mat", colors.yellow);
   scooterHotspotMaterial.alpha = 0.025;
@@ -201,6 +215,8 @@ export function buildStreet({ scene, materials, detailMeshes, contentState, posi
     seats, placementSlots: [],
     benchHotspot: streetBenchHotspot,
     scooterHotspot: streetScooterHotspot,
+    scooterRoot,
+    scooterWheels,
     activate: () => undefined,
     deactivate: () => undefined,
     dispose: () => root.dispose(false, false),

@@ -161,7 +161,7 @@ export function buildCafe({ scene, materials, detailMeshes, contentState, positi
   for (const [index, x] of [-3.5, -1.1].entries()) {
     cylinder(scene, `cafe-table-${index}`, 1.3, 0.16, cafePosition(x, 0.9, 0.95), wood, 20);
     box(scene, `cafe-table-leg-${index}`, new Vector3(0.16, 0.85, 0.16), cafePosition(x, 0.43, 0.95), white);
-    for (const z of [0.0, 1.9]) {
+    for (const z of [-.35, 1.9]) {
       cylinder(scene, `cafe-chair-seat-${index}-${z}`, 0.68, 0.16, cafePosition(x, 0.55, z), cafeBlue, 18);
       box(scene, `cafe-chair-leg-${index}-${z}`, new Vector3(0.12, 0.55, 0.12), cafePosition(x, 0.28, z), dark);
     }
@@ -172,7 +172,7 @@ export function buildCafe({ scene, materials, detailMeshes, contentState, positi
     scene,
     "cafe-seat-hotspot",
     new Vector3(0.85, 0.5, 0.85),
-    cafePosition(-3.5, 0.72, 0),
+    cafePosition(-3.5, 0.72, -.35),
     cafeSeatMaterial,
   );
 
@@ -205,8 +205,8 @@ export function buildCafe({ scene, materials, detailMeshes, contentState, positi
       id: "cafe-chair-1",
       kind: "cafe-chair",
       room: "cafe",
-      position: cafePosition(-3.5, 0, 0),
-      approach: cafePosition(-3.5, 0, -.58),
+      position: cafePosition(-3.5, 0, -.35),
+      approach: cafePosition(-3.5, 0, -.92),
       rotationY: 0,
       sleeping: false,
     },
@@ -214,8 +214,8 @@ export function buildCafe({ scene, materials, detailMeshes, contentState, positi
       id: "cafe-chair-2",
       kind: "cafe-chair",
       room: "cafe",
-      position: cafePosition(-1.1, 0, 0),
-      approach: cafePosition(-1.1, 0, -.58),
+      position: cafePosition(-1.1, 0, -.35),
+      approach: cafePosition(-1.1, 0, -.92),
       rotationY: 0,
       sleeping: false,
     },

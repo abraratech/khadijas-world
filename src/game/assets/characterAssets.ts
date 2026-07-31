@@ -209,11 +209,15 @@ export const SHOPKEEPER_PRODUCTION_ASSET: ProductionCharacterAssetDefinition = {
   license: "CC0; see THIRD_PARTY_NOTICES.md",
 };
 
+/**
+ * Khadija's imported GLB remains defined above for audit and rollback.
+ *
+ * CHAR.1 keeps the expressive procedural hero active during standing,
+ * walking, sitting, sleeping, held-item interactions, and play activities.
+ */
 export const PRODUCTION_CHARACTER_ASSETS: Partial<
   Record<CharacterId, ProductionCharacterAssetDefinition>
-> = {
-  khadija: KHADIJA_PRODUCTION_ASSET,
-};
+> = {};
 
 /**
  * World NPCs use the cohesive hero-procedural system.
