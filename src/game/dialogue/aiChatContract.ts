@@ -27,7 +27,11 @@ export type AiChatFailureReason =
 
 export type AiChatResponseBody =
   | { ok: true; text: string }
-  | { ok: false; reason: AiChatFailureReason };
+  | {
+      ok: false;
+      reason: AiChatFailureReason;
+      retryAfterSeconds?: number;
+    };
 
 export const AI_CHAT_MAX_MESSAGE_LENGTH = 160;
 export const AI_CHAT_MAX_REPLY_LENGTH = 220;

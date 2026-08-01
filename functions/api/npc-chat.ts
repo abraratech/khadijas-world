@@ -16,8 +16,8 @@ interface Env {
 
 const CHAT_MODEL = "@cf/meta/llama-3.1-8b-instruct-fast";
 const MODERATION_MODEL = "@cf/meta/llama-guard-3-8b";
-const RATE_LIMIT_MAX_REQUESTS = 12;
-const RATE_LIMIT_WINDOW_SECONDS = 600;
+const RATE_LIMIT_MAX_REQUESTS = 8;
+const RATE_LIMIT_WINDOW_SECONDS = 60;
 const MAX_RECENT_TURNS = 4;
 const MAX_BODY_BYTES = 4096;
 
@@ -43,13 +43,18 @@ function friendshipLabel(value: number): string {
   return "New friend";
 }
 
-function jsonResponse(body: AiChatResponseBody, status: number): Response {
+function jsonResponse(
+  body: AiChatResponseBody,
+  status: number,
+  extraHeaders: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
       "cache-control": "no-store",
       "x-content-type-options": "nosniff",
+      ...extraHeaders,
     },
   });
 }
@@ -119,19 +124,67 @@ function parseRequestBody(value: unknown): AiChatRequestBody | null {
   };
 }
 
+interface RateLimitRecord {
+  count: number;
+  windowStartedAt: number;
+}
+
+type RateLimitDecision =
+  | { allowed: true }
+  | { allowed: false; retryAfterSeconds: number };
+
 async function checkRateLimit(
   kv: KVNamespace | undefined,
   sessionId: string,
-): Promise<boolean> {
-  if (!kv) return true;
+): Promise<RateLimitDecision> {
+  if (!kv) return { allowed: true };
+
   const key = `rl:${sessionId}`;
-  const record = await kv.get<{ count: number }>(key, "json");
-  const count = record?.count ?? 0;
-  if (count >= RATE_LIMIT_MAX_REQUESTS) return false;
-  await kv.put(key, JSON.stringify({ count: count + 1 }), {
-    expirationTtl: RATE_LIMIT_WINDOW_SECONDS,
-  });
-  return true;
+  const now = Date.now();
+  const windowMs = RATE_LIMIT_WINDOW_SECONDS * 1000;
+  const record = await kv.get<RateLimitRecord>(key, "json");
+
+  if (
+    !record
+    || !Number.isFinite(record.count)
+    || !Number.isFinite(record.windowStartedAt)
+    || record.count < 0
+    || record.windowStartedAt <= 0
+    || now - record.windowStartedAt >= windowMs
+  ) {
+    await kv.put(
+      key,
+      JSON.stringify({ count: 1, windowStartedAt: now }),
+      { expirationTtl: RATE_LIMIT_WINDOW_SECONDS + 30 },
+    );
+    return { allowed: true };
+  }
+
+  if (record.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return {
+      allowed: false,
+      retryAfterSeconds: Math.max(
+        1,
+        Math.ceil((record.windowStartedAt + windowMs - now) / 1000),
+      ),
+    };
+  }
+
+  await kv.put(
+    key,
+    JSON.stringify({
+      count: record.count + 1,
+      windowStartedAt: record.windowStartedAt,
+    }),
+    {
+      expirationTtl: Math.max(
+        30,
+        Math.ceil((record.windowStartedAt + windowMs - now) / 1000) + 30,
+      ),
+    },
+  );
+
+  return { allowed: true };
 }
 
 function buildSystemPrompt(body: AiChatRequestBody): string {
@@ -216,8 +269,20 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return jsonResponse({ ok: false, reason: "unsafe" }, 200);
   }
 
-  if (!(await checkRateLimit(env.NPC_CHAT_RATE_LIMIT, body.sessionId))) {
-    return jsonResponse({ ok: false, reason: "rate-limited" }, 200);
+  const rateLimit = await checkRateLimit(
+    env.NPC_CHAT_RATE_LIMIT,
+    body.sessionId,
+  );
+  if (!rateLimit.allowed) {
+    return jsonResponse(
+      {
+        ok: false,
+        reason: "rate-limited",
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+      },
+      200,
+      { "retry-after": String(rateLimit.retryAfterSeconds) },
+    );
   }
 
   if (!(await moderationSafe(env.AI, [{ role: "user", content: body.message }]))) {

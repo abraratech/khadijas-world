@@ -6,6 +6,71 @@ import {
 
 const REQUEST_TIMEOUT_MS = 6000;
 const SESSION_STORAGE_KEY = "khadijas-world-ai-chat-session";
+export const AI_CHAT_MIN_REQUEST_GAP_MS = 1800;
+const DEFAULT_RATE_LIMIT_BACKOFF_MS = 60_000;
+
+export interface AiChatRequestAttempt {
+  token: number;
+  allowed: boolean;
+}
+
+/**
+ * CHAT.2A — protects the AI path from rapid repeated submissions.
+ *
+ * The rule-based reply still appears for every message. This gate only
+ * decides whether that message may also make a network request.
+ */
+export class AiChatRequestGate {
+  private activeToken: number | null = null;
+  private latestToken = 0;
+  private nextAllowedAt = 0;
+  private blockedUntil = 0;
+
+  begin(now: number): AiChatRequestAttempt {
+    const token = this.latestToken + 1;
+    this.latestToken = token;
+
+    const allowed = (
+      this.activeToken === null
+      && now >= this.nextAllowedAt
+      && now >= this.blockedUntil
+    );
+
+    if (allowed) this.activeToken = token;
+    return { token, allowed };
+  }
+
+  finish(token: number, now: number): void {
+    if (this.activeToken !== token) return;
+    this.activeToken = null;
+    this.nextAllowedAt = Math.max(
+      this.nextAllowedAt,
+      now + AI_CHAT_MIN_REQUEST_GAP_MS,
+    );
+  }
+
+  blockFor(token: number, now: number, retryAfterSeconds?: number): void {
+    if (token !== this.activeToken) return;
+    const requestedBackoff = (
+      typeof retryAfterSeconds === "number"
+      && Number.isFinite(retryAfterSeconds)
+      && retryAfterSeconds > 0
+    )
+      ? retryAfterSeconds * 1000
+      : DEFAULT_RATE_LIMIT_BACKOFF_MS;
+
+    this.blockedUntil = Math.max(
+      this.blockedUntil,
+      now + requestedBackoff,
+    );
+  }
+
+  isLatest(token: number): boolean {
+    return token === this.latestToken;
+  }
+}
+
+const requestGate = new AiChatRequestGate();
 
 function readSessionId(): string {
   try {
@@ -22,14 +87,19 @@ function readSessionId(): string {
 }
 
 /**
- * Always resolves — never throws. On any failure (network, timeout,
- * non-200, moderation rejection, malformed response) it resolves `null`,
- * and the caller keeps showing whatever rule-based reply is already on
- * screen. This function only ever *upgrades* a reply, never blocks one.
+ * Always resolves and never throws.
+ *
+ * Rapid duplicate submissions are dropped before fetch, so they do not
+ * consume Workers AI quota. A newer player message also invalidates an
+ * older pending upgrade, preventing an out-of-order AI reply from replacing
+ * the wrong NPC bubble.
  */
 export async function requestAiReply(
   body: Omit<AiChatRequestBody, "sessionId">,
 ): Promise<string | null> {
+  const attempt = requestGate.begin(Date.now());
+  if (!attempt.allowed) return null;
+
   const controller = new AbortController();
   const timeoutHandle = window.setTimeout(
     () => controller.abort(),
@@ -49,13 +119,33 @@ export async function requestAiReply(
       signal: controller.signal,
     });
 
-    if (!response.ok) return null;
+    let data: AiChatResponseBody;
+    try {
+      data = (await response.json()) as AiChatResponseBody;
+    } catch {
+      return null;
+    }
 
-    const data = (await response.json()) as AiChatResponseBody;
-    return data.ok ? data.text : null;
+    if (!data.ok) {
+      if (data.reason === "rate-limited") {
+        requestGate.blockFor(
+          attempt.token,
+          Date.now(),
+          data.retryAfterSeconds,
+        );
+      }
+      return null;
+    }
+
+    if (!response.ok || !requestGate.isLatest(attempt.token)) {
+      return null;
+    }
+
+    return data.text;
   } catch {
     return null;
   } finally {
     window.clearTimeout(timeoutHandle);
+    requestGate.finish(attempt.token, Date.now());
   }
 }
