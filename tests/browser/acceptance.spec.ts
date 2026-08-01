@@ -232,3 +232,26 @@ test("shows and restores the display-recovery dialog", async ({ page }) => {
   await expect(page.locator("#game-canvas")).toBeFocused();
   expect(failures).toEqual([]);
 });
+
+test("keeps encrypted cloud-save controls behind the grown-up gate", async ({ page }) => {
+  await seedCompletedWorld(page);
+  const failures = await openQaApp(page);
+  await expectTitleReady(page);
+
+  await page.locator("#grown-ups-button").click();
+  await expect(page.locator("#parent-gate-panel")).toBeVisible();
+  await page.locator("#parent-gate-answer").fill("7");
+  await page.locator("#parent-gate-submit").click();
+
+  await expect(page.locator("#parent-panel")).toBeVisible();
+  await expect(page.locator("#cloud-save-create-button")).toBeVisible();
+  await expect(page.locator("#cloud-save-code")).toBeVisible();
+  await expect(page.locator("#cloud-save-status")).toContainText(/not connected/i);
+  await expect(page.locator("#cloud-save-sync-button")).toBeHidden();
+
+  const connection = await page.evaluate(() => (
+    localStorage.getItem("khadijas-world:cloud-save:v1")
+  ));
+  expect(connection).toBeNull();
+  expect(failures).toEqual([]);
+});

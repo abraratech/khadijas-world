@@ -20,6 +20,21 @@ import { applyQuality, type QualityPreset } from "./game/quality";
 import { AdaptiveResolutionController } from "./game/performance/adaptiveResolution";
 import { DialogueController, type DialogueContext } from "./game/dialogue/DialogueController";
 import { requestAiReply } from "./game/dialogue/aiChatClient";
+import {
+  applyCloudSaveRestore,
+  createCloudSaveConnection,
+  deleteCloudSave,
+  disconnectCloudSave,
+  getCloudSaveStatus,
+  prepareCloudSaveRestore,
+  refreshCloudSaveStatus,
+  replaceCloudSaveWithLocal,
+  startCloudSaveAutosync,
+  syncCloudSaveNow,
+  type CloudSaveActionResult,
+  type CloudSaveRestorePreview,
+} from "./game/cloudSave";
+import { formatCloudSyncCode } from "./game/cloudSaveContract";
 import type { DialogueTopic } from "./game/content/dialogue/topicSuggestions";
 import type { DialogueIntent } from "./game/dialogue/DialogueIntent";
 import type { NpcId } from "./game/livingCharacters";
@@ -195,6 +210,17 @@ const parentNoticesButton = document.querySelector<HTMLButtonElement>("#parent-n
 const parentCreditsButton = document.querySelector<HTMLButtonElement>("#parent-credits-button");
 const parentResetButton = document.querySelector<HTMLButtonElement>("#parent-reset-button");
 const parentResult = document.querySelector<HTMLElement>("#parent-result");
+const cloudSaveStatus = document.querySelector<HTMLElement>("#cloud-save-status");
+const cloudSaveCode = document.querySelector<HTMLInputElement>("#cloud-save-code");
+const cloudSaveCreateButton = document.querySelector<HTMLButtonElement>("#cloud-save-create-button");
+const cloudSaveRestoreButton = document.querySelector<HTMLButtonElement>("#cloud-save-restore-button");
+const cloudSaveSyncButton = document.querySelector<HTMLButtonElement>("#cloud-save-sync-button");
+const cloudSavePullButton = document.querySelector<HTMLButtonElement>("#cloud-save-pull-button");
+const cloudSaveReplaceButton = document.querySelector<HTMLButtonElement>("#cloud-save-replace-button");
+const cloudSaveCopyButton = document.querySelector<HTMLButtonElement>("#cloud-save-copy-button");
+const cloudSaveDisconnectButton = document.querySelector<HTMLButtonElement>("#cloud-save-disconnect-button");
+const cloudSaveDeleteButton = document.querySelector<HTMLButtonElement>("#cloud-save-delete-button");
+const cloudSaveResult = document.querySelector<HTMLOutputElement>("#cloud-save-result");
 const creditsPanel = document.querySelector<HTMLElement>("#credits-panel");
 const creditsCopyright = document.querySelector<HTMLElement>("#credits-copyright");
 const privacyPanel = document.querySelector<HTMLElement>("#privacy-panel");
@@ -246,6 +272,10 @@ if (
   || !parentGateMessage || !parentGateSubmit || !parentPanel || !parentSettingsButton
   || !exportSaveButton || !importSaveButton || !importSaveInput || !parentPrivacyButton
   || !parentNoticesButton || !parentCreditsButton || !parentResetButton || !parentResult
+  || !cloudSaveStatus || !cloudSaveCode || !cloudSaveCreateButton || !cloudSaveRestoreButton
+  || !cloudSaveSyncButton || !cloudSavePullButton || !cloudSaveReplaceButton
+  || !cloudSaveCopyButton || !cloudSaveDisconnectButton || !cloudSaveDeleteButton
+  || !cloudSaveResult
   || !creditsPanel || !creditsCopyright || !privacyPanel || !noticesPanel
   || !menuButton || !pausePanel || !resumeButton || !pauseAvatarButton || !pauseSettingsButton
   || !returnTitleButton || !pauseGrownUpsButton || !pauseCreditsButton
@@ -1350,10 +1380,152 @@ parentGateSubmit.addEventListener("click", () => {
     return;
   }
   openReleasePanel(parentPanel, { replace: true });
+  renderCloudSaveControls();
+  void refreshCloudSaveStatus().then((result) => {
+    if (!result.ok && result.message) cloudSaveResult.textContent = result.message;
+    renderCloudSaveControls();
+  });
 });
 parentGateAnswer.addEventListener("keydown", (event) => {
   if (event.key === "Enter") parentGateSubmit.click();
 });
+
+const cloudSaveButtons = [
+  cloudSaveCreateButton,
+  cloudSaveRestoreButton,
+  cloudSaveSyncButton,
+  cloudSavePullButton,
+  cloudSaveReplaceButton,
+  cloudSaveCopyButton,
+  cloudSaveDisconnectButton,
+  cloudSaveDeleteButton,
+] as const;
+let cloudSaveBusy = false;
+let pendingCloudRestore: CloudSaveRestorePreview | null = null;
+
+const renderCloudSaveControls = (): void => {
+  const cloud = getCloudSaveStatus();
+  if (cloud.connected && cloud.formattedCode && document.activeElement !== cloudSaveCode) {
+    cloudSaveCode.value = cloud.formattedCode;
+  }
+  cloudSaveStatus.textContent = cloud.connected
+    ? cloud.conflict
+      ? `Connected — cloud revision ${cloud.remoteRevision}; another device has newer progress.`
+      : `Connected — cloud revision ${cloud.remoteRevision}. Local saving remains active offline.`
+    : "Not connected — this world stays on this device.";
+  cloudSaveCreateButton.hidden = cloud.connected;
+  cloudSaveSyncButton.hidden = !cloud.connected;
+  cloudSavePullButton.hidden = !cloud.connected;
+  cloudSaveReplaceButton.hidden = !cloud.connected || !cloud.conflict;
+  cloudSaveCopyButton.hidden = !cloud.connected;
+  cloudSaveDisconnectButton.hidden = !cloud.connected;
+  cloudSaveDeleteButton.hidden = !cloud.connected;
+  for (const button of cloudSaveButtons) button.disabled = cloudSaveBusy;
+};
+
+const setCloudSaveBusy = (busy: boolean): void => {
+  cloudSaveBusy = busy;
+  renderCloudSaveControls();
+};
+
+const finishCloudSaveAction = (result: CloudSaveActionResult): void => {
+  cloudSaveResult.textContent = result.message;
+  renderCloudSaveControls();
+};
+
+const restorePreparedCloudSave = (preview: CloudSaveRestorePreview): void => {
+  if (!preview.ok || !preview.metadata) {
+    finishCloudSaveAction(preview);
+    return;
+  }
+  const confirmed = window.confirm(
+    `${preview.message} Restoring it will replace this device's current world after keeping a safe local backup. Continue?`,
+  );
+  if (!confirmed) {
+    cloudSaveResult.textContent = "Cloud restore cancelled. This device is unchanged.";
+    return;
+  }
+  const result = applyCloudSaveRestore(preview);
+  finishCloudSaveAction(result);
+  if (result.ok) window.setTimeout(() => window.location.reload(), 500);
+};
+
+cloudSaveCode.addEventListener("input", () => {
+  cloudSaveCode.value = formatCloudSyncCode(cloudSaveCode.value);
+});
+
+cloudSaveCreateButton.addEventListener("click", async () => {
+  setCloudSaveBusy(true);
+  cloudSaveResult.textContent = "Encrypting and creating a cloud copy…";
+  const result = await createCloudSaveConnection();
+  setCloudSaveBusy(false);
+  finishCloudSaveAction(result);
+});
+
+cloudSaveRestoreButton.addEventListener("click", async () => {
+  setCloudSaveBusy(true);
+  cloudSaveResult.textContent = "Checking and decrypting the cloud copy…";
+  pendingCloudRestore = await prepareCloudSaveRestore(cloudSaveCode.value);
+  setCloudSaveBusy(false);
+  restorePreparedCloudSave(pendingCloudRestore);
+});
+
+cloudSaveSyncButton.addEventListener("click", async () => {
+  setCloudSaveBusy(true);
+  cloudSaveResult.textContent = "Encrypting and syncing this device…";
+  const result = await syncCloudSaveNow();
+  setCloudSaveBusy(false);
+  finishCloudSaveAction(result);
+});
+
+cloudSavePullButton.addEventListener("click", async () => {
+  setCloudSaveBusy(true);
+  cloudSaveResult.textContent = "Checking and decrypting the cloud copy…";
+  pendingCloudRestore = await prepareCloudSaveRestore();
+  setCloudSaveBusy(false);
+  restorePreparedCloudSave(pendingCloudRestore);
+});
+
+cloudSaveReplaceButton.addEventListener("click", async () => {
+  if (!window.confirm("Replace the newer cloud copy with this device's current world?")) return;
+  setCloudSaveBusy(true);
+  cloudSaveResult.textContent = "Encrypting and replacing the cloud copy…";
+  const result = await replaceCloudSaveWithLocal();
+  setCloudSaveBusy(false);
+  finishCloudSaveAction(result);
+});
+
+cloudSaveCopyButton.addEventListener("click", async () => {
+  const code = getCloudSaveStatus().formattedCode;
+  if (!code) return;
+  try {
+    await navigator.clipboard.writeText(code);
+    cloudSaveResult.textContent = "Sync code copied. Keep it private.";
+  } catch {
+    cloudSaveCode.focus();
+    cloudSaveCode.select();
+    cloudSaveResult.textContent = "The code is selected. Copy it and keep it private.";
+  }
+});
+
+cloudSaveDisconnectButton.addEventListener("click", () => {
+  if (!window.confirm("Disconnect this device? Its local save and the cloud copy will both be kept.")) return;
+  finishCloudSaveAction(disconnectCloudSave());
+  cloudSaveCode.value = "";
+});
+
+cloudSaveDeleteButton.addEventListener("click", async () => {
+  if (!window.confirm("Permanently delete the encrypted cloud copy? This device's local save will be kept.")) return;
+  setCloudSaveBusy(true);
+  cloudSaveResult.textContent = "Deleting the encrypted cloud copy…";
+  const result = await deleteCloudSave();
+  setCloudSaveBusy(false);
+  finishCloudSaveAction(result);
+  if (result.ok) cloudSaveCode.value = "";
+});
+
+window.addEventListener("khadijas-world:cloud-save-status", renderCloudSaveControls);
+renderCloudSaveControls();
 
 parentSettingsButton.addEventListener("click", () => {
   enterGame();
@@ -1816,6 +1988,8 @@ window.addEventListener("khadijas-world:save-status", (event) => {
   }, 160);
 });
 
+const stopCloudSaveAutosync = startCloudSaveAutosync();
+
 let metricsTimer = 0;
 room.scene.onAfterRenderObservable.add(() => {
   const delta = engine.getDeltaTime();
@@ -1881,6 +2055,7 @@ window.addEventListener("beforeunload", () => {
   visualViewport?.removeEventListener("scroll", scheduleViewportSync);
   if (viewportSyncFrame !== 0) window.cancelAnimationFrame(viewportSyncFrame);
   window.clearTimeout(announcementTimer);
+  stopCloudSaveAutosync();
   room.dispose();
   gameAudio.dispose();
   engine.dispose();

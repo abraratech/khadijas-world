@@ -17,3 +17,4 @@ art/**/previews/
 test-results/
 playwright-report/
 blob-report/
+.wrangler/

@@ -7,8 +7,16 @@
   },
   "kv_namespaces": [
     {
-          "binding": "NPC_CHAT_RATE_LIMIT",
-          "id": "320ca89584ff4c80ac1c83ec18f9d0f7"
-        }
+      "binding": "NPC_CHAT_RATE_LIMIT",
+      "id": "320ca89584ff4c80ac1c83ec18f9d0f7"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "WORLD_SAVE_DB",
+      "database_name": "khadijas-world-saves",
+      "database_id": "5dcd065a-73ea-437a-8a13-cbcacd0266d2",
+      "migrations_dir": "migrations"
+    }
   ]
 }

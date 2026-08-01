@@ -59,7 +59,7 @@
             <label><input type="radio" name="setup-quality" value="adaptive" checked /> Medium</label>
             <label><input type="radio" name="setup-quality" value="balanced" /> High</label>
           </fieldset>
-          <p class="privacy-short">Core progress stays in this browser. Smarter replies are off by default and can only be enabled in Grown-Up Controls.</p>
+          <p class="privacy-short">Core progress stays in this browser unless a grown-up creates an encrypted cross-device sync code. Smarter replies are off by default.</p>
           <div class="release-actions">
             <button id="start-world-button" class="title-primary" type="button">Start playing</button>
             <button data-close-release type="button">Back</button>
@@ -96,6 +96,40 @@
             <button id="export-save-button" type="button">Export save</button>
             <button id="import-save-button" type="button">Import save</button>
             <input id="import-save-input" type="file" accept=".json,application/json" hidden />
+            <section class="cloud-save-card" aria-labelledby="cloud-save-heading">
+              <div class="cloud-save-heading-row">
+                <span class="cloud-save-icon" aria-hidden="true">&#9729;&#65039;</span>
+                <span>
+                  <strong id="cloud-save-heading">Cross-device cloud save</strong>
+                  <small id="cloud-save-status">Not connected — this world stays on this device.</small>
+                </span>
+              </div>
+              <p>Your five-part code is the key. Keep it private and somewhere safe. Cloudflare stores an encrypted copy, not readable world details.</p>
+              <label class="cloud-save-code-label" for="cloud-save-code">
+                Sync code
+                <input
+                  id="cloud-save-code"
+                  type="text"
+                  inputmode="text"
+                  autocomplete="off"
+                  autocapitalize="characters"
+                  spellcheck="false"
+                  maxlength="24"
+                  placeholder="ABCD-EFGH-JKMN-PQRS-TUVW"
+                />
+              </label>
+              <div class="cloud-save-actions">
+                <button id="cloud-save-create-button" class="title-primary" type="button">Create sync code</button>
+                <button id="cloud-save-restore-button" type="button">Restore with code</button>
+                <button id="cloud-save-sync-button" type="button" hidden>Sync this device</button>
+                <button id="cloud-save-pull-button" type="button" hidden>Restore cloud copy</button>
+                <button id="cloud-save-replace-button" type="button" hidden>Replace cloud with this device</button>
+                <button id="cloud-save-copy-button" type="button" hidden>Copy code</button>
+                <button id="cloud-save-disconnect-button" type="button" hidden>Disconnect device</button>
+                <button id="cloud-save-delete-button" class="danger-soft" type="button" hidden>Delete cloud copy</button>
+              </div>
+              <output id="cloud-save-result" class="privacy-short" aria-live="polite"></output>
+            </section>
             <button id="parent-privacy-button" type="button">Privacy notice</button>
             <button id="parent-notices-button" type="button">Third-party notices</button>
             <button id="parent-credits-button" type="button">Credits</button>
@@ -128,8 +162,8 @@
         <div class="release-card release-card-wide">
           <h2 id="privacy-heading">Plain-Language Privacy Notice</h2>
           <p>Khadija's World does not require an account and does not use advertising or analytics. Normal NPC replies are offline. When a grown-up enables Smarter replies, unknown typed chat messages and limited in-game context are sent to Cloudflare for a moderated reply.</p>
-          <p>World progress and bounded conversation memories stay in this browser. Smarter replies are off by default, and the game does not send save files, real-world identity, or advertising identifiers with a chat request.</p>
-          <p>Clearing browser storage may remove progress. Please do not enter real names, addresses, school details, passwords, or other personal information in NPC chat.</p>
+          <p>World progress stays in this browser by default. When a grown-up creates a cross-device sync code, the browser encrypts the world before sending it to Cloudflare D1. Cloudflare stores encrypted save data plus technical revision and device identifiers; it does not receive the raw sync code or readable world JSON.</p>
+          <p>Clearing browser storage may remove local progress. Keep the sync code somewhere private if cloud saving is enabled. Please do not enter real names, addresses, school details, passwords, or other personal information in NPC chat.</p>
           <p>Version 1.0 — effective 24 July 2026. This is a product privacy notice, not a claim of guaranteed legal compliance.</p>
           <div class="release-actions"><button data-close-release type="button">Close</button></div>
         </div>
