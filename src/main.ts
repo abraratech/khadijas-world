@@ -19,7 +19,13 @@ import {
 import { applyQuality, type QualityPreset } from "./game/quality";
 import { AdaptiveResolutionController } from "./game/performance/adaptiveResolution";
 import { DialogueController, type DialogueContext } from "./game/dialogue/DialogueController";
-import { requestAiReply } from "./game/dialogue/aiChatClient";
+import {
+  getAiChatUsageSnapshot,
+  requestAiReply,
+  resetAiChatPlaySession,
+  type AiChatClientFailureReason,
+} from "./game/dialogue/aiChatClient";
+import type { AiChatBudget } from "./game/dialogue/aiChatContract";
 import {
   applyCloudSaveRestore,
   createCloudSaveConnection,
@@ -136,6 +142,12 @@ const npcChatToggle = document.querySelector<HTMLButtonElement>("#npc-chat-toggl
 const typedChatToggle = document.querySelector<HTMLButtonElement>("#typed-chat-toggle");
 const memoryToggle = document.querySelector<HTMLButtonElement>("#memory-toggle");
 const aiChatToggle = document.querySelector<HTMLButtonElement>("#ai-chat-toggle");
+const aiUsageStatus = document.querySelector<HTMLElement>("#ai-usage-status");
+const aiUsageResult = document.querySelector<HTMLOutputElement>("#ai-usage-result");
+const aiSessionResetButton = document.querySelector<HTMLButtonElement>("#ai-session-reset-button");
+const aiBudgetButtons = Array.from(
+  document.querySelectorAll<HTMLButtonElement>("[data-ai-budget]"),
+);
 const clearAllMemoriesButton = document.querySelector<HTMLButtonElement>("#clear-all-memories-button");
 const chatPanel = document.querySelector<HTMLElement>("#chat-panel");
 const chatNpcPortrait = document.querySelector<HTMLElement>("#chat-npc-portrait");
@@ -144,6 +156,7 @@ const chatFriendship = document.querySelector<HTMLElement>("#chat-friendship");
 const chatCloseButton = document.querySelector<HTMLButtonElement>("#chat-close-button");
 const chatMessages = document.querySelector<HTMLElement>("#chat-messages");
 const chatThinking = document.querySelector<HTMLElement>("#chat-thinking");
+const chatAiStatus = document.querySelector<HTMLOutputElement>("#chat-ai-status");
 const chatTopics = document.querySelector<HTMLElement>("#chat-topics");
 const chatForm = document.querySelector<HTMLFormElement>("#chat-form");
 const chatInput = document.querySelector<HTMLInputElement>("#chat-input");
@@ -252,9 +265,10 @@ if (
   || !instantDialogueToggle || !fullscreenButton || !loadingScreen
   || !displayRecovery || !restoreDisplayButton || !reloadDisplayButton
   || !startupError || !startupReloadButton
-  || !npcChatToggle || !typedChatToggle || !memoryToggle || !aiChatToggle || !clearAllMemoriesButton
-  || !chatPanel || !chatNpcPortrait || !chatNpcName || !chatFriendship
-  || !chatCloseButton || !chatMessages || !chatThinking || !chatTopics
+  || !npcChatToggle || !typedChatToggle || !memoryToggle || !aiChatToggle
+  || !aiUsageStatus || !aiUsageResult || !aiSessionResetButton || aiBudgetButtons.length !== 3
+  || !clearAllMemoriesButton || !chatPanel || !chatNpcPortrait || !chatNpcName || !chatFriendship
+  || !chatCloseButton || !chatMessages || !chatThinking || !chatAiStatus || !chatTopics
   || !chatForm || !chatInput || !chatSendButton || !chatClearButton
   || !debugPanel || !status || !fpsValue || !frameValue || !meshValue
   || !resolutionValue || !livingValue || !dialogueIntentValue || !dialogueEntitiesValue
@@ -819,6 +833,19 @@ updateSwitch(aiChatToggle, dialoguePreferences.aiChat);
 aiChatToggle.textContent = dialoguePreferences.aiChat
   ? "Smarter replies: On"
   : "Smarter replies: Off";
+
+const renderAiUsage = (): void => {
+  const usage = getAiChatUsageSnapshot(dialoguePreferences.aiChatBudget);
+  aiUsageStatus.textContent = `Today ${usage.dailyUsed} of ${usage.dailyLimit} · This play ${usage.sessionUsed} of ${usage.sessionLimit}`;
+  for (const button of aiBudgetButtons) {
+    const budget = button.dataset.aiBudget as AiChatBudget | undefined;
+    const active = budget === dialoguePreferences.aiChatBudget;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  }
+};
+
+renderAiUsage();
 chatForm.hidden = !dialoguePreferences.typedMessages;
 
 const engine = new Engine(
@@ -917,6 +944,7 @@ let avatarCustomization: AvatarCustomization = {
 let activeChatNpc: NpcId | null = null;
 let activeChatCharacter: CharacterId | null = null;
 let chatReplyTimer = 0;
+let chatAiStatusTimer = 0;
 let chatReturnFocus: HTMLElement | null = null;
 
 const dialogueContext = (npcId: NpcId): DialogueContext | null => {
@@ -954,8 +982,66 @@ const renderTopics = (topics: readonly DialogueTopic[]): void => {
   }));
 };
 
+type ChatAiStatusTone = "offline" | "checking" | "ai" | "warning" | "error";
+
+const setChatAiStatus = (
+  message: string,
+  tone: ChatAiStatusTone = "offline",
+): void => {
+  chatAiStatus.textContent = message;
+  chatAiStatus.className = `chat-ai-status is-${tone}`;
+};
+
+const beginAiCooldownStatus = (seconds: number): void => {
+  window.clearTimeout(chatAiStatusTimer);
+  const readyAt = Date.now() + Math.max(1, seconds) * 1000;
+  const tick = (): void => {
+    const remaining = Math.max(0, Math.ceil((readyAt - Date.now()) / 1000));
+    if (remaining <= 0) {
+      setChatAiStatus("Smarter replies ready", "ai");
+      return;
+    }
+    setChatAiStatus(`Offline reply · Smarter replies ready in ${remaining}s`, "warning");
+    chatAiStatusTimer = window.setTimeout(tick, 250);
+  };
+  tick();
+};
+
+const showAiFailureStatus = (
+  reason: AiChatClientFailureReason,
+  retryAfterSeconds?: number,
+): void => {
+  if (reason === "stale") return;
+  if (reason === "cooldown") {
+    beginAiCooldownStatus(retryAfterSeconds ?? 2);
+    return;
+  }
+  if (reason === "busy") {
+    setChatAiStatus("Offline reply · Smarter reply is already checking", "warning");
+    return;
+  }
+  if (reason === "session-limit") {
+    setChatAiStatus("Offline reply · This play's AI allowance is finished", "warning");
+    return;
+  }
+  if (reason === "daily-limit") {
+    setChatAiStatus("Offline reply · Today's AI allowance is finished", "warning");
+    return;
+  }
+  if (reason === "unsafe" || reason === "moderation") {
+    setChatAiStatus("Offline reply · Safety check kept this conversation local", "warning");
+    return;
+  }
+  if (reason === "network") {
+    setChatAiStatus("Offline reply · Cloud connection unavailable", "error");
+    return;
+  }
+  setChatAiStatus("Offline reply · Smarter reply unavailable", "error");
+};
+
 const closeChat = (shouldRestoreFocus = true): void => {
   window.clearTimeout(chatReplyTimer);
+  window.clearTimeout(chatAiStatusTimer);
   activeChatNpc = null;
   activeChatCharacter = null;
   chatPanel.hidden = true;
@@ -1002,12 +1088,28 @@ const submitChat = (message: string, forcedIntent?: DialogueIntent): void => {
 
     // A safe rule-based reply is already visible. The network request only
     // upgrades that bubble after both server-side input and output checks.
-    if (reply.aiEligible && dialoguePreferences.aiChat) {
+    if (!dialoguePreferences.aiChat) {
+      setChatAiStatus("Offline reply", "offline");
+    } else if (!reply.aiEligible) {
+      setChatAiStatus("Offline reply · Familiar neighborhood topic", "offline");
+    } else {
       const requestBody = dialogueController.buildAiChatRequest(context, message);
-      void requestAiReply(requestBody).then((aiText) => {
-        if (!aiText || activeChatNpc !== npcId) return;
-        dialogueController.applyAiReply(npcId, aiText);
+      setChatAiStatus("Checking for a smarter reply…", "checking");
+      void requestAiReply({
+        ...requestBody,
+        budget: dialoguePreferences.aiChatBudget,
+      }).then((result) => {
+        renderAiUsage();
+        if (!result.ok) {
+          if (activeChatNpc === npcId) {
+            showAiFailureStatus(result.reason, result.retryAfterSeconds);
+          }
+          return;
+        }
+        if (activeChatNpc !== npcId) return;
+        dialogueController.applyAiReply(npcId, result.text);
         renderConversation(npcId);
+        setChatAiStatus("Smarter reply · Moderated by Cloudflare", "ai");
         if (isDebugMode) {
           dialogueTemplateValue.textContent = `${reply.templateId} (ai-upgraded)`;
         }
@@ -1032,6 +1134,10 @@ const openNpcChat = (npcId: NpcId): void => {
   chatNpcName.textContent = state.npcName;
   chatFriendship.textContent = state.friendshipLabel;
   chatPanel.hidden = false;
+  setChatAiStatus(
+    dialoguePreferences.aiChat ? "Smarter replies ready" : "Offline replies ready",
+    dialoguePreferences.aiChat ? "ai" : "offline",
+  );
   app.classList.add("is-chat-open");
   chatForm.hidden = !dialoguePreferences.typedMessages;
   scheduleViewportSync();
@@ -1700,6 +1806,40 @@ aiChatToggle.addEventListener("click", () => {
   parentResult.textContent = dialoguePreferences.aiChat
     ? "Smarter replies are on. Unknown typed messages may be checked by Cloudflare AI."
     : "Smarter replies are off. All NPC replies remain fully offline.";
+  if (!dialoguePreferences.aiChat) window.clearTimeout(chatAiStatusTimer);
+  if (!chatPanel.hidden) {
+    setChatAiStatus(
+      dialoguePreferences.aiChat ? "Smarter replies ready" : "Offline replies ready",
+      dialoguePreferences.aiChat ? "ai" : "offline",
+    );
+  }
+});
+
+for (const button of aiBudgetButtons) {
+  button.addEventListener("click", () => {
+    const budget = button.dataset.aiBudget;
+    if (budget !== "light" && budget !== "balanced" && budget !== "more") return;
+    dialoguePreferences = { ...dialoguePreferences, aiChatBudget: budget };
+    dialogueController.memory.setSettings(dialoguePreferences);
+    aiUsageResult.textContent = budget === "light"
+      ? "Light allowance selected: 10 per day and 4 each play session."
+      : budget === "more"
+        ? "More allowance selected: 40 per day and 12 each play session."
+        : "Balanced allowance selected: 20 per day and 8 each play session.";
+    renderAiUsage();
+  });
+}
+
+aiSessionResetButton.addEventListener("click", () => {
+  resetAiChatPlaySession(dialoguePreferences.aiChatBudget);
+  renderAiUsage();
+  aiUsageResult.textContent = "A fresh AI play session is ready. Today's total was not erased.";
+  if (!chatPanel.hidden) {
+    setChatAiStatus(
+      dialoguePreferences.aiChat ? "Smarter replies ready" : "Offline replies ready",
+      dialoguePreferences.aiChat ? "ai" : "offline",
+    );
+  }
 });
 
 clearAllMemoriesButton.addEventListener("click", () => {

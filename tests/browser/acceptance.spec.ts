@@ -160,6 +160,9 @@ test("opens NPC chat through the opt-in QA bridge and keeps typed-message focus"
   const chatPanel = page.locator("#chat-panel");
   const chatInput = page.locator("#chat-input");
   await expect(chatPanel).toBeVisible();
+  await expect(page.locator("#chat-ai-status")).toContainText(
+    /offline repl(?:y|ies)/i,
+  );
   await expect(chatInput).toBeEnabled();
   await expect(chatInput).toBeFocused();
 
@@ -248,6 +251,13 @@ test("keeps encrypted cloud-save controls behind the grown-up gate", async ({ pa
   await expect(page.locator("#cloud-save-code")).toBeVisible();
   await expect(page.locator("#cloud-save-status")).toContainText(/not connected/i);
   await expect(page.locator("#cloud-save-sync-button")).toBeHidden();
+  await expect(page.locator("#ai-usage-status")).toContainText(/today 0 of 20/i);
+  await expect(page.locator('[data-ai-budget="balanced"]')).toHaveAttribute("aria-pressed", "true");
+  await page.locator('[data-ai-budget="light"]').click();
+  await expect(page.locator("#ai-usage-status")).toContainText(/today 0 of 10/i);
+  await expect(page.locator('[data-ai-budget="light"]')).toHaveAttribute("aria-pressed", "true");
+  await page.locator("#ai-session-reset-button").click();
+  await expect(page.locator("#ai-usage-result")).toContainText(/fresh ai play session/i);
 
   const connection = await page.evaluate(() => (
     localStorage.getItem("khadijas-world:cloud-save:v1")

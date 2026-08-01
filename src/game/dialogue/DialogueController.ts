@@ -159,7 +159,7 @@ export class DialogueController {
   buildAiChatRequest(
     context: DialogueContext,
     message: string,
-  ): Omit<AiChatRequestBody, "sessionId"> {
+  ): Omit<AiChatRequestBody, "sessionId" | "playSessionId" | "budget"> {
     const memory = this.memory.get(context.npcId);
     return {
       npcId: context.npcId,

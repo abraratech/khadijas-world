@@ -1,4 +1,5 @@
 import type { NpcId } from "../livingCharacters";
+import type { AiChatBudget } from "../dialogue/aiChatContract";
 
 export type ConversationSpeaker = "player" | "npc";
 
@@ -51,6 +52,8 @@ export interface ConversationSettings {
    * regardless of this setting.
    */
   aiChat: boolean;
+  /** Grown-up selected local/server AI allowance. */
+  aiChatBudget: AiChatBudget;
 }
 
 export interface DialogueSaveState {
@@ -67,6 +70,7 @@ export const DEFAULT_CONVERSATION_SETTINGS: ConversationSettings = {
   typedMessages: true,
   rememberConversations: true,
   aiChat: false,
+  aiChatBudget: "balanced",
 };
 
 export function createNpcMemory(npcId: NpcId): NpcMemory {
@@ -201,6 +205,10 @@ export function normalizeDialogueState(
     // Opt-in, unlike the three settings above: stays off unless a save
     // explicitly turned it on.
     aiChat: settings.aiChat === true,
+    aiChatBudget: settings.aiChatBudget === "light"
+      || settings.aiChatBudget === "more"
+      ? settings.aiChatBudget
+      : "balanced",
   };
   for (const npcId of npcIds) {
     if (memories[npcId] !== undefined) {

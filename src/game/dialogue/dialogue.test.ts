@@ -64,9 +64,10 @@ describe("NPC structured memory", () => {
     expect(memory.recentConversation[0]).toEqual({ speaker: "player", text: "hi" });
   });
 
-  it("defaults aiChat to off, unlike the other three settings", () => {
+  it("defaults aiChat to off with a balanced grown-up allowance", () => {
     const store = new NpcMemoryStore(null, ["neighbor"], () => {});
     expect(store.settings().aiChat).toBe(false);
+    expect(store.settings().aiChatBudget).toBe("balanced");
     expect(store.settings().npcChat).toBe(true);
   });
 });

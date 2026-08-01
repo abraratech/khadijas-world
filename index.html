@@ -93,6 +93,25 @@
               aria-checked="false"
               aria-label="Smarter NPC replies"
             >Smarter replies: Off</button>
+            <section class="ai-usage-card" aria-labelledby="ai-usage-heading">
+              <div class="ai-usage-heading-row">
+                <span class="ai-usage-icon" aria-hidden="true">&#10024;</span>
+                <span>
+                  <strong id="ai-usage-heading">Smarter reply allowance</strong>
+                  <small id="ai-usage-status">Today 0 of 20 &middot; This play 0 of 8</small>
+                </span>
+              </div>
+              <p>Choose how often unknown typed messages may use Cloudflare AI. Familiar topics always use the offline neighborhood replies.</p>
+              <div class="ai-budget-options" role="group" aria-label="Smarter reply allowance">
+                <button type="button" data-ai-budget="light">Light</button>
+                <button type="button" data-ai-budget="balanced">Balanced</button>
+                <button type="button" data-ai-budget="more">More</button>
+              </div>
+              <button id="ai-session-reset-button" class="memory-clear-button" type="button">
+                Start a fresh AI play session
+              </button>
+              <output id="ai-usage-result" class="privacy-short" aria-live="polite"></output>
+            </section>
             <button id="export-save-button" type="button">Export save</button>
             <button id="import-save-button" type="button">Import save</button>
             <input id="import-save-input" type="file" accept=".json,application/json" hidden />
@@ -161,7 +180,7 @@
       <section id="privacy-panel" class="release-modal" role="dialog" aria-modal="true" aria-labelledby="privacy-heading" hidden>
         <div class="release-card release-card-wide">
           <h2 id="privacy-heading">Plain-Language Privacy Notice</h2>
-          <p>Khadija's World does not require an account and does not use advertising or analytics. Normal NPC replies are offline. When a grown-up enables Smarter replies, unknown typed chat messages and limited in-game context are sent to Cloudflare for a moderated reply.</p>
+          <p>Khadija's World does not require an account and does not use advertising or analytics. Normal NPC replies are offline. When a grown-up enables Smarter replies, unknown typed chat messages and limited in-game context are sent to Cloudflare for a moderated reply. Grown-ups choose an allowance, and technical safety logs record result categories and request timing without storing chat text.</p>
           <p>World progress stays in this browser by default. When a grown-up creates a cross-device sync code, the browser encrypts the world before sending it to Cloudflare D1. Cloudflare stores encrypted save data plus technical revision and device identifiers; it does not receive the raw sync code or readable world JSON.</p>
           <p>Clearing browser storage may remove local progress. Keep the sync code somewhere private if cloud saving is enabled. Please do not enter real names, addresses, school details, passwords, or other personal information in NPC chat.</p>
           <p>Version 1.0 — effective 24 July 2026. This is a product privacy notice, not a claim of guaranteed legal compliance.</p>
@@ -711,6 +730,12 @@
             <span aria-hidden="true">&times;</span>
           </button>
         </header>
+        <output
+          id="chat-ai-status"
+          class="chat-ai-status is-offline"
+          role="status"
+          aria-live="polite"
+        >Offline replies ready</output>
         <div
           id="chat-messages"
           class="chat-messages"

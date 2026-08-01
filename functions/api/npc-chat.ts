@@ -1,11 +1,15 @@
 import { NPC_DIALOGUE_PROFILES } from "../../src/game/content/dialogue/npcProfiles";
 import { NPC_IDS } from "../../src/game/livingCharacters";
 import {
+  AI_CHAT_BUDGET_LIMITS,
   AI_CHAT_MAX_MESSAGE_LENGTH,
   AI_CHAT_MAX_REPLY_LENGTH,
+  type AiChatBudget,
+  type AiChatLimitKind,
   type AiChatRequestBody,
   type AiChatResponseBody,
   type AiChatTurn,
+  type AiChatUsageSnapshot,
 } from "../../src/game/dialogue/aiChatContract";
 import { isUnsafeDialogueInput } from "../../src/game/dialogue/unsafeTerms";
 
@@ -16,8 +20,10 @@ interface Env {
 
 const CHAT_MODEL = "@cf/meta/llama-3.1-8b-instruct-fast";
 const MODERATION_MODEL = "@cf/meta/llama-guard-3-8b";
-const RATE_LIMIT_MAX_REQUESTS = 8;
-const RATE_LIMIT_WINDOW_SECONDS = 60;
+const BURST_LIMIT = 8;
+const BURST_WINDOW_SECONDS = 60;
+const PLAY_SESSION_WINDOW_SECONDS = 6 * 60 * 60;
+const DAILY_WINDOW_SECONDS = 48 * 60 * 60;
 const MAX_RECENT_TURNS = 4;
 const MAX_BODY_BYTES = 4096;
 
@@ -43,9 +49,28 @@ function friendshipLabel(value: number): string {
   return "New friend";
 }
 
+function logEvent(
+  level: "info" | "warn" | "error",
+  event: string,
+  requestId: string,
+  details: Record<string, unknown> = {},
+): void {
+  const entry = JSON.stringify({
+    service: "npc-chat",
+    event,
+    requestId,
+    at: new Date().toISOString(),
+    ...details,
+  });
+  if (level === "error") console.error(entry);
+  else if (level === "warn") console.warn(entry);
+  else console.info(entry);
+}
+
 function jsonResponse(
   body: AiChatResponseBody,
   status: number,
+  requestId: string,
   extraHeaders: Record<string, string> = {},
 ): Response {
   return new Response(JSON.stringify(body), {
@@ -54,6 +79,7 @@ function jsonResponse(
       "content-type": "application/json; charset=utf-8",
       "cache-control": "no-store",
       "x-content-type-options": "nosniff",
+      "x-request-id": requestId,
       ...extraHeaders,
     },
   });
@@ -61,6 +87,10 @@ function jsonResponse(
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function isAiChatBudget(value: unknown): value is AiChatBudget {
+  return value === "light" || value === "balanced" || value === "more";
 }
 
 function cleanTurn(value: unknown): AiChatTurn | null {
@@ -80,12 +110,12 @@ function parseRequestBody(value: unknown): AiChatRequestBody | null {
   if (!isNonEmptyString(body.npcId) || !(NPC_IDS as readonly string[]).includes(body.npcId)) {
     return null;
   }
-
   if (!isNonEmptyString(body.message) || body.message.length > AI_CHAT_MAX_MESSAGE_LENGTH) {
     return null;
   }
-
   if (!isNonEmptyString(body.sessionId) || body.sessionId.length > 100) return null;
+  if (!isNonEmptyString(body.playSessionId) || body.playSessionId.length > 100) return null;
+  if (!isAiChatBudget(body.budget)) return null;
 
   const context = body.context as Record<string, unknown> | undefined;
   if (!context || !isNonEmptyString(context.locationId) || !LOCATION_CONTEXT[context.locationId]) {
@@ -115,6 +145,8 @@ function parseRequestBody(value: unknown): AiChatRequestBody | null {
     npcId: body.npcId,
     message: body.message.trim(),
     sessionId: body.sessionId,
+    playSessionId: body.playSessionId,
+    budget: body.budget,
     context: {
       locationId: context.locationId,
       activeCharacterId: context.activeCharacterId,
@@ -129,21 +161,29 @@ interface RateLimitRecord {
   windowStartedAt: number;
 }
 
-type RateLimitDecision =
-  | { allowed: true }
-  | { allowed: false; retryAfterSeconds: number };
+interface NormalizedWindow {
+  count: number;
+  windowStartedAt: number;
+  expiresInSeconds: number;
+}
 
-async function checkRateLimit(
-  kv: KVNamespace | undefined,
-  sessionId: string,
-): Promise<RateLimitDecision> {
-  if (!kv) return { allowed: true };
+interface RateLimitDecision {
+  allowed: boolean;
+  retryAfterSeconds?: number;
+  limit?: AiChatLimitKind;
+  usage: AiChatUsageSnapshot;
+}
 
-  const key = `rl:${sessionId}`;
-  const now = Date.now();
-  const windowMs = RATE_LIMIT_WINDOW_SECONDS * 1000;
-  const record = await kv.get<RateLimitRecord>(key, "json");
+function dayKey(now: number): string {
+  return new Date(now).toISOString().slice(0, 10);
+}
 
+function normalizeWindow(
+  record: RateLimitRecord | null,
+  now: number,
+  windowSeconds: number,
+): NormalizedWindow {
+  const windowMs = windowSeconds * 1000;
   if (
     !record
     || !Number.isFinite(record.count)
@@ -152,39 +192,91 @@ async function checkRateLimit(
     || record.windowStartedAt <= 0
     || now - record.windowStartedAt >= windowMs
   ) {
-    await kv.put(
-      key,
-      JSON.stringify({ count: 1, windowStartedAt: now }),
-      { expirationTtl: RATE_LIMIT_WINDOW_SECONDS + 30 },
-    );
-    return { allowed: true };
+    return { count: 0, windowStartedAt: now, expiresInSeconds: windowSeconds };
   }
+  return {
+    count: Math.floor(record.count),
+    windowStartedAt: record.windowStartedAt,
+    expiresInSeconds: Math.max(
+      1,
+      Math.ceil((record.windowStartedAt + windowMs - now) / 1000),
+    ),
+  };
+}
 
-  if (record.count >= RATE_LIMIT_MAX_REQUESTS) {
+async function checkRateLimits(
+  kv: KVNamespace | undefined,
+  body: AiChatRequestBody,
+): Promise<RateLimitDecision> {
+  const limits = AI_CHAT_BUDGET_LIMITS[body.budget];
+  const now = Date.now();
+  const usageBase: AiChatUsageSnapshot = {
+    dayKey: dayKey(now),
+    dailyUsed: 0,
+    dailyLimit: limits.daily,
+    sessionUsed: 0,
+    sessionLimit: limits.session,
+  };
+  if (!kv) return { allowed: true, usage: usageBase };
+
+  const burstKey = `rl:burst:${body.sessionId}`;
+  const sessionKey = `rl:session:${body.playSessionId}`;
+  const dailyKey = `rl:daily:${body.sessionId}:${usageBase.dayKey}`;
+  const [burstRaw, sessionRaw, dailyRaw] = await Promise.all([
+    kv.get<RateLimitRecord>(burstKey, "json"),
+    kv.get<RateLimitRecord>(sessionKey, "json"),
+    kv.get<RateLimitRecord>(dailyKey, "json"),
+  ]);
+
+  const burst = normalizeWindow(burstRaw, now, BURST_WINDOW_SECONDS);
+  const session = normalizeWindow(sessionRaw, now, PLAY_SESSION_WINDOW_SECONDS);
+  const daily = normalizeWindow(dailyRaw, now, DAILY_WINDOW_SECONDS);
+  const usage = {
+    ...usageBase,
+    dailyUsed: daily.count,
+    sessionUsed: session.count,
+  };
+
+  if (daily.count >= limits.daily) {
+    return { allowed: false, limit: "daily", usage };
+  }
+  if (session.count >= limits.session) {
+    return { allowed: false, limit: "session", usage };
+  }
+  if (burst.count >= BURST_LIMIT) {
     return {
       allowed: false,
-      retryAfterSeconds: Math.max(
-        1,
-        Math.ceil((record.windowStartedAt + windowMs - now) / 1000),
-      ),
+      limit: "burst",
+      retryAfterSeconds: burst.expiresInSeconds,
+      usage,
     };
   }
 
-  await kv.put(
-    key,
-    JSON.stringify({
-      count: record.count + 1,
-      windowStartedAt: record.windowStartedAt,
-    }),
-    {
-      expirationTtl: Math.max(
-        30,
-        Math.ceil((record.windowStartedAt + windowMs - now) / 1000) + 30,
-      ),
-    },
-  );
+  const nextUsage: AiChatUsageSnapshot = {
+    ...usage,
+    dailyUsed: daily.count + 1,
+    sessionUsed: session.count + 1,
+  };
 
-  return { allowed: true };
+  await Promise.all([
+    kv.put(
+      burstKey,
+      JSON.stringify({ count: burst.count + 1, windowStartedAt: burst.windowStartedAt }),
+      { expirationTtl: burst.expiresInSeconds + 30 },
+    ),
+    kv.put(
+      sessionKey,
+      JSON.stringify({ count: session.count + 1, windowStartedAt: session.windowStartedAt }),
+      { expirationTtl: session.expiresInSeconds + 60 },
+    ),
+    kv.put(
+      dailyKey,
+      JSON.stringify({ count: daily.count + 1, windowStartedAt: daily.windowStartedAt }),
+      { expirationTtl: daily.expiresInSeconds + 60 },
+    ),
+  ]);
+
+  return { allowed: true, usage: nextUsage };
 }
 
 function buildSystemPrompt(body: AiChatRequestBody): string {
@@ -232,7 +324,11 @@ async function moderationSafe(
   messages: Array<{ role: "user" | "assistant"; content: string }>,
 ): Promise<boolean> {
   try {
-    const result = await ai.run(MODERATION_MODEL, { messages, max_tokens: 32, temperature: 0 });
+    const result = await ai.run(MODERATION_MODEL, {
+      messages,
+      max_tokens: 32,
+      temperature: 0,
+    });
     const verdict = modelText(result)?.trim().toLowerCase() ?? "";
     return verdict.startsWith("safe");
   } catch {
@@ -241,52 +337,91 @@ async function moderationSafe(
 }
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+  const requestId = request.headers.get("cf-ray") ?? crypto.randomUUID();
+  const startedAt = Date.now();
+
   if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) {
-    return jsonResponse({ ok: false, reason: "error" }, 415);
+    logEvent("warn", "invalid-content-type", requestId);
+    return jsonResponse({ ok: false, reason: "error" }, 415, requestId);
   }
 
   let textBody: string;
   try {
     textBody = await request.text();
   } catch {
-    return jsonResponse({ ok: false, reason: "error" }, 400);
+    logEvent("warn", "body-read-failed", requestId);
+    return jsonResponse({ ok: false, reason: "error" }, 400, requestId);
   }
 
   if (new TextEncoder().encode(textBody).byteLength > MAX_BODY_BYTES) {
-    return jsonResponse({ ok: false, reason: "error" }, 413);
+    logEvent("warn", "body-too-large", requestId);
+    return jsonResponse({ ok: false, reason: "error" }, 413, requestId);
   }
 
   let rawBody: unknown;
   try {
     rawBody = JSON.parse(textBody);
   } catch {
-    return jsonResponse({ ok: false, reason: "error" }, 400);
+    logEvent("warn", "invalid-json", requestId);
+    return jsonResponse({ ok: false, reason: "error" }, 400, requestId);
   }
 
   const body = parseRequestBody(rawBody);
-  if (!body) return jsonResponse({ ok: false, reason: "error" }, 400);
+  if (!body) {
+    logEvent("warn", "invalid-request", requestId);
+    return jsonResponse({ ok: false, reason: "error" }, 400, requestId);
+  }
+  const logContext = {
+    npcId: body.npcId,
+    locationId: body.context.locationId,
+    budget: body.budget,
+  };
+
   if (isUnsafeDialogueInput(body.message)) {
-    return jsonResponse({ ok: false, reason: "unsafe" }, 200);
+    logEvent("warn", "input-blocked-local-safety", requestId, logContext);
+    return jsonResponse({ ok: false, reason: "unsafe" }, 200, requestId);
   }
 
-  const rateLimit = await checkRateLimit(
-    env.NPC_CHAT_RATE_LIMIT,
-    body.sessionId,
-  );
+  let rateLimit: RateLimitDecision;
+  try {
+    rateLimit = await checkRateLimits(env.NPC_CHAT_RATE_LIMIT, body);
+  } catch {
+    logEvent("error", "rate-limit-storage-error", requestId, logContext);
+    return jsonResponse({ ok: false, reason: "error" }, 200, requestId);
+  }
+
   if (!rateLimit.allowed) {
+    logEvent("warn", "rate-limited", requestId, {
+      ...logContext,
+      limit: rateLimit.limit,
+      usage: rateLimit.usage,
+    });
     return jsonResponse(
       {
         ok: false,
         reason: "rate-limited",
         retryAfterSeconds: rateLimit.retryAfterSeconds,
+        limit: rateLimit.limit,
+        usage: rateLimit.usage,
       },
       200,
-      { "retry-after": String(rateLimit.retryAfterSeconds) },
+      requestId,
+      rateLimit.retryAfterSeconds
+        ? { "retry-after": String(rateLimit.retryAfterSeconds) }
+        : {},
     );
   }
 
   if (!(await moderationSafe(env.AI, [{ role: "user", content: body.message }]))) {
-    return jsonResponse({ ok: false, reason: "moderation" }, 200);
+    logEvent("warn", "input-moderated", requestId, {
+      ...logContext,
+      usage: rateLimit.usage,
+    });
+    return jsonResponse(
+      { ok: false, reason: "moderation", usage: rateLimit.usage },
+      200,
+      requestId,
+    );
   }
 
   const messages = [
@@ -306,10 +441,22 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       temperature: 0.65,
     });
     const rawReply = modelText(result);
-    if (!rawReply) return jsonResponse({ ok: false, reason: "error" }, 200);
+    if (!rawReply) {
+      logEvent("error", "model-empty-reply", requestId, logContext);
+      return jsonResponse(
+        { ok: false, reason: "error", usage: rateLimit.usage },
+        200,
+        requestId,
+      );
+    }
     generatedText = cleanReplyText(rawReply);
   } catch {
-    return jsonResponse({ ok: false, reason: "error" }, 200);
+    logEvent("error", "model-request-error", requestId, logContext);
+    return jsonResponse(
+      { ok: false, reason: "error", usage: rateLimit.usage },
+      200,
+      requestId,
+    );
   }
 
   if (
@@ -317,18 +464,39 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     || isUnsafeDialogueInput(generatedText)
     || /\b(?:as an ai|language model|artificial intelligence|system prompt)\b/i.test(generatedText)
   ) {
-    return jsonResponse({ ok: false, reason: "moderation" }, 200);
+    logEvent("warn", "output-blocked-local-safety", requestId, logContext);
+    return jsonResponse(
+      { ok: false, reason: "moderation", usage: rateLimit.usage },
+      200,
+      requestId,
+    );
   }
 
   if (!(await moderationSafe(env.AI, [
     { role: "user", content: body.message },
     { role: "assistant", content: generatedText },
   ]))) {
-    return jsonResponse({ ok: false, reason: "moderation" }, 200);
+    logEvent("warn", "output-moderated", requestId, logContext);
+    return jsonResponse(
+      { ok: false, reason: "moderation", usage: rateLimit.usage },
+      200,
+      requestId,
+    );
   }
 
-  return jsonResponse({ ok: true, text: generatedText }, 200);
+  logEvent("info", "reply-success", requestId, {
+    ...logContext,
+    durationMs: Date.now() - startedAt,
+    usage: rateLimit.usage,
+  });
+  return jsonResponse(
+    { ok: true, text: generatedText, usage: rateLimit.usage },
+    200,
+    requestId,
+  );
 };
 
-export const onRequestGet: PagesFunction<Env> = async () =>
-  jsonResponse({ ok: false, reason: "error" }, 405);
+export const onRequestGet: PagesFunction<Env> = async ({ request }) => {
+  const requestId = request.headers.get("cf-ray") ?? crypto.randomUUID();
+  return jsonResponse({ ok: false, reason: "error" }, 405, requestId);
+};

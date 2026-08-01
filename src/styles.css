@@ -3666,3 +3666,114 @@ a[href]:focus-visible,
 @media (max-width: 520px) {
   .cloud-save-actions { grid-template-columns: 1fr; }
 }
+
+/* CHAT.2 — production AI status, allowance, and recovery UI */
+.chat-panel {
+  grid-template-rows: auto auto minmax(120px, 1fr) auto auto auto;
+}
+
+.chat-ai-status {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 6px 14px;
+  border-bottom: 1px solid #eadfed;
+  color: #675674;
+  background: #f7f0f8;
+  font-size: .63rem;
+  font-weight: 900;
+}
+
+.chat-ai-status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: #8e7d98;
+}
+
+.chat-ai-status.is-checking::before {
+  background: #d59b23;
+  animation: chat-ai-pulse .8s ease-in-out infinite alternate;
+}
+
+.chat-ai-status.is-ai {
+  color: #3d6d5f;
+  background: #e7f7f0;
+}
+
+.chat-ai-status.is-ai::before { background: #36a27d; }
+.chat-ai-status.is-warning::before { background: #dd8b2f; }
+.chat-ai-status.is-error::before { background: #c65d72; }
+
+@keyframes chat-ai-pulse {
+  to { opacity: .35; transform: scale(.78); }
+}
+
+.ai-usage-card {
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid #e6d9ed;
+  border-radius: 16px;
+  background: #faf6fc;
+}
+
+.ai-usage-heading-row {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.ai-usage-heading-row > span:last-child {
+  display: grid;
+  gap: 2px;
+}
+
+.ai-usage-heading-row small {
+  color: #7e6e87;
+  font-size: .65rem;
+  font-weight: 850;
+}
+
+.ai-usage-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  background: #eee3ff;
+  font-size: 1.25rem;
+}
+
+.ai-usage-card > p {
+  margin: 0;
+  color: #74647d;
+  font-size: .68rem;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.ai-budget-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+
+.parent-actions .ai-budget-options button {
+  min-height: 38px;
+  padding: 7px 5px;
+  text-align: center;
+}
+
+.ai-budget-options button.is-active {
+  color: white;
+  background: #7650ae;
+  box-shadow: 0 3px 8px rgba(83, 49, 126, .2);
+}
+
+.ai-usage-card .memory-clear-button {
+  margin: 0;
+}
