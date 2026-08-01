@@ -1,7 +1,7 @@
 export const RELEASE_INFO = {
   title: "Khadija's World",
-  version: "0.25.0",
-  build: "release-1-production-readiness",
+  version: "0.26.0",
+  build: "content-1-neighborhood-adventures",
   channel: "production",
   copyright: "© 2026 Khadija's World. All rights reserved.",
   productionPath: "/",

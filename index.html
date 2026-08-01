@@ -46,7 +46,7 @@
             <button id="grown-ups-button" type="button">Grown-Ups</button>
             <button id="title-credits-button" type="button">Credits</button>
           </div>
-          <small id="title-version">Version 0.25.0</small>
+          <small id="title-version">Version 0.26.0</small>
           <nav class="title-product-links" aria-label="Product information">
             <button id="title-privacy-button" type="button">Privacy</button>
             <button id="title-accessibility-button" type="button">Accessibility</button>
@@ -174,7 +174,7 @@
       <section id="credits-panel" class="release-modal" role="dialog" aria-modal="true" aria-labelledby="credits-heading" hidden>
         <div class="release-card release-card-wide">
           <h2 id="credits-heading">Credits</h2>
-          <p><strong>Khadija's World</strong> — Version <span data-release-version>0.25.0</span></p>
+          <p><strong>Khadija's World</strong> — Version <span data-release-version>0.26.0</span></p>
           <dl class="credits-list">
             <dt>Created by</dt><dd>Khadija's World contributors</dd>
             <dt>Design and development</dt><dd>Abraratech and project contributors</dd>
@@ -217,8 +217,8 @@
         <div class="release-card release-card-wide policy-card">
           <h2 id="release-info-heading">Production Information</h2>
           <dl class="credits-list">
-            <dt>Version</dt><dd data-release-version>0.25.0</dd>
-            <dt>Build</dt><dd data-release-build>release-1-production-readiness</dd>
+            <dt>Version</dt><dd data-release-version>0.26.0</dd>
+            <dt>Build</dt><dd data-release-build>content-1-neighborhood-adventures</dd>
             <dt>Channel</dt><dd data-release-channel>production</dd>
             <dt>Local play</dt><dd>Saved in this browser by default</dd>
             <dt>Optional services</dt><dd>Grown-up controlled AI replies and encrypted cloud saves</dd>
@@ -283,6 +283,17 @@
             aria-label="Open main menu"
             aria-controls="pause-panel"
           ><span aria-hidden="true">&#9776;</span></button>
+          <button
+            id="adventure-button"
+            class="round-button adventure-button"
+            type="button"
+            aria-label="Open Adventure Book"
+            aria-controls="adventure-panel"
+            aria-expanded="false"
+          >
+            <span aria-hidden="true">&#128214;</span>
+            <small id="adventure-badge">0/13</small>
+          </button>
           <button
             id="help-button"
             class="round-button help-button"
@@ -515,6 +526,61 @@
         <button id="avatar-reset-button" class="avatar-reset-button" type="button">
           <span aria-hidden="true">&#8635;</span> Classic Khadija
         </button>
+      </section>
+
+      <section
+        id="adventure-panel"
+        class="popover adventure-panel"
+        role="dialog"
+        aria-modal="false"
+        aria-labelledby="adventure-heading"
+        hidden
+      >
+        <div class="popover-heading">
+          <div>
+            <span class="eyebrow">Stories to make</span>
+            <h2 id="adventure-heading">Adventure Book</h2>
+          </div>
+          <button class="close-button" data-close-popover type="button" aria-label="Close Adventure Book">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+
+        <section class="adventure-summary" aria-label="Adventure progress">
+          <div>
+            <strong id="adventure-progress-text">0 of 13 adventures</strong>
+            <span class="adventure-progress-track" aria-hidden="true">
+              <span id="adventure-progress-bar"></span>
+            </span>
+          </div>
+          <div class="adventure-totals">
+            <span id="adventure-stars">0 stars</span>
+            <span id="adventure-encore">0 encore moments</span>
+          </div>
+        </section>
+
+        <section class="adventure-current" aria-labelledby="adventure-current-title">
+          <span id="adventure-current-icon" class="adventure-current-icon" aria-hidden="true">&#10024;</span>
+          <div class="adventure-current-copy">
+            <small>Try this next</small>
+            <h3 id="adventure-current-title">Home Helper</h3>
+            <p id="adventure-current-description">Clean, tidy, or put something safely away.</p>
+            <p id="adventure-current-hint" class="adventure-hint">Try the sponge, book shelf, wardrobe, sink, or bin.</p>
+            <span id="adventure-current-room" class="adventure-room-chip">Family Home</span>
+          </div>
+          <div class="adventure-current-actions">
+            <button id="adventure-go-button" type="button">Go there</button>
+            <button id="adventure-rotate-button" type="button">Choose another</button>
+          </div>
+        </section>
+
+        <h3 class="adventure-section-heading">Adventure cards</h3>
+        <div id="adventure-list" class="adventure-list" aria-live="polite"></div>
+
+        <h3 class="adventure-section-heading">Sticker page</h3>
+        <div id="adventure-stickers" class="adventure-stickers" aria-live="polite">
+          <p class="adventure-stickers-empty">Complete an adventure to earn the first sticker.</p>
+        </div>
       </section>
 
       <section

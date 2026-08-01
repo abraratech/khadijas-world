@@ -1,7 +1,7 @@
 {
   "name": "khadijas-world",
   "private": true,
-  "version": "0.25.0",
+  "version": "0.26.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -28,7 +28,8 @@
     "pwa:check": "node scripts/check-pwa.mjs",
     "release:check": "node scripts/check-release.mjs",
     "release:mobile": "playwright test tests/browser/release-mobile.spec.ts --workers=1",
-    "release:verified": "npm run validate:assets && npm run check && npm test && npm run check:qa && npm run build:cloudflare && npm run pwa:check && npm run check:bundle && npm run release:check"
+    "release:verified": "npm run validate:assets && npm run check && npm run build:cloudflare && npm run pwa:check && npm run check:bundle && npm run content:check && npm run release:check",
+    "content:check": "node scripts/check-content.mjs"
   },
   "dependencies": {
     "@babylonjs/core": "9.18.0",

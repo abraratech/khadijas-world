@@ -4,7 +4,7 @@ import { RELEASE } from "./release";
 describe("production release metadata", () => {
   it("publishes complete production identifiers", () => {
     expect(RELEASE.version).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(RELEASE.build).toBe("release-1-production-readiness");
+    expect(RELEASE.build).toBe("content-1-neighborhood-adventures");
     expect(RELEASE.channel).toBe("production");
     expect(RELEASE.productionPath).toBe("/");
   });

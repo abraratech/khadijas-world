@@ -53,13 +53,13 @@ meshes cannot appear outside the playable room frame. See
 
 ## Current release
 
-**Version 0.25.0 — RELEASE.1 production readiness**
+**Version 0.26.0 — CONTENT.1 neighborhood adventures**
 
-Repository package version: 0.25.0
+Repository package version: 0.26.0
 
-RELEASE.1 adds public privacy and accessibility information, mobile and compact-landscape review coverage, production metadata, security headers, and a deterministic release audit. PWA, AI chat, and encrypted cloud-save behavior remain grown-up controlled where applicable.
+CONTENT.1 adds a persistent Adventure Book with 13 neighborhood stories, star rewards, collectible stickers, repeatable encore moments, all-location exploration progress, and richer location-aware dialogue. RELEASE.1 privacy, accessibility, PWA, AI chat, and encrypted cloud-save protections remain in place.
 
-See `RELEASE_CHECKLIST.md`, `MOBILE_TEST_MATRIX.md`, `PRIVACY.md`, and `ACCESSIBILITY.md`.
+See `CONTENT_1.md`, `RELEASE_CHECKLIST.md`, `MOBILE_TEST_MATRIX.md`, `PRIVACY.md`, and `ACCESSIBILITY.md`.
 
 ## Run locally
 

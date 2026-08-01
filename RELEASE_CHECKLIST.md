@@ -1,7 +1,7 @@
 # RELEASE.1 production checklist
 
-Release version: **0.25.0**
-Build: **release-1-production-readiness**
+Release version: **0.26.0**
+Build: **content-1-neighborhood-adventures**
 Date: **1 August 2026**
 
 ## Automated gate
@@ -56,3 +56,10 @@ Date: **1 August 2026**
 - [ ] A rollback commit is identified.
 - [ ] Production deployment is visually checked after Cloudflare completes.
 - [ ] Release owner records **GO** or **NO-GO** with date and evidence.
+
+## CONTENT.1 verification
+
+- [x] Adventure Book definitions, rewards, stickers, and save normalization are present.
+- [x] Existing home, bedroom, neighborhood, café, park, and grocery interactions feed typed content progress.
+- [x] Dialogue suggestions cover all six locations.
+- [x] Content audit, TypeScript, production build, PWA check, bundle budget, and Cloudflare Functions compile pass.

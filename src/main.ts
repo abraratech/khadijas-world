@@ -43,6 +43,16 @@ import {
 } from "./game/cloudSave";
 import { formatCloudSyncCode } from "./game/cloudSaveContract";
 import type { DialogueTopic } from "./game/content/dialogue/topicSuggestions";
+import {
+  ADVENTURES,
+  activeAdventure,
+  adventureProgress,
+  recordAdventureAction,
+  recordAdventureMemoryEvent,
+  recordAdventureRoom,
+  rotateActiveAdventure,
+  type AdventureCompletion,
+} from "./game/content/adventureBook";
 import type { DialogueIntent } from "./game/dialogue/DialogueIntent";
 import type { NpcId } from "./game/livingCharacters";
 import { friendshipLevel } from "./game/npc/RelationshipController";
@@ -62,6 +72,7 @@ import {
   saveLivingSettings,
   saveDialogueState,
   saveAccessibilitySettings,
+  saveContentState,
   saveReleaseSettings,
   saveQualityPreset,
   startNewWorld,
@@ -117,6 +128,22 @@ const helpButton = document.querySelector<HTMLButtonElement>("#help-button");
 const settingsButton = document.querySelector<HTMLButtonElement>("#settings-button");
 const helpCard = document.querySelector<HTMLElement>("#help-card");
 const settingsPanel = document.querySelector<HTMLElement>("#settings-panel");
+const adventureButton = document.querySelector<HTMLButtonElement>("#adventure-button");
+const adventureBadge = document.querySelector<HTMLElement>("#adventure-badge");
+const adventurePanel = document.querySelector<HTMLElement>("#adventure-panel");
+const adventureProgressText = document.querySelector<HTMLElement>("#adventure-progress-text");
+const adventureProgressBar = document.querySelector<HTMLElement>("#adventure-progress-bar");
+const adventureStars = document.querySelector<HTMLElement>("#adventure-stars");
+const adventureEncore = document.querySelector<HTMLElement>("#adventure-encore");
+const adventureCurrentIcon = document.querySelector<HTMLElement>("#adventure-current-icon");
+const adventureCurrentTitle = document.querySelector<HTMLElement>("#adventure-current-title");
+const adventureCurrentDescription = document.querySelector<HTMLElement>("#adventure-current-description");
+const adventureCurrentHint = document.querySelector<HTMLElement>("#adventure-current-hint");
+const adventureCurrentRoom = document.querySelector<HTMLElement>("#adventure-current-room");
+const adventureRotateButton = document.querySelector<HTMLButtonElement>("#adventure-rotate-button");
+const adventureGoButton = document.querySelector<HTMLButtonElement>("#adventure-go-button");
+const adventureList = document.querySelector<HTMLElement>("#adventure-list");
+const adventureStickers = document.querySelector<HTMLElement>("#adventure-stickers");
 const avatarButton = document.querySelector<HTMLButtonElement>("#avatar-button");
 const avatarTrayButton = document.querySelector<HTMLButtonElement>("#avatar-tray-button");
 const avatarPanel = document.querySelector<HTMLElement>("#avatar-panel");
@@ -273,6 +300,11 @@ if (
   || !heldItemValue || !heldItemOwnerLabel || !roomValue
   || !useItemButton || !useItemLabel || !dropItemButton || !togetherButton || !resetButton
   || !helpButton || !settingsButton || !helpCard || !settingsPanel
+  || !adventureButton || !adventureBadge || !adventurePanel
+  || !adventureProgressText || !adventureProgressBar || !adventureStars || !adventureEncore
+  || !adventureCurrentIcon || !adventureCurrentTitle || !adventureCurrentDescription
+  || !adventureCurrentHint || !adventureCurrentRoom || !adventureRotateButton
+  || !adventureGoButton || !adventureList || !adventureStickers
   || !avatarButton || !avatarTrayButton || !avatarPanel || !avatarResetButton
   || !soundToggle || !musicToggle || !idleAnimationToggle || !smallMovementToggle
   || !reducedMotionToggle || !largeTextToggle || !highContrastToggle
@@ -941,6 +973,130 @@ const showAction = (message: string, sound: InteractionSound = "success"): void 
   feedbackTimer = window.setTimeout(() => feedbackSparkles.classList.remove("is-playing"), 650);
 };
 
+const adventureState = loadSave().content;
+let currentAdventureRoom: RoomId = loadSave().activeRoom;
+let adventureAnnouncementTimer = 0;
+
+const renderAdventureBook = (): void => {
+  const progress = adventureProgress(adventureState);
+  const completionPercent = progress.total === 0
+    ? 0
+    : Math.round((progress.completed / progress.total) * 100);
+
+  adventureBadge.textContent = `${progress.completed}/${progress.total}`;
+  adventureButton.setAttribute(
+    "aria-label",
+    `Open Adventure Book. ${progress.completed} of ${progress.total} complete.`,
+  );
+  adventureProgressText.textContent = `${progress.completed} of ${progress.total} adventures`;
+  adventureProgressBar.style.width = `${completionPercent}%`;
+  adventureStars.textContent = `${progress.stars} stars`;
+  adventureEncore.textContent = progress.encoreMoments === 1
+    ? "1 encore moment"
+    : `${progress.encoreMoments} encore moments`;
+
+  const current = progress.current;
+  if (current) {
+    adventureCurrentIcon.textContent = current.icon;
+    adventureCurrentTitle.textContent = current.title;
+    adventureCurrentDescription.textContent = current.description;
+    adventureCurrentHint.textContent = current.hint;
+    adventureCurrentRoom.textContent = current.roomLabel;
+    adventureGoButton.hidden = current.room === "any";
+  } else {
+    adventureCurrentIcon.textContent = "🏆";
+    adventureCurrentTitle.textContent = "Adventure Book complete!";
+    adventureCurrentDescription.textContent = "Every sticker has been earned. Keep playing for encore moments.";
+    adventureCurrentHint.textContent = "All activities stay open and repeatable.";
+    adventureCurrentRoom.textContent = "Everywhere";
+    adventureGoButton.hidden = true;
+  }
+
+  const cards = ADVENTURES.map((definition) => {
+    const complete = adventureState.adventureCompleted.includes(definition.id);
+    const encoreCount = adventureState.adventureEncoreCounts[definition.id] ?? 0;
+    const card = document.createElement("article");
+    card.className = `adventure-card${complete ? " is-complete" : ""}`;
+    card.setAttribute("aria-label", `${definition.title}. ${complete ? "Complete" : "Not complete"}.`);
+
+    const icon = document.createElement("span");
+    icon.className = "adventure-card-icon";
+    icon.textContent = complete ? definition.sticker : definition.icon;
+    icon.setAttribute("aria-hidden", "true");
+
+    const copy = document.createElement("span");
+    copy.className = "adventure-card-copy";
+
+    const title = document.createElement("strong");
+    title.textContent = definition.title;
+
+    const detail = document.createElement("small");
+    detail.textContent = complete
+      ? `${definition.stars} stars · ${definition.stickerLabel}${encoreCount > 0 ? ` · ${encoreCount} encore` : ""}`
+      : `${definition.roomLabel} · ${definition.description}`;
+
+    copy.append(title, detail);
+
+    const statusIcon = document.createElement("span");
+    statusIcon.className = "adventure-card-status";
+    statusIcon.textContent = complete ? "✓" : `${definition.stars}★`;
+    statusIcon.setAttribute("aria-hidden", "true");
+
+    card.append(icon, copy, statusIcon);
+    return card;
+  });
+  adventureList.replaceChildren(...cards);
+
+  const earnedStickers = ADVENTURES.filter(
+    (definition) => adventureState.adventureCompleted.includes(definition.id),
+  );
+  if (earnedStickers.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "adventure-stickers-empty";
+    empty.textContent = "Complete an adventure to earn the first sticker.";
+    adventureStickers.replaceChildren(empty);
+  } else {
+    adventureStickers.replaceChildren(
+      ...earnedStickers.map((definition) => {
+        const sticker = document.createElement("span");
+        sticker.className = "adventure-sticker";
+        sticker.textContent = definition.sticker;
+        sticker.title = definition.stickerLabel;
+        sticker.setAttribute("aria-label", definition.stickerLabel);
+        return sticker;
+      }),
+    );
+  }
+};
+
+const announceAdventureCompletions = (
+  completions: readonly AdventureCompletion[],
+): void => {
+  if (completions.length === 0) return;
+  window.clearTimeout(adventureAnnouncementTimer);
+  adventureAnnouncementTimer = window.setTimeout(() => {
+    const first = completions[0];
+    const extra = completions.length > 1
+      ? ` Plus ${completions.length - 1} more sticker${completions.length === 2 ? "" : "s"}!`
+      : "";
+    showAction(
+      `${first.sticker} Adventure complete: ${first.title}! +${first.stars} stars.${extra}`,
+      "success",
+    );
+  }, accessibilityPreferences.reducedMotion ? 250 : 850);
+};
+
+const applyAdventureUpdate = (
+  update: ReturnType<typeof recordAdventureAction>,
+): void => {
+  if (!update.changed) return;
+  saveContentState(adventureState);
+  renderAdventureBook();
+  announceAdventureCompletions(update.completions);
+};
+
+renderAdventureBook();
+
 const updateInteractionLabel = (hint: InteractionHint | null): void => {
   if (!hint || !interactionLabel || !interactionLabelIcon || !interactionLabelName || !interactionLabelHint) {
     if (interactionLabel) interactionLabel.hidden = true;
@@ -1245,6 +1401,9 @@ const syncAvatarControls = (): void => {
 };
 
 const updatePlayState = (state: PlayState): void => {
+  currentAdventureRoom = state.activeRoom;
+  applyAdventureUpdate(recordAdventureRoom(adventureState, state.activeRoom));
+
   if (
     activeChatNpc
     && (
@@ -1319,6 +1478,11 @@ room = createPrototypeRoom(engine, {
 
     if (!isMovementOrTravel) recordOnboardingStep("interact");
     showAction(message, sound);
+    applyAdventureUpdate(recordAdventureAction(adventureState, {
+      room: currentAdventureRoom,
+      message,
+      sound,
+    }));
   },
   onPlayerMovement: () => recordOnboardingStep("move"),
   isKeyboardInputEnabled: () => (
@@ -1327,13 +1491,17 @@ room = createPrototypeRoom(engine, {
     && chatPanel.hidden
     && helpCard.hidden
     && settingsPanel.hidden
+    && adventurePanel.hidden
     && avatarPanel.hidden
     && releasePanels.every((panel) => panel.hidden)
   ),
   onPlayStateChange: updatePlayState,
   onNpcChat: openNpcChat,
   isNpcChatEnabled: () => dialoguePreferences.npcChat,
-  onNpcMemoryEvent: (event) => dialogueController.recordWorldEvent(event),
+  onNpcMemoryEvent: (event) => {
+    dialogueController.recordWorldEvent(event);
+    applyAdventureUpdate(recordAdventureMemoryEvent(adventureState, event));
+  },
   onInteractionHint: updateInteractionLabel,
 }) as AvatarPrototypeRoom;
 room.setLivingSettings(livingPreferences);
@@ -1451,9 +1619,11 @@ let activePopover: {
 function closePopovers(shouldRestoreFocus = true): void {
   helpCard!.hidden = true;
   settingsPanel!.hidden = true;
+  adventurePanel!.hidden = true;
   avatarPanel!.hidden = true;
   helpButton!.setAttribute("aria-expanded", "false");
   settingsButton!.setAttribute("aria-expanded", "false");
+  adventureButton!.setAttribute("aria-expanded", "false");
   avatarButton!.setAttribute("aria-expanded", "false");
   avatarTrayButton!.setAttribute("aria-expanded", "false");
 
@@ -1776,6 +1946,24 @@ helpButton.addEventListener("click", () => {
 });
 onboardingSkipButton.addEventListener("click", skipOnboarding);
 settingsButton.addEventListener("click", () => togglePopover(settingsPanel, settingsButton));
+adventureButton.addEventListener("click", () => {
+  renderAdventureBook();
+  togglePopover(adventurePanel, adventureButton);
+});
+adventureRotateButton.addEventListener("click", () => {
+  rotateActiveAdventure(adventureState);
+  saveContentState(adventureState);
+  renderAdventureBook();
+  const current = activeAdventure(adventureState);
+  if (current) showAction(`Next adventure: ${current.title}`, "tap");
+});
+adventureGoButton.addEventListener("click", () => {
+  const current = activeAdventure(adventureState);
+  if (!current || current.room === "any") return;
+  closePopovers(false);
+  room.switchRoom(current.room);
+  showAction(`Adventure stop: ${current.roomLabel}`, "travel");
+});
 for (const button of closePopoverButtons) {
   button.addEventListener("click", () => closePopovers());
 }
