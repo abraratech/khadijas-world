@@ -4,5 +4,11 @@
   "compatibility_date": "2026-07-31",
   "ai": {
     "binding": "AI"
-  }
+  },
+  "kv_namespaces": [
+    {
+          "binding": "NPC_CHAT_RATE_LIMIT",
+          "id": "320ca89584ff4c80ac1c83ec18f9d0f7"
+        }
+  ]
 }
