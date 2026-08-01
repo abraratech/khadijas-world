@@ -9,6 +9,8 @@ import type { DialogueSaveState } from "../npc/NpcMemory";
 import { recognizeEntities, type RecognizedEntity } from "./EntityRecognizer";
 import { recognizeIntent } from "./IntentRecognizer";
 import type { DialogueIntent } from "./DialogueIntent";
+import type { AiChatRequestBody } from "./aiChatContract";
+import { isUnsafeDialogueInput } from "./unsafeTerms";
 
 export interface DialogueContext {
   npcId: NpcId;
@@ -30,6 +32,14 @@ export interface DialogueReply {
   templateId: string;
   friendshipLabel: string;
   suggestions: DialogueTopic[];
+  /**
+   * True only when the message didn't match a known intent and passed the
+   * unsafe-term/PII check on its own (independent of `intent`, since the
+   * PII shape check isn't part of intent recognition). The caller may use
+   * this as the signal to attempt an AI-upgraded reply; `text` above is
+   * always already a safe, complete reply either way.
+   */
+  aiEligible: boolean;
 }
 
 export interface DialogueOpenState {
@@ -137,7 +147,39 @@ export class DialogueController {
         ...context,
         relationshipLevel: this.memory.get(context.npcId).friendship,
       }),
+      aiEligible: intent === "unknown" && !isUnsafeDialogueInput(text),
     };
+  }
+
+  /**
+   * Assembles the payload for `/api/npc-chat`. Only call this when the
+   * preceding `reply()` result had `aiEligible: true` — this method does
+   * not re-run the safety check itself, it trusts the caller already did.
+   */
+  buildAiChatRequest(
+    context: DialogueContext,
+    message: string,
+  ): Omit<AiChatRequestBody, "sessionId"> {
+    const memory = this.memory.get(context.npcId);
+    return {
+      npcId: context.npcId,
+      message: safeInput(message),
+      context: {
+        locationId: context.locationId,
+        activeCharacterId: context.activeCharacterId,
+        friendship: memory.friendship,
+      },
+      recentTurns: memory.recentConversation.slice(-4),
+    };
+  }
+
+  /**
+   * Call after a successful AI reply so the conversation memory reflects
+   * what's actually shown on screen (the rule-based fallback that `reply()`
+   * already recorded gets overwritten, not duplicated).
+   */
+  applyAiReply(npcId: NpcId, text: string): void {
+    this.memory.updateLastNpcTurn(npcId, text);
   }
 
   recordWorldEvent(event: NpcWorldMemoryEvent): void {

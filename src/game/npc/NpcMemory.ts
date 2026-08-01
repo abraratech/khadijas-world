@@ -44,6 +44,13 @@ export interface ConversationSettings {
   npcChat: boolean;
   typedMessages: boolean;
   rememberConversations: boolean;
+  /**
+   * Opt-in, defaults false. Governs whether unrecognized messages may be
+   * upgraded to an AI-generated reply via the `/api/npc-chat` endpoint.
+   * Recognized intents always answer from the existing template system
+   * regardless of this setting.
+   */
+  aiChat: boolean;
 }
 
 export interface DialogueSaveState {
@@ -59,6 +66,7 @@ export const DEFAULT_CONVERSATION_SETTINGS: ConversationSettings = {
   npcChat: true,
   typedMessages: true,
   rememberConversations: true,
+  aiChat: false,
 };
 
 export function createNpcMemory(npcId: NpcId): NpcMemory {
@@ -190,6 +198,9 @@ export function normalizeDialogueState(
     npcChat: settings.npcChat !== false,
     typedMessages: settings.typedMessages !== false,
     rememberConversations: settings.rememberConversations !== false,
+    // Opt-in, unlike the three settings above: stays off unless a save
+    // explicitly turned it on.
+    aiChat: settings.aiChat === true,
   };
   for (const npcId of npcIds) {
     if (memories[npcId] !== undefined) {

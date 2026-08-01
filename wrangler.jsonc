@@ -1,0 +1,8 @@
+{
+  "name": "khadijas-world",
+  "pages_build_output_dir": "./dist",
+  "compatibility_date": "2026-07-31",
+  "ai": {
+    "binding": "AI"
+  }
+}

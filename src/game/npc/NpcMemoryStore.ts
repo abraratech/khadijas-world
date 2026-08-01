@@ -52,6 +52,24 @@ export class NpcMemoryStore {
     this.save();
   }
 
+  /**
+   * Replaces the text of the most recent npc-authored turn. Used only when
+   * an AI reply arrives and upgrades a bubble the player already saw the
+   * rule-based version of — so `recentConversation` (which future replies
+   * and any AI context read from) reflects what's actually on screen
+   * rather than the fallback that got replaced.
+   */
+  updateLastNpcTurn(npcId: NpcId, text: string): void {
+    const memory = this.get(npcId);
+    for (let index = memory.recentConversation.length - 1; index >= 0; index -= 1) {
+      if (memory.recentConversation[index].speaker === "npc") {
+        memory.recentConversation[index] = { speaker: "npc", text: text.slice(0, 180) };
+        break;
+      }
+    }
+    this.save();
+  }
+
   rememberTopic(npcId: NpcId, topic: string): void {
     const memory = this.get(npcId);
     memory.recentTopics = [topic, ...memory.recentTopics.filter((entry) => entry !== topic)]

@@ -20,7 +20,8 @@
                     "qa:browser:headed":  "playwright test --headed",
                     "qa:browser:ui":  "playwright test --ui",
                     "qa:verified":  "npm run validate:assets \u0026\u0026 npm run check \u0026\u0026 npm test \u0026\u0026 npm run check:qa \u0026\u0026 npm run qa:browser \u0026\u0026 npm run check:bundle",
-                    "build:cloudflare":  "tsc --noEmit \u0026\u0026 vite build --base /"
+                    "build:cloudflare":  "tsc --noEmit \u0026\u0026 vite build --base /",
+                    "chat:dev":  "npm run build:cloudflare \u0026\u0026 npx wrangler@latest pages dev dist --ai AI"
                 },
     "dependencies":  {
                          "@babylonjs/core":  "9.18.0",

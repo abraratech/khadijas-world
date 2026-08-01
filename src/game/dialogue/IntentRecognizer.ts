@@ -1,9 +1,5 @@
 import type { DialogueIntent, IntentMatch } from "./DialogueIntent";
-
-const unsafeTerms = [
-  "address", "phone number", "email", "password", "meet me", "where do you live",
-  "weapon", "kill", "blood", "drug", "gambling", "secret from parents",
-];
+import { isUnsafeDialogueInput } from "./unsafeTerms";
 
 const patterns: ReadonlyArray<{
   intent: DialogueIntent;
@@ -42,7 +38,7 @@ function normalize(text: string): string {
 export function recognizeIntent(text: string): IntentMatch {
   const normalized = normalize(text);
   if (!normalized) return { intent: "unknown", debugScore: 0 };
-  if (unsafeTerms.some((term) => normalized.includes(term))) {
+  if (isUnsafeDialogueInput(text)) {
     return { intent: "safe-redirect", debugScore: 1 };
   }
   let best: IntentMatch = { intent: "unknown", debugScore: 0 };

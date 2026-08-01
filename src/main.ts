@@ -19,6 +19,7 @@ import {
 import { applyQuality, type QualityPreset } from "./game/quality";
 import { AdaptiveResolutionController } from "./game/performance/adaptiveResolution";
 import { DialogueController, type DialogueContext } from "./game/dialogue/DialogueController";
+import { requestAiReply } from "./game/dialogue/aiChatClient";
 import type { DialogueTopic } from "./game/content/dialogue/topicSuggestions";
 import type { DialogueIntent } from "./game/dialogue/DialogueIntent";
 import type { NpcId } from "./game/livingCharacters";
@@ -119,6 +120,7 @@ const reloadDisplayButton = document.querySelector<HTMLButtonElement>("#reload-d
 const npcChatToggle = document.querySelector<HTMLButtonElement>("#npc-chat-toggle");
 const typedChatToggle = document.querySelector<HTMLButtonElement>("#typed-chat-toggle");
 const memoryToggle = document.querySelector<HTMLButtonElement>("#memory-toggle");
+const aiChatToggle = document.querySelector<HTMLButtonElement>("#ai-chat-toggle");
 const clearAllMemoriesButton = document.querySelector<HTMLButtonElement>("#clear-all-memories-button");
 const chatPanel = document.querySelector<HTMLElement>("#chat-panel");
 const chatNpcPortrait = document.querySelector<HTMLElement>("#chat-npc-portrait");
@@ -224,7 +226,7 @@ if (
   || !instantDialogueToggle || !fullscreenButton || !loadingScreen
   || !displayRecovery || !restoreDisplayButton || !reloadDisplayButton
   || !startupError || !startupReloadButton
-  || !npcChatToggle || !typedChatToggle || !memoryToggle || !clearAllMemoriesButton
+  || !npcChatToggle || !typedChatToggle || !memoryToggle || !aiChatToggle || !clearAllMemoriesButton
   || !chatPanel || !chatNpcPortrait || !chatNpcName || !chatFriendship
   || !chatCloseButton || !chatMessages || !chatThinking || !chatTopics
   || !chatForm || !chatInput || !chatSendButton || !chatClearButton
@@ -783,6 +785,10 @@ let dialoguePreferences = dialogueController.memory.settings();
 updateSwitch(npcChatToggle, dialoguePreferences.npcChat);
 updateSwitch(typedChatToggle, dialoguePreferences.typedMessages);
 updateSwitch(memoryToggle, dialoguePreferences.rememberConversations);
+updateSwitch(aiChatToggle, dialoguePreferences.aiChat);
+aiChatToggle.textContent = dialoguePreferences.aiChat
+  ? "Smarter replies: On"
+  : "Smarter replies: Off";
 chatForm.hidden = !dialoguePreferences.typedMessages;
 
 const engine = new Engine(
@@ -962,6 +968,20 @@ const submitChat = (message: string, forcedIntent?: DialogueIntent): void => {
       dialogueIntentValue.textContent = reply.intent;
       dialogueEntitiesValue.textContent = reply.entities.map((entity) => entity.id).join(", ") || "none";
       dialogueTemplateValue.textContent = reply.templateId;
+    }
+
+    // A safe rule-based reply is already visible. The network request only
+    // upgrades that bubble after both server-side input and output checks.
+    if (reply.aiEligible && dialoguePreferences.aiChat) {
+      const requestBody = dialogueController.buildAiChatRequest(context, message);
+      void requestAiReply(requestBody).then((aiText) => {
+        if (!aiText || activeChatNpc !== npcId) return;
+        dialogueController.applyAiReply(npcId, aiText);
+        renderConversation(npcId);
+        if (isDebugMode) {
+          dialogueTemplateValue.textContent = `${reply.templateId} (ai-upgraded)`;
+        }
+      });
     }
   }, accessibilityPreferences.instantDialogue || accessibilityPreferences.reducedMotion ? 0 : 240);
 };
@@ -1493,6 +1513,21 @@ memoryToggle.addEventListener("click", () => {
   showAction(dialoguePreferences.rememberConversations
     ? "Friends can remember kind moments."
     : "New chats will not be saved.", "toggle");
+});
+
+aiChatToggle.addEventListener("click", () => {
+  dialoguePreferences = {
+    ...dialoguePreferences,
+    aiChat: !dialoguePreferences.aiChat,
+  };
+  dialogueController.memory.setSettings(dialoguePreferences);
+  updateSwitch(aiChatToggle, dialoguePreferences.aiChat);
+  aiChatToggle.textContent = dialoguePreferences.aiChat
+    ? "Smarter replies: On"
+    : "Smarter replies: Off";
+  parentResult.textContent = dialoguePreferences.aiChat
+    ? "Smarter replies are on. Unknown typed messages may be checked by Cloudflare AI."
+    : "Smarter replies are off. All NPC replies remain fully offline.";
 });
 
 clearAllMemoriesButton.addEventListener("click", () => {
