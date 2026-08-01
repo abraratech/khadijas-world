@@ -3957,3 +3957,78 @@ a[href]:focus-visible,
     grid-column: span 1;
   }
 }
+
+
+/* RELEASE.1 production accessibility and policy surfaces */
+.skip-link {
+  position: fixed;
+  z-index: 10000;
+  top: max(8px, env(safe-area-inset-top));
+  left: max(8px, env(safe-area-inset-left));
+  padding: .75rem 1rem;
+  border: 3px solid #2d174f;
+  border-radius: 14px;
+  background: #fff9e8;
+  color: #2d174f;
+  font-weight: 900;
+  transform: translateY(-160%);
+  transition: transform .12s ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.title-product-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .4rem;
+  margin-top: .35rem;
+}
+
+.title-product-links button {
+  min-height: 44px;
+  padding: .55rem .8rem;
+  border: 0;
+  background: transparent;
+  color: #4b2b73;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.policy-card {
+  overflow-wrap: anywhere;
+}
+
+.policy-card p,
+.policy-card dd {
+  max-width: 72ch;
+}
+
+.policy-card a {
+  color: #4a2380;
+  font-weight: 800;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+  .title-product-links {
+    width: 100%;
+  }
+
+  .title-product-links button {
+    flex: 1 1 120px;
+  }
+
+  .release-card.policy-card {
+    padding-inline: max(14px, env(safe-area-inset-left));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skip-link {
+    transition: none;
+  }
+}

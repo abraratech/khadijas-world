@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#7447b8" />
+    <meta name="color-scheme" content="light" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -21,6 +22,7 @@
     <title>Khadija's World</title>
   </head>
   <body>
+    <a class="skip-link" href="#game-canvas">Skip to game controls</a>
     <main id="app">
       <section id="loading-screen" class="loading-screen" aria-live="polite">
         <div class="loading-logo" aria-label="Khadija's World">
@@ -44,7 +46,11 @@
             <button id="grown-ups-button" type="button">Grown-Ups</button>
             <button id="title-credits-button" type="button">Credits</button>
           </div>
-          <small id="title-version">Version 0.1.18</small>
+          <small id="title-version">Version 0.25.0</small>
+          <nav class="title-product-links" aria-label="Product information">
+            <button id="title-privacy-button" type="button">Privacy</button>
+            <button id="title-accessibility-button" type="button">Accessibility</button>
+          </nav>
         </div>
       </section>
 
@@ -75,7 +81,7 @@
         <div class="release-card">
           <h2 id="parent-gate-heading">Grown-Ups</h2>
           <p>Please answer this grown-up check: What is 4 + 3?</p>
-          <label>Answer <input id="parent-gate-answer" type="number" inputmode="numeric" /></label>
+          <label>Answer <input id="parent-gate-answer" type="number" inputmode="numeric" autocomplete="off" enterkeyhint="done" /></label>
           <p id="parent-gate-message" class="privacy-short" aria-live="polite"></p>
           <div class="release-actions">
             <button id="parent-gate-submit" class="title-primary" type="button">Open grown-up controls</button>
@@ -154,6 +160,8 @@
               <output id="cloud-save-result" class="privacy-short" aria-live="polite"></output>
             </section>
             <button id="parent-privacy-button" type="button">Privacy notice</button>
+            <button id="parent-accessibility-button" type="button">Accessibility statement</button>
+            <button id="parent-release-button" type="button">Production information</button>
             <button id="parent-notices-button" type="button">Third-party notices</button>
             <button id="parent-credits-button" type="button">Credits</button>
             <button id="parent-reset-button" class="danger-soft" type="button">Start a new world</button>
@@ -166,10 +174,10 @@
       <section id="credits-panel" class="release-modal" role="dialog" aria-modal="true" aria-labelledby="credits-heading" hidden>
         <div class="release-card release-card-wide">
           <h2 id="credits-heading">Credits</h2>
-          <p><strong>Khadija's World</strong> — Version <span data-release-version>0.1.18</span></p>
+          <p><strong>Khadija's World</strong> — Version <span data-release-version>0.25.0</span></p>
           <dl class="credits-list">
-            <dt>Created by</dt><dd>Contributor details pending</dd>
-            <dt>Design and development</dt><dd>Contributor details pending</dd>
+            <dt>Created by</dt><dd>Khadija's World contributors</dd>
+            <dt>Design and development</dt><dd>Abraratech and project contributors</dd>
             <dt>Art, music, and sound</dt><dd>Original project code and procedural assets</dd>
             <dt>Technology</dt><dd>Babylon.js, TypeScript, and Vite</dd>
             <dt>Testing</dt><dd>Vitest</dd>
@@ -182,12 +190,41 @@
       </section>
 
       <section id="privacy-panel" class="release-modal" role="dialog" aria-modal="true" aria-labelledby="privacy-heading" hidden>
-        <div class="release-card release-card-wide">
+        <div class="release-card release-card-wide policy-card">
           <h2 id="privacy-heading">Plain-Language Privacy Notice</h2>
-          <p>Khadija's World does not require an account and does not use advertising or analytics. Normal NPC replies are offline. When a grown-up enables Smarter replies, unknown typed chat messages and limited in-game context are sent to Cloudflare for a moderated reply. Grown-ups choose an allowance, and technical safety logs record result categories and request timing without storing chat text.</p>
-          <p>World progress stays in this browser by default. When a grown-up creates a cross-device sync code, the browser encrypts the world before sending it to Cloudflare D1. Cloudflare stores encrypted save data plus technical revision and device identifiers; it does not receive the raw sync code or readable world JSON.</p>
-          <p>Clearing browser storage may remove local progress. Keep the sync code somewhere private if cloud saving is enabled. Please do not enter real names, addresses, school details, passwords, or other personal information in NPC chat.</p>
-          <p>Version 1.0 — effective 24 July 2026. This is a product privacy notice, not a claim of guaranteed legal compliance.</p>
+          <p><strong>No account, advertising, or analytics:</strong> ordinary play and neighborhood replies stay on this device. The game does not sell personal information.</p>
+          <p><strong>Optional Smarter replies:</strong> only after a grown-up enables them, an unknown typed message and limited game context are sent to the same-origin Cloudflare function for moderation and a reply. Technical logs use result categories and timing; the project code does not intentionally log chat text.</p>
+          <p><strong>Optional cloud saves:</strong> the browser encrypts the world before upload. Cloudflare D1 receives encrypted save data, a revision, and technical device identifiers. The raw sync code and readable world JSON are not uploaded.</p>
+          <p><strong>Control and deletion:</strong> local progress can be reset or cleared from the browser. A connected cloud copy can be deleted from Grown-Up Controls. Keep sync codes private, and do not type real names, addresses, school details, passwords, or other personal information into chat.</p>
+          <p>Notice <span data-privacy-version>1.1</span> — effective <span data-privacy-date>1 August 2026</span>. This describes the current product implementation and is not a legal certification.</p>
+          <p><a href="./privacy.html" target="_blank" rel="noopener">Open the full privacy notice</a></p>
+          <div class="release-actions"><button data-close-release type="button">Close</button></div>
+        </div>
+      </section>
+
+      <section id="accessibility-panel" class="release-modal" role="dialog" aria-modal="true" aria-labelledby="accessibility-heading" hidden>
+        <div class="release-card release-card-wide policy-card">
+          <h2 id="accessibility-heading">Accessibility Statement</h2>
+          <p>Khadija's World supports keyboard navigation, visible focus, larger interface text, stronger control contrast, gentle motion, instant dialogue, touch targets designed for mobile use, and safe-area handling for notched screens.</p>
+          <p>The title screen, menus, settings, chat, privacy controls, and recovery screens use semantic controls and focus management. The 3D play area has keyboard instructions and spoken status updates, but it is not yet a complete non-visual equivalent of every spatial activity.</p>
+          <p>Statement <span data-accessibility-version>1.0</span> — reviewed <span data-accessibility-date>1 August 2026</span>.</p>
+          <p><a href="./accessibility.html" target="_blank" rel="noopener">Open the full accessibility statement</a></p>
+          <div class="release-actions"><button data-close-release type="button">Close</button></div>
+        </div>
+      </section>
+
+      <section id="release-info-panel" class="release-modal" role="dialog" aria-modal="true" aria-labelledby="release-info-heading" hidden>
+        <div class="release-card release-card-wide policy-card">
+          <h2 id="release-info-heading">Production Information</h2>
+          <dl class="credits-list">
+            <dt>Version</dt><dd data-release-version>0.25.0</dd>
+            <dt>Build</dt><dd data-release-build>release-1-production-readiness</dd>
+            <dt>Channel</dt><dd data-release-channel>production</dd>
+            <dt>Local play</dt><dd>Saved in this browser by default</dd>
+            <dt>Optional services</dt><dd>Grown-up controlled AI replies and encrypted cloud saves</dd>
+          </dl>
+          <p><a id="release-support-link" href="https://github.com/abraratech/khadijas-world/issues" target="_blank" rel="noopener">Report a problem or request support</a></p>
+          <p><a href="./release-notes.html" target="_blank" rel="noopener">Open production release notes</a></p>
           <div class="release-actions"><button data-close-release type="button">Close</button></div>
         </div>
       </section>
@@ -204,6 +241,7 @@
         id="game-canvas"
         aria-label="Khadija's World play area"
         aria-describedby="canvas-keyboard-help"
+        aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight W A S D Tab"
         tabindex="0"
       ></canvas>
       <p id="canvas-keyboard-help" class="visually-hidden">

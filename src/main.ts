@@ -204,6 +204,8 @@ const newWorldButton = document.querySelector<HTMLButtonElement>("#new-world-but
 const titleSettingsButton = document.querySelector<HTMLButtonElement>("#title-settings-button");
 const grownUpsButton = document.querySelector<HTMLButtonElement>("#grown-ups-button");
 const titleCreditsButton = document.querySelector<HTMLButtonElement>("#title-credits-button");
+const titlePrivacyButton = document.querySelector<HTMLButtonElement>("#title-privacy-button");
+const titleAccessibilityButton = document.querySelector<HTMLButtonElement>("#title-accessibility-button");
 const titleVersion = document.querySelector<HTMLElement>("#title-version");
 const firstLaunchPanel = document.querySelector<HTMLElement>("#first-launch-panel");
 const setupSound = document.querySelector<HTMLInputElement>("#setup-sound");
@@ -220,6 +222,8 @@ const exportSaveButton = document.querySelector<HTMLButtonElement>("#export-save
 const importSaveButton = document.querySelector<HTMLButtonElement>("#import-save-button");
 const importSaveInput = document.querySelector<HTMLInputElement>("#import-save-input");
 const parentPrivacyButton = document.querySelector<HTMLButtonElement>("#parent-privacy-button");
+const parentAccessibilityButton = document.querySelector<HTMLButtonElement>("#parent-accessibility-button");
+const parentReleaseButton = document.querySelector<HTMLButtonElement>("#parent-release-button");
 const parentNoticesButton = document.querySelector<HTMLButtonElement>("#parent-notices-button");
 const parentCreditsButton = document.querySelector<HTMLButtonElement>("#parent-credits-button");
 const parentResetButton = document.querySelector<HTMLButtonElement>("#parent-reset-button");
@@ -239,7 +243,16 @@ const creditsPanel = document.querySelector<HTMLElement>("#credits-panel");
 const creditsCopyright = document.querySelector<HTMLElement>("#credits-copyright");
 const privacyPanel = document.querySelector<HTMLElement>("#privacy-panel");
 const noticesPanel = document.querySelector<HTMLElement>("#notices-panel");
+const accessibilityPanel = document.querySelector<HTMLElement>("#accessibility-panel");
+const releaseInfoPanel = document.querySelector<HTMLElement>("#release-info-panel");
+const releaseSupportLink = document.querySelector<HTMLAnchorElement>("#release-support-link");
 const releaseVersionLabels = Array.from(document.querySelectorAll<HTMLElement>("[data-release-version]"));
+const releaseBuildLabels = Array.from(document.querySelectorAll<HTMLElement>("[data-release-build]"));
+const releaseChannelLabels = Array.from(document.querySelectorAll<HTMLElement>("[data-release-channel]"));
+const privacyVersionLabels = Array.from(document.querySelectorAll<HTMLElement>("[data-privacy-version]"));
+const privacyDateLabels = Array.from(document.querySelectorAll<HTMLElement>("[data-privacy-date]"));
+const accessibilityVersionLabels = Array.from(document.querySelectorAll<HTMLElement>("[data-accessibility-version]"));
+const accessibilityDateLabels = Array.from(document.querySelectorAll<HTMLElement>("[data-accessibility-date]"));
 const closeReleaseButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-close-release]"));
 const menuButton = document.querySelector<HTMLButtonElement>("#menu-button");
 const pausePanel = document.querySelector<HTMLElement>("#pause-panel");
@@ -282,16 +295,19 @@ if (
   || characterButtons.length === 0 || expressionButtons.length === 0
   || characterLocationLabels.length === 0
   || !titleScreen || !continueButton || !newWorldButton || !titleSettingsButton || !grownUpsButton
-  || !titleCreditsButton || !titleVersion || !firstLaunchPanel || !setupSound
+  || !titleCreditsButton || !titlePrivacyButton || !titleAccessibilityButton
+  || !titleVersion || !firstLaunchPanel || !setupSound
   || !setupMusic || !setupReducedMotion || !startWorldButton || !parentGatePanel || !parentGateAnswer
   || !parentGateMessage || !parentGateSubmit || !parentPanel || !parentSettingsButton
   || !exportSaveButton || !importSaveButton || !importSaveInput || !parentPrivacyButton
-  || !parentNoticesButton || !parentCreditsButton || !parentResetButton || !parentResult
+  || !parentAccessibilityButton || !parentReleaseButton || !parentNoticesButton
+  || !parentCreditsButton || !parentResetButton || !parentResult
   || !cloudSaveStatus || !cloudSaveCode || !cloudSaveCreateButton || !cloudSaveRestoreButton
   || !cloudSaveSyncButton || !cloudSavePullButton || !cloudSaveReplaceButton
   || !cloudSaveCopyButton || !cloudSaveDisconnectButton || !cloudSaveDeleteButton
   || !cloudSaveResult
   || !creditsPanel || !creditsCopyright || !privacyPanel || !noticesPanel
+  || !accessibilityPanel || !releaseInfoPanel || !releaseSupportLink
   || !menuButton || !pausePanel || !resumeButton || !pauseAvatarButton || !pauseSettingsButton
   || !returnTitleButton || !pauseGrownUpsButton || !pauseCreditsButton
   || !exitFullscreenButton || !saveStatus || !pauseSaveStatus
@@ -306,6 +322,8 @@ const releasePanels = [
   parentPanel,
   creditsPanel,
   privacyPanel,
+  accessibilityPanel,
+  releaseInfoPanel,
   noticesPanel,
 ] as const;
 
@@ -639,6 +657,12 @@ const uiPreferences = loadPlayerSettings();
 const livingPreferences = loadLivingSettings();
 const accessibilityPreferences = loadAccessibilitySettings();
 const releasePreferences = loadReleaseSettings();
+if (
+  !releasePreferences.firstLaunchComplete
+  && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+) {
+  accessibilityPreferences.reducedMotion = true;
+}
 const gameAudio = new GameAudio(uiPreferences.sound, uiPreferences.music);
 let atTitleScreen = true;
 let gamePaused = false;
@@ -680,6 +704,13 @@ const skipOnboarding = (): void => {
 titleVersion.textContent = `Version ${RELEASE.version}`;
 creditsCopyright.textContent = RELEASE.copyright;
 for (const label of releaseVersionLabels) label.textContent = RELEASE.version;
+for (const label of releaseBuildLabels) label.textContent = RELEASE.build;
+for (const label of releaseChannelLabels) label.textContent = RELEASE.channel;
+for (const label of privacyVersionLabels) label.textContent = RELEASE.privacyDocumentVersion;
+for (const label of privacyDateLabels) label.textContent = RELEASE.privacyEffectiveDate;
+for (const label of accessibilityVersionLabels) label.textContent = RELEASE.accessibilityDocumentVersion;
+for (const label of accessibilityDateLabels) label.textContent = RELEASE.accessibilityReviewedDate;
+releaseSupportLink.href = RELEASE.supportUrl;
 const worldExistsAtStartup = hasExistingWorld();
 continueButton.disabled = !worldExistsAtStartup;
 continueButton.title = continueButton.disabled ? "Start a new world first" : "";
@@ -1455,6 +1486,8 @@ newWorldButton.addEventListener("click", () => {
 });
 grownUpsButton.addEventListener("click", () => openParentGate());
 titleCreditsButton.addEventListener("click", () => openReleasePanel(creditsPanel));
+titlePrivacyButton.addEventListener("click", () => openReleasePanel(privacyPanel));
+titleAccessibilityButton.addEventListener("click", () => openReleasePanel(accessibilityPanel));
 titleSettingsButton.addEventListener("click", () => {
   enterGame();
   openPopover(settingsPanel, settingsButton);
@@ -1674,6 +1707,8 @@ importSaveInput.addEventListener("change", async () => {
   if (result.accepted) window.setTimeout(() => window.location.reload(), 500);
 });
 parentPrivacyButton.addEventListener("click", () => openReleasePanel(privacyPanel));
+parentAccessibilityButton.addEventListener("click", () => openReleasePanel(accessibilityPanel));
+parentReleaseButton.addEventListener("click", () => openReleasePanel(releaseInfoPanel));
 parentNoticesButton.addEventListener("click", () => openReleasePanel(noticesPanel));
 parentCreditsButton.addEventListener("click", () => openReleasePanel(creditsPanel));
 parentResetButton.addEventListener("click", () => {

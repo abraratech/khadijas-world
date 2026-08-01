@@ -53,14 +53,13 @@ meshes cannot appear outside the playable room frame. See
 
 ## Current release
 
-**Public Version 0.1.18 — ART.1K-A Selective Interior Furniture**
+**Version 0.25.0 — RELEASE.1 production readiness**
 
-Repository package version: 0.24.0
+Repository package version: 0.25.0
 
-High graphics selectively activates approved Quaternius furniture shells in the
-home kitchen, bedroom, Sunny Café, and grocery. Existing procedural geometry
-continues to own interactions, seats, storage, collisions, placement, saves, and
-Low-quality fallback. Review-only GLBs are packaged but never loaded.
+RELEASE.1 adds public privacy and accessibility information, mobile and compact-landscape review coverage, production metadata, security headers, and a deterministic release audit. PWA, AI chat, and encrypted cloud-save behavior remain grown-up controlled where applicable.
+
+See `RELEASE_CHECKLIST.md`, `MOBILE_TEST_MATRIX.md`, `PRIVACY.md`, and `ACCESSIBILITY.md`.
 
 ## Run locally
 
@@ -71,6 +70,15 @@ npm run dev
 ```
 
 Open the Vite address shown in PowerShell, normally `http://localhost:5173`.
+
+## Release validation
+
+```powershell
+npm run release:verified
+npm run release:mobile
+```
+
+The browser mobile suite is intentionally separate from the deterministic production gate so a local WebGL or emulator problem cannot silently replace the required physical-device checks.
 
 ## Deploy through WAMP
 
