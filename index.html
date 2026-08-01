@@ -5,10 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#7447b8" />
     <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Khadija's World" />
     <meta property="og:title" content="Khadija's World" />
     <meta property="og:description" content="A family-friendly open-ended play world for everyday stories." />
     <meta property="og:type" content="website" />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" sizes="180x180" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <meta
       name="description"
@@ -616,6 +620,22 @@
           ><span></span></button>
         </div>
 
+        <section class="pwa-card" aria-labelledby="pwa-heading">
+          <div class="pwa-heading-row">
+            <span class="pwa-icon" aria-hidden="true">&#128241;</span>
+            <span>
+              <strong id="pwa-heading">Play anywhere</strong>
+              <small id="pwa-connection-status">Checking connection…</small>
+            </span>
+          </div>
+          <p>Install the game and save a full offline copy of the neighborhood on this device.</p>
+          <div class="pwa-actions">
+            <button id="pwa-install-button" class="title-primary" type="button" hidden>Install game</button>
+            <button id="pwa-cache-button" type="button" disabled>Download offline world</button>
+          </div>
+          <output id="pwa-cache-status" role="status" aria-live="polite">Preparing offline support…</output>
+        </section>
+
         <fieldset class="graphics-setting">
           <legend><span aria-hidden="true">&#10024;</span> Picture detail</legend>
           <div class="quality-options">
@@ -776,6 +796,17 @@
       </div>
 
       <output id="save-status" class="save-status" role="status" aria-live="polite" aria-atomic="true"></output>
+      <output id="network-status" class="network-status" role="status" aria-live="polite" hidden></output>
+
+      <section id="pwa-update-panel" class="pwa-update-panel" role="status" aria-live="polite" hidden>
+        <span aria-hidden="true">&#10024;</span>
+        <span>
+          <strong>A fresh neighborhood is ready</strong>
+          <small>Update now to use the newest version.</small>
+        </span>
+        <button id="pwa-update-button" type="button">Update now</button>
+        <button id="pwa-update-dismiss-button" class="pwa-update-dismiss" type="button" aria-label="Dismiss update">Later</button>
+      </section>
 
       <section id="pause-panel" class="release-modal" role="dialog" aria-modal="true" aria-labelledby="pause-heading" hidden>
         <div class="release-card">

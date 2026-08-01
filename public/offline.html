@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#7447b8" />
+    <title>Khadija's World · Offline</title>
+    <style>
+      :root { font-family: ui-rounded, "Arial Rounded MT Bold", system-ui, sans-serif; color: #4b2d68; background: #c8f0f4; }
+      * { box-sizing: border-box; }
+      body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at 20% 15%, #fff8d7, transparent 38%), linear-gradient(145deg, #c8f0f4, #f6d8ee); }
+      main { width: min(520px, 100%); padding: 30px; border: 4px solid rgba(255,255,255,.86); border-radius: 32px; background: rgba(255,255,255,.9); box-shadow: 0 24px 70px rgba(75,45,104,.2); text-align: center; }
+      img { width: 118px; height: 118px; }
+      h1 { margin: 14px 0 8px; font-size: clamp(1.7rem, 8vw, 2.8rem); }
+      p { margin: 0 auto 20px; max-width: 36ch; font-weight: 750; line-height: 1.55; }
+      button { min-height: 48px; padding: 11px 22px; border: 0; border-radius: 999px; color: white; background: #7447b8; font: inherit; font-weight: 950; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="./icons/icon-192.png" alt="" />
+      <h1>The neighborhood is offline</h1>
+      <p>The full offline copy has not finished downloading on this device. Connect once, open Settings, and choose <strong>Download offline world</strong>.</p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+  </body>
+</html>

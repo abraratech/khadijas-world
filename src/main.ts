@@ -1,5 +1,6 @@
 import { Engine } from "@babylonjs/core";
 import "./styles.css";
+import "./pwa";
 import {
   createPrototypeRoom,
   type InteractionSound,
@@ -2060,24 +2061,41 @@ window.addEventListener("keydown", (event) => {
 
 let displayPaused = false;
 let firstFrameShown = false;
+
+const revealReadyTitle = (): void => {
+  if (firstFrameShown) return;
+  firstFrameShown = true;
+  loadingScreen.classList.add("is-ready");
+  window.setTimeout(() => {
+    loadingScreen.hidden = true;
+    syncFocusIsolation();
+    if (atTitleScreen && (!activeElement() || activeElement() === document.body)) {
+      focusFirstWithin(titleScreen, continueButton.disabled ? newWorldButton : continueButton);
+    }
+  }, accessibilityPreferences.reducedMotion ? 0 : 400);
+};
+
+const renderGameFrame = (): void => {
+  room.scene.render();
+  revealReadyTitle();
+};
+
+// Chromium can suspend requestAnimationFrame briefly while an offline navigation
+// settles. Render one verified frame immediately so the cached title screen
+// never remains trapped behind the loading overlay.
+try {
+  renderGameFrame();
+} catch (error) {
+  console.warn("[PWA.1] Initial frame will retry in the render loop.", error);
+}
+
 engine.runRenderLoop(() => {
   if (
     displayPaused
     || document.hidden
     || ((gamePaused || atTitleScreen) && firstFrameShown)
   ) return;
-  room.scene.render();
-  if (!firstFrameShown) {
-    firstFrameShown = true;
-    loadingScreen.classList.add("is-ready");
-    window.setTimeout(() => {
-      loadingScreen.hidden = true;
-      syncFocusIsolation();
-      if (atTitleScreen && (!activeElement() || activeElement() === document.body)) {
-        focusFirstWithin(titleScreen, continueButton.disabled ? newWorldButton : continueButton);
-      }
-    }, accessibilityPreferences.reducedMotion ? 0 : 400);
-  }
+  renderGameFrame();
 });
 
 canvas.addEventListener("webglcontextlost", (event) => {

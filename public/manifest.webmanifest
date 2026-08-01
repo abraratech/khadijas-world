@@ -1,18 +1,62 @@
 {
+  "id": "./",
   "name": "Khadija's World",
-  "short_name": "Khadija's World",
+  "short_name": "Khadija",
   "description": "A family-friendly open-ended play world for everyday stories.",
-  "start_url": "./",
+  "start_url": "./?source=pwa",
   "scope": "./",
   "display": "standalone",
+  "orientation": "any",
   "theme_color": "#7447b8",
   "background_color": "#c8f0f4",
+  "categories": ["games", "family", "kids"],
+  "lang": "en",
+  "dir": "ltr",
   "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
     {
       "src": "./app-icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Continue playing",
+      "short_name": "Continue",
+      "description": "Open Khadija's World and continue the saved world.",
+      "url": "./?source=shortcut",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }
